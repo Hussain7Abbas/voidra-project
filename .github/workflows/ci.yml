@@ -37,7 +37,17 @@ jobs:
           pnpm --version
       - name: Install frozen workspace
         run: pnpm install --frozen-lockfile
+      - name: Rebuild native modules for Electron
+        run: make native
       - name: Run quality checks
         run: make check
-      - name: Build format package and tooling
+      - name: Build workspaces and desktop
         run: make build
+      - name: Run Electron workflows and accessibility
+        run: make e2e
+      - name: Package unsigned arm64 app
+        run: make package-dir
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Smoke test packaged app
+        run: make smoke-packaged

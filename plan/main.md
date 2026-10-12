@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00 and P01 are Done; P02 is next. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00 and P01 are Done; P02 is In progress. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -15,7 +15,7 @@ You never paste anything. Open Claude Code or Codex in this folder and say **"ru
 
 1. pick the phase (the one in progress, otherwise the first one whose needs are Done);
 2. read the vision, this plan, the phase file and the evidence of the phases it needs;
-3. show you an understanding check (stories, files, testing seams, risks and questions) and wait for your go-ahead;
+3. show an understanding check; wait for your go-ahead unless you have explicitly authorized all phases non-stop (D23);
 4. implement story by story, tests first, with `make check` after each story;
 5. do every step itself, including all GitHub work with `gh` and the real-agent checks, run headlessly with low-cost models;
 6. write the evidence file, update this table, commit and push, then tell you what's next.
@@ -30,7 +30,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | --- | --- | --- | --- | --- | --- | --- |
 | P00 | [Repository foundation](phase-00-repository-foundation.md) | Public repo, tooling, standards, CI | — | M1 | Done (2026-10-12) | [p00](../docs/verification/p00.md) |
 | P01 | [Format and the `voidra` package](phase-01-format-and-voidra-package.md) | One package that defines, reads, writes and checks `.voidra/` | P00 | M1 | Done (2026-10-13) | [Evidence](../docs/verification/p01.md) |
-| P02 | [Desktop shell and design system](phase-02-desktop-shell-and-design-system.md) | Secure Electron app, Ink & Iris UI, project windows, packaging smoke | P00 | M1 | Not started | — |
+| P02 | [Desktop shell and design system](phase-02-desktop-shell-and-design-system.md) | Secure Electron app, Ink & Iris UI, project windows, packaging smoke | P00 | M1 | In progress | — |
 | P03 | [Tracer bullet](phase-03-tracer-bullet.md) | One action from the app through `/voidra-go` and back | P01, P02 | M1 | Not started | — |
 | P04 | [Onboarding, profile and `voidra-init`](phase-04-onboarding-profile-and-init.md) | Both ways in; editable profile | P03 | M2 | Not started | — |
 | P05 | [The general template](phase-05-general-template.md) | Profile questions and architecture skill, approved by you | P04 | M2 | Not started | — |
@@ -86,6 +86,8 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | D20 | Incorporate all nine review findings into the existing phases, with observable acceptance criteria and tests. This is a plan correction, not permission to start an implementation phase or a claim that checks have run. | You, 2026-10-12 (question 1a) |
 | D21 | Any content change to requirements, blueprint or acceptance criteria invalidates plan approval, including formatting-only edits. Record and compare exact file-content hashes; require approval again. | You, 2026-10-12 (question 2a) |
 | D22 | `voidra-plan` may update the repository-root `GLOSSARY.md` during Discovery as well as `.voidra/`. It changes no source code or other repository files and makes no commits or tags. | You, 2026-10-12 (question 3b) |
+
+| D23 | Continue through all remaining phases non-stop. Report understanding/progress in commentary without repeating generic phase approvals; retain explicitly named product review gates and account actions requiring the user. | You, 2026-10-13 |
 
 ### Open
 

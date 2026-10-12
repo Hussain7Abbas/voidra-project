@@ -146,6 +146,8 @@ describe("repository scanning and CLI", () => {
     const folder = await fixture({
       "src/a.ts": "// @deprecated remove-after: 2027-01-01",
       "src/b.js": "export const current = 1;",
+      "src/out/production.ts": "export const generatedResult = 1;",
+      "src/release/production.ts": "export const release = 1;",
       "src/old.test.ts": "// @deprecated",
       "src/types.d.ts": "// @deprecated",
       "src/types.d.mts": "// @deprecated",
@@ -156,11 +158,14 @@ describe("repository scanning and CLI", () => {
       ".cache/example.ts": "// @deprecated",
       "coverage/example.ts": "// @deprecated",
       "dist/example.ts": "// @deprecated",
+      "apps/desktop/.next/types/app.ts": "// @deprecated",
+      "apps/desktop/out/app.js": "// @deprecated",
+      "apps/desktop/release/main.js": "// @deprecated",
       "README.md": "@deprecated",
     });
     await symlink(join(folder, "src"), join(folder, "linked-src"), "dir");
     const result = await scanDeprecations(folder, today);
-    expect(result.files).toBe(2);
+    expect(result.files).toBe(4);
     expect(result.errors).toEqual([]);
     expect(result.markers.map(({ file }) => file)).toEqual(["src/a.ts"]);
   });

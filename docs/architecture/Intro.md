@@ -7,3 +7,5 @@
 - [Planned runtime architecture](../../plan/main.md#architecture-overview): proposed app, service, format package and skills, to be built in later phases.
 
 P16 adds the v2 design documents after the v1 core is built. No v2 directory or placeholder documents are created yet.
+
+- [Desktop](desktop.md): secure static renderer, windows, bridge and project services.

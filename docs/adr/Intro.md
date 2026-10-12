@@ -10,3 +10,7 @@ These records describe confirmed project decisions, not completed runtime featur
 - [Real-agent checks outside CI](2026-10-12-agent-checks.md) — D06 and D17.
 
 - [Markdown records](2026-10-13-markdown-records.md) — P01 format storage contract.
+
+- [Utility project process](2026-10-13-utility-process.md)
+- [Storylens design port](2026-10-13-storylens-design-port.md)
+- [Bridge query cache](2026-10-13-bridge-query-cache.md)

@@ -1,9 +1,10 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; the desktop shell arrives in P02.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 implements the desktop shell.
 
 ## Structure and shared rules
 
+- `apps/desktop/`: secure Electron shell, static Next renderer, bridge, utility services and native/e2e/package tests; follow its [local instructions](apps/desktop/AGENTS.md).
 - `packages/voidra/`: shared format, lifecycles, CLI, safe writes, fixtures and schema generation; follow its [local instructions](packages/voidra/AGENTS.md).
 - `fixtures/`: committed validation catalog; large output is generated into temporary folders.
 - `skills/shared/references/`: generated format reference only; executable skills begin in P03.
@@ -23,15 +24,19 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 
 | Command | Purpose |
 | --- | --- |
-| `make setup` / `make install` | Install with the frozen pnpm lockfile; no environment file is required in P00 |
+| `make setup` / `make install` | Frozen install; setup also rebuilds SQLite for Electron |
 | `make help` | List the real commands |
 | `make check` | Lint, strict typecheck, coverage tests, deprecations and generated-reference check |
 | `make format` | Apply Biome formatting and safe fixes |
-| `make build` | Compile tooling and the format package into ignored output |
+| `make build` | Compile tooling, format package and desktop into ignored output |
 | `make test` / `make test-watch` | Run coverage-gated tests / watch tests |
 | `make deprecations` | List markers and fail on invalid deadlines or an empty scan |
 | `make gen` / `make gen-check` | Generate format references / reject stale output |
-| `make clean` | Remove typecheck output and coverage reports |
+| `make dev` | Build and open the desktop app |
+| `make native` | Rebuild native modules for Electron |
+| `make e2e` | Electron workflow and accessibility checks |
+| `make package-dir` / `make smoke-packaged` | Package unsigned arm64 app / verify startup and SQLite |
+| `make clean` | Remove build, package, test and coverage output |
 
 ## Working with the user
 
@@ -49,7 +54,7 @@ When the user asks to run the next phase, to continue, or to run a specific phas
 
 1. **Pick the phase.** "Next" means the phase marked **In progress** in `plan/main.md`; otherwise the first **Not started** phase whose needs are all **Done**. If no phase can start, say why and stop.
 2. **Read** this file, `VISION.md`, `plan/main.md`, `plan/AGENTS.md`, the phase file, and the evidence files (`docs/verification/`) of the phases it needs.
-3. **Check your understanding.** Reply with the stories you will implement, the files you expect to create or change, the testing seams you will test at, any risks or contradictions, and your questions. Then stop and wait for the user's go-ahead.
+3. **Check your understanding.** Reply with the stories you will implement, the files you expect to create or change, the testing seams you will test at, any risks or contradictions, and your questions. Then stop and wait for the user's go-ahead, unless the user has explicitly authorized continuing through all phases. Under that authorization, report each phase's understanding in commentary and continue; still stop for the named product approvals and account actions that require the user.
 4. **Implement.** Set the phase to **In progress** in `plan/main.md`. Work story by story, writing tests at the agreed seams first. Once P00 has created the Makefile, run `make check` after each story.
 5. **Do every step yourself.** That includes all GitHub work with the `gh` CLI and the real-agent checks described below. Ask the user only for decisions, for the approvals the phase names, and for anything that needs their accounts. Never ask the user to copy or paste anything.
 6. **Finish.** When every exit criterion is met:

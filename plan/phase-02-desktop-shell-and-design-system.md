@@ -57,6 +57,7 @@ Reading `.voidra/` contents (P03), onboarding (P04), the DMG and updates (P15).
 | P02-05 | Base components and app shell | 5 | P02-04 | Every listed component exists, works by keyboard and passes axe in both themes. |
 | P02-06 | Windows, recent projects and the switcher | 5 | P02-03 | Opening, focusing and opening a new window behave like Obsidian's vault switcher. A missing folder can be located again or removed. |
 | P02-07 | End-to-end harness | 3 | P02-05 | Playwright launches the built app with temporary folders. Axe runs on every screen in both themes. CI runs it. |
+| P02-09 | Build-output discovery follow-up | 2 | P02-01 | The deprecation scanner skips Next/Electron artifacts while still scanning real production sources; a real-folder test proves it. |
 | P02-08 | Packaging smoke test | 3 | P02-03 | The arm64 `--dir` package starts, and `better-sqlite3` loads inside the packaged app. CI runs it. |
 
 ## Tests

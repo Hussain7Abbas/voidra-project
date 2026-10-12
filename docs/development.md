@@ -4,11 +4,11 @@
 
 ## Setup and commands
 
-Use Node **24.13.0** (`.node-version` / `.nvmrc`) and pnpm **10.30.3** (`packageManager` in `package.json`). Node's major matches Electron **44.7.0**, whose release metadata lists Node 24. Electron is a P02 dependency, not installed by P00. Its native modules still need Electron rebuilding and a packaged smoke test.
+Use Node **24.13.0** (`.node-version` / `.nvmrc`) and pnpm **10.30.3** (`packageManager` in `package.json`). Node's major matches Electron **44.7.0**, whose release metadata lists Node 24. The desktop installs Electron; its packaged runtime is Node 24.21.0, ABI 149. Native modules need Electron rebuilding even though the Node majors match.
 
-Run `make setup`, then `make check`. `make help` lists supported commands. The Makefile resolves its own root, so `make -f /absolute/path/to/voidra-project/Makefile check` also works from elsewhere. P00 has no environment-file consumer, dev server, desktop start command or deployment target; those commands are added when the corresponding capability exists.
+Run `make setup`, then `make check`. `make help` lists supported commands. The Makefile resolves its own root, so `make -f /absolute/path/to/voidra-project/Makefile check` also works from elsewhere. The desktop uses a static renderer with no server port; `make dev` starts the app.
 
-`make check` runs Biome, `tsc -b`, Vitest with V8 coverage, the deprecation scanner and the generated-reference check. `make build` compiles tooling into `.cache/typecheck/` and the npm package into `packages/voidra/dist/`; `make clean` removes that output and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
+`make check` runs Biome, strict workspace/renderer typechecking, Vitest with V8 coverage, the deprecation scanner and the generated-reference check. `make build` compiles tooling, the npm package and desktop renderer/process bundles; `make clean` removes that output, desktop packaging/test artifacts and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
 
 ## Version pins
 
@@ -21,13 +21,13 @@ Run `make setup`, then `make check`. `make help` lists supported commands. The M
 | Biome | 2.5.15 |
 | Node types | 24.19.2 |
 
-TypeScript 6 supplies the stable compiler/parser API used by the scanner. TypeScript 7.0.2 was evaluated but exposes its programmatic API under unstable entry points, so it is not used here. Update exact pins and the lockfile together, then run the complete checks. Verify the Node major against the selected Electron release when P02 starts.
+TypeScript 6 supplies the stable compiler/parser API used by the scanner. TypeScript 7.0.2 was evaluated but exposes its programmatic API under unstable entry points, so it is not used here. Update exact pins and the lockfile together, then run the complete checks. Verify the Node major and native ABI when updating Electron.
 
 Sources: [Electron releases](https://releases.electronjs.org/), [TypeScript compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API), [Vitest coverage](https://vitest.dev/config/coverage), and [Biome configuration](https://biomejs.dev/reference/configuration/).
 
 ## Testing seams and coverage
 
-The workspace members are `tools/standards` and `packages/voidra`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
+The workspace members are `tools/standards`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
 
 | Scope | Minimum line coverage |
 | --- | --- |
@@ -37,17 +37,17 @@ The workspace members are `tools/standards` and `packages/voidra`. The standards
 | `tools/*/src/**` | 90% |
 | UI components | No percentage target |
 
-V8 includes unimported production files, so uncovered new code contributes to the gates. The coverage policy has no global percentage target that would accidentally impose one on UI components. Keep test locations under each workspace's `tests/` directory. P02 adds Electron end-to-end testing; real-agent checks remain local and begin in P03.
+V8 includes unimported production files, so uncovered new code contributes to the gates. The coverage policy has no global percentage target that would accidentally impose one on UI components. Keep test locations under each workspace's `tests/` directory. Electron end-to-end testing runs separately with `make e2e`; real-agent checks remain local and begin in P03.
 
 ## Deprecation scan
 
 `make deprecations` scans JavaScript and TypeScript source comments. The CLI also accepts `--root`, `--today YYYY-MM-DD`, `--json` and `--help`. Exit codes are 0 for a passing scan (including warnings), 1 for invalid/expired/undated markers, no scanned files or an I/O error, and 2 for bad arguments.
 
-Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test directories, fixtures, `*.test.*`, `*.spec.*`, declaration files and symlinks. Markdown examples and strings/template literals are not comment markers. A source file with no deprecated fields passes; a source file list of zero does not. See [compatibility](compatibility.md) for the marker contract and UTC deadline semantics.
+Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test directories, fixtures, `*.test.*`, `*.spec.*`, declaration files and symlinks. Next output, e2e artifacts and desktop export/package paths are also excluded; ordinary production out/release directories remain scanned. Markdown examples and strings/template literals are not comment markers. A source file with no deprecated fields passes; a source file list of zero does not. See [compatibility](compatibility.md) for the marker contract and UTC deadline semantics.
 
 ## CI
 
-The macOS workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. CI also builds the package. Electron end-to-end jobs are added in P02 when their harness exists.
+The macOS workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. CI also builds the package. Electron workflows, accessibility checks and an unsigned arm64 packaging/startup smoke run in CI.
 
 ## Format package development
 
@@ -56,3 +56,11 @@ The macOS workflow installs the pinned toolchain with a frozen lockfile and runs
 `pnpm fixtures` deliberately rebuilds the committed catalog and its expected diagnostics. Review changed expectations. The `empty-folder` catalog entry has no project files; its test creates a truly empty directory. `new-project` contains minimal valid format data until P05 creates the real general-template output. `pnpm fixture:large /absolute/temporary/output` generates 1,000 actions; keep the output outside the repository. Local records in fixtures are explicitly tracked despite each fixture's `local/` ignore rule.
 
 The format package uses zod 4.6.7 and yaml 2.9.1. See the [API contract](format/api.md), [CLI](format/cli.md) and [P01 evidence](verification/p01.md). Package publication is an authenticated local operation after checks and CI, never an automatic CI side effect.
+
+## Desktop development
+
+`make setup` includes `make native`; SQLite must match Electron 44.7.0's ABI. `make dev` builds and opens the static exported renderer under the app protocol. `make check` generates Next route types before strict checking, builds native bundles and collects real Electron V8 coverage. `make e2e` checks the built app, keyboard workflows and axe in light/dark themes. `make package-dir` creates the unsigned Apple Silicon app directory; `make smoke-packaged` starts it with temporary app data and a real project utility process/SQLite connection. No server port is used.
+
+Frontend build pins: Next 16.4.0, React 19.3.0, Tailwind/PostCSS 4.3.3, Inter Variable 5.3.0, Lucide 1.55.0, TanStack Query 5.104.2. Native/build pins: better-sqlite3 13.0.3, electron-builder 26.15.3, esbuild 0.28.2. Playwright is 1.64.0 and axe integration 4.13.0. Frontend dependencies are bundled build inputs, not unused runtime servers in the app.
+
+The scanner excludes `.next`, e2e/results directories, and the desktop's exported/packaged output paths. Real source directories named out/release elsewhere remain scanned. Native tests selectively collect source-mapped Electron subprocess coverage; direct Node TS stripping has incompatible V8 offsets and remains covered at parent/API seams. UI has no line percentage requirement. Only OS chooser results are substituted in e2e tests.

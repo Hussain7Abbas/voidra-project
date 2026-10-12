@@ -7,7 +7,7 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: help \
         install setup \
-        build \
+        build dev native e2e package-dir smoke-packaged \
         lint format typecheck deprecations check clean \
         test test-watch gen gen-check
 
@@ -19,8 +19,8 @@ install: # Install pinned workspace dependencies
 	@cd "$(ROOT)" && pnpm install --frozen-lockfile
 
 setup: # Install dependencies and show next steps
-	@$(MAKE) install
-	@printf 'Next: make check. Desktop development arrives in P02.\n'
+	@$(MAKE) install native
+	@printf 'Next: make check, then make dev.\n'
 
 # ── App ──────────────────────────────────────────────────────────────
 build: # Compile tooling and the format package
@@ -43,7 +43,7 @@ check: # Run lint, typecheck, tests, deprecations and generated reference check
 	@$(MAKE) lint typecheck test deprecations gen-check
 
 clean: # Remove generated typecheck output and coverage reports
-	@cd "$(ROOT)" && rm -rf .cache/typecheck coverage packages/voidra/dist packages/voidra/tsconfig.tsbuildinfo
+	@cd "$(ROOT)" && rm -rf .cache/typecheck coverage packages/voidra/dist packages/voidra/tsconfig.tsbuildinfo apps/desktop/dist apps/desktop/out apps/desktop/.next apps/desktop/release apps/desktop/test-results
 
 # ── Test ─────────────────────────────────────────────────────────────
 test: # Run unit and integration tests with coverage gates
@@ -57,3 +57,18 @@ gen: # Generate format schemas and shared references
 
 gen-check: # Reject stale generated format references
 	@cd "$(ROOT)" && pnpm gen:check
+
+dev: # Build and open the desktop app
+	@cd "$(ROOT)" && pnpm dev
+
+native: # Rebuild SQLite for Electron's ABI
+	@cd "$(ROOT)" && pnpm native
+
+e2e: # Run Electron accessibility and workflow tests
+	@cd "$(ROOT)" && pnpm e2e
+
+package-dir: # Package the unsigned arm64 app directory
+	@cd "$(ROOT)" && pnpm package:dir
+
+smoke-packaged: # Start the packaged app and verify native SQLite
+	@cd "$(ROOT)" && pnpm smoke:packaged

@@ -31,6 +31,10 @@ const ignoredDirectories = new Set([
   ".git",
   "node_modules",
   ".cache",
+  ".next",
+  "e2e",
+  "test-results",
+  "playwright-report",
   "coverage",
   "dist",
   "tests",
@@ -145,7 +149,14 @@ export async function scanDeprecations(
     );
     for (const entry of entries) {
       const path = join(folder, entry.name);
-      if (entry.isDirectory() && !ignoredDirectories.has(entry.name))
+      const relativePath = relative(directory, path).split(sep).join("/");
+      const generatedDesktopOutput =
+        /^apps\/desktop\/(?:out|release)(?:\/|$)/.test(relativePath);
+      if (
+        entry.isDirectory() &&
+        !ignoredDirectories.has(entry.name) &&
+        !generatedDesktopOutput
+      )
         await visit(path);
       else if (
         entry.isFile() &&

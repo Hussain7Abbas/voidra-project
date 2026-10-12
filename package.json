@@ -12,15 +12,20 @@
   "scripts": {
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "tsc -b",
-    "build": "tsc -b tsconfig.json packages/voidra/tsconfig.json",
-    "test": "pnpm --filter voidra build && vitest run --coverage",
+    "typecheck": "tsc -b && pnpm --filter voidra-project exec next typegen && tsc -p apps/desktop/tsconfig.json",
+    "build": "tsc -b tsconfig.json packages/voidra/tsconfig.json && pnpm --filter voidra-project build",
+    "test": "pnpm --filter voidra build && pnpm --filter voidra-project build && vitest run --coverage",
     "test:watch": "vitest",
     "deprecations": "node tools/standards/src/deprecations-cli.ts",
     "gen": "node packages/voidra/scripts/generate.ts",
     "gen:check": "node packages/voidra/scripts/generate.ts --check",
     "fixtures": "node packages/voidra/scripts/fixtures.ts",
-    "fixture:large": "node packages/voidra/scripts/fixtures.ts --large"
+    "fixture:large": "node packages/voidra/scripts/fixtures.ts --large",
+    "dev": "pnpm --filter voidra-project dev",
+    "native": "pnpm --filter voidra-project native",
+    "e2e": "pnpm --filter voidra-project e2e",
+    "package:dir": "pnpm --filter voidra-project package:dir",
+    "smoke:packaged": "pnpm --filter voidra-project smoke:packaged"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
