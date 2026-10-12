@@ -43,7 +43,7 @@ check: # Run lint, typecheck, tests, deprecations and generated reference check
 	@$(MAKE) lint typecheck test deprecations gen-check
 
 clean: # Remove generated typecheck output and coverage reports
-	@cd "$(ROOT)" && rm -rf .cache/typecheck coverage packages/voidra/dist
+	@cd "$(ROOT)" && rm -rf .cache/typecheck coverage packages/voidra/dist packages/voidra/tsconfig.tsbuildinfo
 
 # ── Test ─────────────────────────────────────────────────────────────
 test: # Run unit and integration tests with coverage gates

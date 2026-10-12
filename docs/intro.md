@@ -2,7 +2,7 @@
 
 Voidra is an open-source desktop app for planning and tracking projects built with AI coding agents. Its [vision](../VISION.md) defines the product, the [implementation plan](../plan/main.md) tracks delivery, and the [root instructions](../AGENTS.md) define the development workflow.
 
-P00 supplies repository tooling and policies. P01 implements the format package and CLI; publication status is recorded in its evidence. The desktop app and executable agent skills arrive in later phases.
+P00 supplies repository tooling and policies. P01 publishes the format package and CLI; validation and publication are recorded in its evidence. The desktop app and executable agent skills arrive in later phases.
 
 - [Development](development.md): setup, commands, pins, coverage and the scanner.
 - [Format specification](format/Intro.md): record types, versions, file I/O and CLI contract.
