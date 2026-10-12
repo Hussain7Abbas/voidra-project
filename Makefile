@@ -23,7 +23,7 @@ setup: # Install dependencies and show next steps
 	@printf 'Next: make check, then make dev.\n'
 
 # ── App ──────────────────────────────────────────────────────────────
-build: # Compile tooling and the format package
+build: # Compile tooling, format package and desktop
 	@cd "$(ROOT)" && pnpm build
 
 # ── Quality ──────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ deprecations: # List deprecations and reject invalid deadlines
 check: # Run lint, typecheck, tests, deprecations and generated reference check
 	@$(MAKE) lint typecheck test deprecations gen-check
 
-clean: # Remove generated typecheck output and coverage reports
+clean: # Remove build, package, test and coverage output
 	@cd "$(ROOT)" && rm -rf .cache/typecheck coverage packages/voidra/dist packages/voidra/tsconfig.tsbuildinfo apps/desktop/dist apps/desktop/out apps/desktop/.next apps/desktop/release apps/desktop/test-results
 
 # ── Test ─────────────────────────────────────────────────────────────
