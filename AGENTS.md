@@ -1,6 +1,32 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) is the implementation plan and tracks progress. Phase P00 extends this file with the project's structure, rules and commands; keep the two sections below when it does.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. The current implementation is the P00 repository tooling; the format package and desktop app arrive in P01 and P02.
+
+## Structure and shared rules
+
+- `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
+- `docs/`: development, compatibility, architecture, ADRs and verification evidence. Start at [the index](docs/intro.md).
+- `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
+- Root config: pinned pnpm and Node, strict TypeScript, Biome, Vitest and the Makefile. Native Electron modules still require Electron-specific rebuilding in P02; matching Node major versions alone is insufficient.
+- Future `apps/`, `packages/`, `skills/`, `templates/` and `fixtures/` directories are created when their phases give them real content. Do not add placeholders or implement later-phase scope early.
+- Use ESM TypeScript with erasable syntax, explicit types at public boundaries, and explicit `.ts` extensions for local source imports. TypeScript rewrites those extensions in generated output. Naming and formatting follow Biome and `tsconfig.base.json`; do not add parallel formatting rules.
+- Put tests under the owning workspace's `tests/` directory and check behavior at public boundaries. Use real temporary files and git; mock only external services, time and randomness. Keep temporary projects and generated files out of commits.
+- Preserve the AGPL-3.0-or-later license and existing instruction sections. GitHub work uses the Hussain7Abbas account's existing authentication without changing the active `gh` account; this repository uses HTTPS after the approved SSH fallback.
+
+## Commands
+
+Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package.json`. See [development](docs/development.md) for pins, coverage and exclusions.
+
+| Command | Purpose |
+| --- | --- |
+| `make setup` / `make install` | Install with the frozen pnpm lockfile; no environment file is required in P00 |
+| `make help` | List the real commands |
+| `make check` | Lint, strict typecheck, coverage tests and production-source deprecation scan |
+| `make format` | Apply Biome formatting and safe fixes |
+| `make build` | Compile current tooling into ignored `.cache/typecheck/` |
+| `make test` / `make test-watch` | Run coverage-gated tests / watch tests |
+| `make deprecations` | List markers and fail on invalid deadlines or an empty scan |
+| `make clean` | Remove typecheck output and coverage reports |
 
 ## Working with the user
 
@@ -10,7 +36,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 
 ## Documentation maintenance
 
-The current project contains the vision, license, instruction files and `plan/`; application code, tooling and `docs/` arrive in P00 and later phases. Keep the [plan rules](plan/AGENTS.md), phase index and affected phase documents synchronized with user-requested changes. Before finishing a task, update any affected instructions and documentation in the same task, preserve unrelated user edits, and repair links. Once `docs/` exists, include its affected pages and indexes in this review. Keep every `CLAUDE.md` containing only `@AGENTS.md` with a trailing newline. Do not create empty documentation or application placeholders ahead of their phase.
+As part of every task, keep project instructions and documentation synchronized with user-requested changes and relevant changes already made by the user. Before finishing, review the affected `AGENTS.md` files and `docs/` pages and update any rules, directory descriptions, code conventions, commands, architecture, interfaces, configuration or behavior that changed. Add, move or remove scoped instructions and documentation when scopes change, and repair their indexes and links. Update affected documentation in the same task as code changes; do not leave stale guidance. Preserve unrelated user edits and document the intended state without reverting code to match old documentation. If a change has no documentation or instruction impact, leave those files unchanged. Keep every `CLAUDE.md` containing only `@AGENTS.md` with a trailing newline, with the rules in its sibling `AGENTS.md`. Do not create empty documentation or application placeholders ahead of their phase.
 
 ## Running plan phases
 

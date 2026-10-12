@@ -1,0 +1,39 @@
+# `.voidra/` compatibility policy
+
+[Documentation index](intro.md) · [Development](development.md) · [Format phase](../plan/phase-01-format-and-voidra-package.md)
+
+This is the policy P01 must implement, not a claim that the format package or migrations already exist. P00 implements its deprecation enforcement. The self-contained five-part contract is used because the optional `api-backward-compatibility` reference skill is unavailable.
+
+## 1. Additive format changes
+
+Add optional fields or new record files before removing anything. Readers ignore unknown fields; writers preserve them and unchanged bytes. Existing required fields, meanings and valid values cannot change silently. Record the change in the format specification and regenerate schemas and skill references together.
+
+## 2. Reader and writer versions
+
+`voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. P01 fixes the version mapping and implements this gate.
+
+## 3. Dated deprecations
+
+Every deprecated production API or schema field carries an actual source-comment tag with its replacement and final supported date, for example:
+
+```ts
+/** @deprecated Use replacementField. remove-after: 2027-06-01 */
+```
+
+The date is a real ISO `YYYY-MM-DD` date on the same line as the tag. `remove-after` is the final supported UTC calendar day. The marker is expired on the following day, and warns from 30 days before the deadline through the deadline itself. Closing comment delimiters are not part of the date. Decide dates deliberately; never extend one only to silence a failure.
+
+## 4. Enforcement
+
+`make check` runs the scanner and its tests. Undated, invalid and expired markers fail. Deadlines within 30 UTC calendar days warn but pass. Scanning zero production source files fails so a misconfigured scan cannot silently appear green. Having scanned source files but no deprecated fields passes; P00 introduces no fake deprecated API merely to seed the scanner.
+
+The scanner uses the TypeScript parser's comment ranges, not raw string matching. It skips tests, fixtures, dependency/build directories, declarations and symlinks. Tests verify marker dates, positions, JSDoc, closing delimiters, string literals, empty files, empty scans and CLI exit codes. `make deprecations` lists markers without changing them. The shared package API and generated reference checks are added in P01.
+
+## 5. Expand, migrate, contract
+
+1. Add the replacement as an optional field and document both forms.
+2. In P01's migration engine, implement an explicit old-to-new conversion with `voidra migrate --dry-run`, expected-hash checks and recoverable writes; unknown data must survive.
+3. Test old, migrated and newer-format fixtures. Migration must be repeatable, preserve unrelated data and stop on concurrent changes.
+4. Stop producing the old field only after all writers support the replacement.
+5. Remove the old form in a later documented format version after its supported date and migration path are satisfied. Unsupported readers continue to refuse writes.
+
+No app or validator repairs or migrates files silently. Breaking format changes require an explicit version transition and an available migration path.

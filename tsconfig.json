@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "rootDir": ".",
+    "outDir": ".cache/typecheck",
+    "types": ["node"]
+  },
+  "include": ["vitest.config.ts", "tools/*/**/*.ts"],
+  "exclude": ["node_modules", ".cache", "coverage"]
+}

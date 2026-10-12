@@ -1,0 +1,28 @@
+{
+  "name": "@voidra/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=24.13.0 <25",
+    "pnpm": "10.30.3"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -b",
+    "build": "tsc -b",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "deprecations": "node tools/standards/src/deprecations-cli.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.4",
+    "typescript": "6.0.3",
+    "vitest": "5.0.4"
+  }
+}
