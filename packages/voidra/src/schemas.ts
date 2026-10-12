@@ -1,0 +1,281 @@
+import { z } from "zod";
+import type { Diagnostic } from "./errors.ts";
+import { fieldLine, type RecordDocument } from "./records.ts";
+
+export const plainSchemas = {
+  guide: z.string().min(1),
+  ignore: z.string().regex(/^(?:\/)?local\/\s*$/m),
+};
+const object = z.looseObject;
+const text = z.string().min(1);
+const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const id = (prefix: string) =>
+  z.string().regex(new RegExp(`^${prefix}-[0-9a-hjkmnp-tv-z]{6}$`));
+const date = z.iso.datetime({ offset: true });
+export const version = z.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+export const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const types = [
+  "feature",
+  "bug",
+  "improvement",
+  "docs",
+  "profile-change",
+  "research",
+  "release",
+] as const;
+export const stages = [
+  "discovery",
+  "plan",
+  "implement",
+  "verify",
+  "review",
+  "done",
+  "released",
+  "cancelled",
+] as const;
+export const hashesSchema = object({
+  "requirements.md": hashSchema,
+  "blueprint.md": hashSchema,
+  "acceptance.md": hashSchema,
+});
+export const approvalSchema = object({
+  by: text,
+  at: date,
+  hashes: hashesSchema,
+});
+const answerSchema = z.discriminatedUnion("kind", [
+  object({ kind: z.literal("choice"), choice: text, by: text, at: date }),
+  object({ kind: z.literal("text"), text: text, by: text, at: date }),
+  object({ kind: z.literal("agent-decides"), by: text, at: date }),
+]);
+export const questionSchema = object({
+  id: id("q"),
+  text,
+  why: text,
+  options: z.array(
+    object({ label: text, description: text, recommended: z.boolean() }),
+  ),
+  allowFreeText: z.boolean(),
+  dependsOn: z.array(id("q")).optional(),
+  answer: answerSchema.optional(),
+  agentChoice: object({
+    choice: text,
+    reason: text,
+    by: text,
+    at: date,
+  }).optional(),
+});
+export const actionSchema = object({
+  id: id("act"),
+  type: z.enum(types),
+  title: text,
+  stage: z.enum(stages).optional(),
+  status: z.enum([
+    "draft",
+    "ready",
+    "running",
+    "waiting",
+    "failed",
+    "complete",
+  ]),
+  doneBy: z.enum(["agent", "you"]),
+  assignee: text.optional(),
+  parent: id("act").optional(),
+  blockedBy: z.array(id("act")).optional(),
+  links: z.array(text).optional(),
+  commits: z.array(text).optional(),
+  createdBy: text.optional(),
+  createdAt: date.optional(),
+  updatedAt: date.optional(),
+  planApproval: approvalSchema.optional(),
+  approvalHistory: z.array(approvalSchema).optional(),
+  reviewDecision: object({
+    revision: hashSchema,
+    decision: z.enum(["accepted", "rejected"]),
+    feedback: z.string().optional(),
+    by: text,
+    at: date,
+  }).optional(),
+  steps: z
+    .array(object({ id: slug, title: text, done: z.boolean() }))
+    .optional(),
+});
+export const schemas = {
+  project: object({
+    format: z.number().int().nonnegative(),
+    requiredVoidra: version,
+    project: object({ id: id("prj"), name: text }),
+    template: object({ id: slug, version }).nullable(),
+    createdWith: text,
+  }),
+  profile: object({
+    block: slug,
+    title: text,
+    answers: z.array(
+      object({
+        id: slug,
+        question: text,
+        answer: z.json(),
+        status: z.enum(["confirmed", "inferred", "assumed", "open"]),
+        source: text.optional(),
+        updatedAt: date.optional(),
+        confirmedBy: text.optional(),
+      }),
+    ),
+  }),
+  idea: object({
+    id: id("idea"),
+    title: text,
+    status: z.enum(["new", "needs-info", "ready", "promoted", "rejected"]),
+    reason: text.optional(),
+    promotedTo: id("act").optional(),
+    createdBy: text.optional(),
+    createdAt: date.optional(),
+  }),
+  action: actionSchema,
+  questions: object({
+    action: id("act"),
+    rounds: z.array(
+      object({
+        round: z.number().int().positive(),
+        askedAt: date,
+        questions: z.array(questionSchema),
+      }),
+    ),
+  }),
+  requirements: object({ action: id("act") }),
+  blueprint: object({ action: id("act") }),
+  acceptance: object({ action: id("act") }),
+  run: object({
+    id: id("run"),
+    action: id("act"),
+    agent: z.enum(["claude-code", "codex"]),
+    startedAt: date,
+    consumedRecords: z.array(text),
+    endedAt: date.optional(),
+    fromStage: z.enum(stages),
+    toStage: z.enum(stages).optional(),
+    outcome: z.enum([
+      "running",
+      "advanced",
+      "waiting",
+      "failed",
+      "interrupted",
+    ]),
+    commit: text.optional(),
+    checks: z.array(object({ name: text, passed: z.boolean() })).optional(),
+  }),
+  release: object({
+    version,
+    actions: z.array(id("act")),
+    status: z.enum(["draft", "released"]),
+    tag: text.optional(),
+    date: date.optional(),
+  }),
+  queue: object({ queuedBy: text, queuedAt: date }),
+  lock: object({
+    ownerToken: text,
+    pid: z.number().int().positive(),
+    processStartedAt: text,
+    agent: z.enum(["claude-code", "codex"]),
+    host: text,
+    run: id("run"),
+    action: id("act"),
+    startedAt: date,
+    heartbeatAt: date,
+  }),
+  operation: object({
+    id: id("op"),
+    fingerprint: hashSchema,
+    state: z.enum(["prepared", "committed", "rolled-back"]),
+    changes: z
+      .array(
+        object({
+          path: text,
+          expectedHash: hashSchema.nullable(),
+          before: z.string().nullable(),
+          after: z.string().nullable(),
+        }),
+      )
+      .min(1),
+  }),
+};
+export type RecordKind = keyof typeof schemas;
+export type Action = z.infer<typeof actionSchema>;
+export type Question = z.infer<typeof questionSchema>;
+export type Approval = z.infer<typeof approvalSchema>;
+export type Operation = z.infer<typeof schemas.operation>;
+export type ProjectMetadata = z.infer<typeof schemas.project>;
+
+export function validateRecord(
+  kind: RecordKind,
+  record: RecordDocument,
+): Diagnostic[] {
+  const result = schemas[kind].safeParse(record.data);
+  if (!result.success)
+    return result.error.issues.map((issue) => ({
+      code: "schema",
+      file: record.file,
+      field: issue.path.map(String).join(".") || "$",
+      line: fieldLine(record, issue.path),
+      message: issue.message,
+    }));
+  const errors: Diagnostic[] = [];
+  const add = (field: string, message: string): void => {
+    errors.push({
+      code: "schema",
+      file: record.file,
+      field,
+      line: fieldLine(record, field.split(".")),
+      message,
+    });
+  };
+  const d = record.data;
+  if (kind === "action") {
+    if (d.doneBy === "agent" && !d.stage)
+      add("stage", "Agent actions require a stage");
+    if (d.doneBy === "you" && d.stage)
+      add("stage", "Human actions have no agent stage");
+    if (d.doneBy === "you" && !d.steps)
+      add("steps", "Human actions require steps");
+    if (
+      d.doneBy === "agent" &&
+      d.status === "complete" &&
+      !["done", "released", "cancelled"].includes(String(d.stage))
+    )
+      add("status", "Complete agent actions require a terminal stage");
+    if (
+      d.doneBy === "you" &&
+      d.status === "complete" &&
+      schemas.action.parse(d).steps?.some((step) => !step.done)
+    )
+      add("steps", "Complete all human steps before completing the action");
+    if (
+      ["done", "released", "cancelled"].includes(String(d.stage)) &&
+      d.status !== "complete"
+    )
+      add("status", "Terminal stages require complete status");
+  }
+  if (kind === "idea" && d.status === "rejected" && !d.reason)
+    add("reason", "Rejected ideas require a reason");
+  if (kind === "idea" && d.status === "promoted" && !d.promotedTo)
+    add("promotedTo", "Promoted ideas require an action");
+  if (kind === "run" && (d.outcome === "running") === Boolean(d.endedAt))
+    add("endedAt", "Running runs have no end time; final runs require one");
+  if (kind === "release" && d.status === "released") {
+    if (!d.tag) add("tag", "Released records require a tag");
+    if (!d.date) add("date", "Released records require a date");
+  }
+  const headings =
+    kind === "requirements"
+      ? ["Goal", "Out of scope"]
+      : kind === "blueprint"
+        ? ["Approach", "Testing seams", "Proposed ADRs"]
+        : [];
+  for (const heading of headings)
+    if (!new RegExp(`^## ${heading}\\s*$`, "m").test(record.body))
+      add("body", `Missing section: ${heading}`);
+  if (kind === "acceptance" && !/^\s*(?:[-*+] |\d+[.)] )\S/m.test(record.body))
+    add("body", "Acceptance requires checkable list items");
+  return errors;
+}

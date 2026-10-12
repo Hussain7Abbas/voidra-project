@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "incomplete-operation",
+      "file": ".voidra/local/operations/op-000000.json",
+      "field": "state",
+      "line": 1,
+      "message": "Incomplete operation op-000000: .voidra/README.md; recover explicitly"
+    }
+  ]
+}

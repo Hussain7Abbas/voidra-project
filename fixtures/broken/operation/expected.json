@@ -1,0 +1,33 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/local/operations/op-000000.json",
+      "field": "id",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/operations/op-000000.json",
+      "field": "fingerprint",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/operations/op-000000.json",
+      "field": "state",
+      "line": 1,
+      "message": "Invalid option: expected one of \"prepared\"|\"committed\"|\"rolled-back\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/operations/op-000000.json",
+      "field": "changes",
+      "line": 1,
+      "message": "Invalid input: expected array, received undefined"
+    }
+  ]
+}

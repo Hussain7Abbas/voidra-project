@@ -1,0 +1,61 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "id",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "type",
+      "line": 2,
+      "message": "Invalid option: expected one of \"feature\"|\"bug\"|\"improvement\"|\"docs\"|\"profile-change\"|\"research\"|\"release\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "title",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "status",
+      "line": 2,
+      "message": "Invalid option: expected one of \"draft\"|\"ready\"|\"running\"|\"waiting\"|\"failed\"|\"complete\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "doneBy",
+      "line": 2,
+      "message": "Invalid option: expected one of \"agent\"|\"you\""
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/acceptance.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/blueprint.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/requirements.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    }
+  ]
+}

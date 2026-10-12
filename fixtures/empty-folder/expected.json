@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "required-file",
+      "file": ".voidra/voidra.json",
+      "field": "$",
+      "line": 1,
+      "message": "No Voidra project: missing voidra.json"
+    }
+  ]
+}

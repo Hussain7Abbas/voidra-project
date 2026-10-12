@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "missing-plan",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "planApproval",
+      "line": 2,
+      "message": "Plan gate requires all three valid plan files"
+    }
+  ]
+}

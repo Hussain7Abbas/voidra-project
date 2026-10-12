@@ -39,3 +39,5 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run quality checks
         run: make check
+      - name: Build format package and tooling
+        run: make build

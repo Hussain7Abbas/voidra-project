@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "ignore",
+      "file": ".voidra/.gitignore",
+      "field": "$",
+      "line": 1,
+      "message": "Ignore local/ so personal records stay uncommitted"
+    }
+  ]
+}

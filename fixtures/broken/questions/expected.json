@@ -1,0 +1,19 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/questions.md",
+      "field": "action",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/questions.md",
+      "field": "rounds",
+      "line": 2,
+      "message": "Invalid input: expected array, received undefined"
+    }
+  ]
+}

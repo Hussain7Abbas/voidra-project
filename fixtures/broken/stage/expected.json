@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "stage",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "stage",
+      "line": 5,
+      "message": "Stage implement is invalid for research"
+    }
+  ]
+}

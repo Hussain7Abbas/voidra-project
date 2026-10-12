@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "parent-incomplete",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "status",
+      "line": 6,
+      "message": "Complete all children before their parent"
+    }
+  ]
+}

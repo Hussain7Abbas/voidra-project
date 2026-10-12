@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00 is Done; P01 is next. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00 is Done; P01 is In progress. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -29,7 +29,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | Phase | Document | Outcome | Needs | Milestone | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | P00 | [Repository foundation](phase-00-repository-foundation.md) | Public repo, tooling, standards, CI | — | M1 | Done (2026-10-12) | [p00](../docs/verification/p00.md) |
-| P01 | [Format and the `voidra` package](phase-01-format-and-voidra-package.md) | One package that defines, reads, writes and checks `.voidra/` | P00 | M1 | Not started | — |
+| P01 | [Format and the `voidra` package](phase-01-format-and-voidra-package.md) | One package that defines, reads, writes and checks `.voidra/` | P00 | M1 | In progress | [Evidence](../docs/verification/p01.md) |
 | P02 | [Desktop shell and design system](phase-02-desktop-shell-and-design-system.md) | Secure Electron app, Ink & Iris UI, project windows, packaging smoke | P00 | M1 | Not started | — |
 | P03 | [Tracer bullet](phase-03-tracer-bullet.md) | One action from the app through `/voidra-go` and back | P01, P02 | M1 | Not started | — |
 | P04 | [Onboarding, profile and `voidra-init`](phase-04-onboarding-profile-and-init.md) | Both ways in; editable profile | P03 | M2 | Not started | — |
@@ -173,7 +173,7 @@ Each row runs in both Claude Code and Codex using D17 and the root procedure. Ru
 | --- | --- |
 | `empty-folder` | Nothing |
 | `existing-code` | A small TypeScript app without `.voidra/` |
-| `new-project` | A fresh `.voidra/` from the general template |
+| `new-project` | A fresh minimal `.voidra/` in P01; P05 updates it from the shipped general template |
 | `busy-project` | Every action type and stage, slices, blocked actions, actions done by you, assumptions and a release |
 | `broken` | One invalid file of every kind |
 | `newer-format` | A format version above the supported one |

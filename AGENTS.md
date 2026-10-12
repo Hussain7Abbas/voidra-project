@@ -1,15 +1,18 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. The current implementation is the P00 repository tooling; the format package and desktop app arrive in P01 and P02.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the P01 format package/CLI are implemented; P01 publication status is tracked in its evidence and the desktop shell arrives in P02.
 
 ## Structure and shared rules
 
+- `packages/voidra/`: shared format, lifecycles, CLI, safe writes, fixtures and schema generation; follow its [local instructions](packages/voidra/AGENTS.md).
+- `fixtures/`: committed validation catalog; large output is generated into temporary folders.
+- `skills/shared/references/`: generated format reference only; executable skills begin in P03.
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
 - `docs/`: development, compatibility, architecture, ADRs and verification evidence. Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
 - `.github/workflows/ci.yml`: the macOS frozen-install and `make check` pipeline. CI never runs authenticated coding agents.
 - Root config: pinned pnpm and Node, strict TypeScript, Biome, Vitest and the Makefile. Native Electron modules still require Electron-specific rebuilding in P02; matching Node major versions alone is insufficient.
-- Future `apps/`, `packages/`, `skills/`, `templates/` and `fixtures/` directories are created when their phases give them real content. Do not add placeholders or implement later-phase scope early.
+- Future app, executable skill and template directories are created when their phases give them real content. Do not add placeholders or implement later-phase scope early.
 - Use ESM TypeScript with erasable syntax, explicit types at public boundaries, and explicit `.ts` extensions for local source imports. TypeScript rewrites those extensions in generated output. Naming and formatting follow Biome and `tsconfig.base.json`; do not add parallel formatting rules.
 - Put tests under the owning workspace's `tests/` directory and check behavior at public boundaries. Use real temporary files and git; mock only external services, time and randomness. Keep temporary projects and generated files out of commits.
 - Preserve the AGPL-3.0-or-later license and existing instruction sections. GitHub work uses the Hussain7Abbas account's existing authentication without changing the active `gh` account; this repository uses HTTPS after the approved SSH fallback.
@@ -22,11 +25,12 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 | --- | --- |
 | `make setup` / `make install` | Install with the frozen pnpm lockfile; no environment file is required in P00 |
 | `make help` | List the real commands |
-| `make check` | Lint, strict typecheck, coverage tests and production-source deprecation scan |
+| `make check` | Lint, strict typecheck, coverage tests, deprecations and generated-reference check |
 | `make format` | Apply Biome formatting and safe fixes |
-| `make build` | Compile current tooling into ignored `.cache/typecheck/` |
+| `make build` | Compile tooling and the format package into ignored output |
 | `make test` / `make test-watch` | Run coverage-gated tests / watch tests |
 | `make deprecations` | List markers and fail on invalid deadlines or an empty scan |
+| `make gen` / `make gen-check` | Generate format references / reject stale output |
 | `make clean` | Remove typecheck output and coverage reports |
 
 ## Working with the user

@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "migration-required",
+      "file": ".voidra/voidra.json",
+      "field": "format",
+      "line": 1,
+      "message": "Format 0 requires migration to 1"
+    }
+  ]
+}

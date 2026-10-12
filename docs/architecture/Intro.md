@@ -2,6 +2,7 @@
 
 [Documentation index](../intro.md)
 
+- [Format package](format-package.md): shared records, validation, lifecycles and durable writes.
 - [Repository foundation](repository-foundation.md): the implemented P00 tooling and its boundaries.
 - [Planned runtime architecture](../../plan/main.md#architecture-overview): proposed app, service, format package and skills, to be built in later phases.
 

@@ -1,0 +1,40 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/voidra.json",
+      "field": "format",
+      "line": 1,
+      "message": "Invalid input: expected number, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/voidra.json",
+      "field": "requiredVoidra",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/voidra.json",
+      "field": "project",
+      "line": 1,
+      "message": "Invalid input: expected object, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/voidra.json",
+      "field": "template",
+      "line": 1,
+      "message": "Invalid input: expected object, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/voidra.json",
+      "field": "createdWith",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+}

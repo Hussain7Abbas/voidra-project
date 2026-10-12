@@ -1,0 +1,26 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "stale-approval",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "planApproval",
+      "line": 9,
+      "message": "Plan approval is missing or stale for the exact current bytes"
+    },
+    {
+      "code": "stale-approval",
+      "file": ".voidra/actions/act-000001/action.md",
+      "field": "planApproval",
+      "line": 9,
+      "message": "Plan approval is missing or stale for the exact current bytes"
+    },
+    {
+      "code": "stale-approval",
+      "file": ".voidra/actions/act-000002/action.md",
+      "field": "planApproval",
+      "line": 9,
+      "message": "Plan approval is missing or stale for the exact current bytes"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/profile/problem.md",
+      "field": "block",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/profile/problem.md",
+      "field": "title",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/profile/problem.md",
+      "field": "answers",
+      "line": 2,
+      "message": "Invalid input: expected array, received undefined"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ Use Node **24.13.0** (`.node-version` / `.nvmrc`) and pnpm **10.30.3** (`package
 
 Run `make setup`, then `make check`. `make help` lists supported commands. The Makefile resolves its own root, so `make -f /absolute/path/to/voidra-project/Makefile check` also works from elsewhere. P00 has no environment-file consumer, dev server, desktop start command or deployment target; those commands are added when the corresponding capability exists.
 
-`make check` runs Biome, `tsc -b`, Vitest with V8 coverage, and the deprecation scanner. `make build` compiles tooling into `.cache/typecheck/`; `make clean` removes that output and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
+`make check` runs Biome, `tsc -b`, Vitest with V8 coverage, the deprecation scanner and the generated-reference check. `make build` compiles tooling into `.cache/typecheck/` and the npm package into `packages/voidra/dist/`; `make clean` removes that output and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
 
 ## Version pins
 
@@ -27,7 +27,7 @@ Sources: [Electron releases](https://releases.electronjs.org/), [TypeScript comp
 
 ## Testing seams and coverage
 
-The real workspace package is `tools/standards`. It has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
+The workspace members are `tools/standards` and `packages/voidra`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
 
 | Scope | Minimum line coverage |
 | --- | --- |
@@ -47,4 +47,12 @@ Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test direc
 
 ## CI
 
-The macOS workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. Build and Electron end-to-end jobs are added in P02 when their harness exists.
+The macOS workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. CI also builds the package. Electron end-to-end jobs are added in P02 when their harness exists.
+
+## Format package development
+
+`make test` builds the actual package before running its API, real-filesystem and built-CLI tests. Use `pnpm --filter voidra build` before a direct Vitest invocation that tests executable output. `pnpm gen` updates JSON Schema, docs and shared skill references; `pnpm gen:check` rejects missing, stale and orphan files. Generated JSON uses deterministic schema output and is excluded from Biome formatting so `make format` cannot make references stale. Do not edit it by hand.
+
+`pnpm fixtures` deliberately rebuilds the committed catalog and its expected diagnostics. Review changed expectations. The `empty-folder` catalog entry has no project files; its test creates a truly empty directory. `new-project` contains minimal valid format data until P05 creates the real general-template output. `pnpm fixture:large /absolute/temporary/output` generates 1,000 actions; keep the output outside the repository. Local records in fixtures are explicitly tracked despite each fixture's `local/` ignore rule.
+
+The format package uses zod 4.6.7 and yaml 2.9.1. See the [API contract](format/api.md), [CLI](format/cli.md) and [P01 evidence](verification/p01.md). Package publication is an authenticated local operation after checks and CI, never an automatic CI side effect.

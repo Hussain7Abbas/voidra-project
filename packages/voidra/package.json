@@ -1,0 +1,36 @@
+{
+  "name": "voidra",
+  "version": "0.1.0",
+  "description": "Shared file format, validation and safe writes for Voidra projects",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hussain7Abbas/voidra-project.git",
+    "directory": "packages/voidra"
+  },
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "voidra": "dist/cli-entry.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  }
+}

@@ -2,7 +2,7 @@
 
 [Documentation index](intro.md) · [Development](development.md) · [Format phase](../plan/phase-01-format-and-voidra-package.md)
 
-This is the policy P01 must implement, not a claim that the format package or migrations already exist. P00 implements its deprecation enforcement. The self-contained five-part contract is used because the optional `api-backward-compatibility` reference skill is unavailable.
+P01 implements format 1, the newer-format gate and a sample unreleased prototype migration. P00 implements its deprecation enforcement. The self-contained five-part contract is used because the optional `api-backward-compatibility` reference skill is unavailable.
 
 ## 1. Additive format changes
 
@@ -10,7 +10,7 @@ Add optional fields or new record files before removing anything. Readers ignore
 
 ## 2. Reader and writer versions
 
-`voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. P01 fixes the version mapping and implements this gate.
+`voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. Format 1 requires voidra 0.1.0; newer metadata supplies its own `requiredVoidra` minimum.
 
 ## 3. Dated deprecations
 
@@ -26,7 +26,7 @@ The date is a real ISO `YYYY-MM-DD` date on the same line as the tag. `remove-af
 
 `make check` runs the scanner and its tests. Undated, invalid and expired markers fail. Deadlines within 30 UTC calendar days warn but pass. Scanning zero production source files fails so a misconfigured scan cannot silently appear green. Having scanned source files but no deprecated fields passes; P00 introduces no fake deprecated API merely to seed the scanner.
 
-The scanner uses the TypeScript parser's comment ranges, not raw string matching. It skips tests, fixtures, dependency/build directories, declarations and symlinks. Tests verify marker dates, positions, JSDoc, closing delimiters, string literals, empty files, empty scans and CLI exit codes. `make deprecations` lists markers without changing them. The shared package API and generated reference checks are added in P01.
+The scanner uses the TypeScript parser's comment ranges, not raw string matching. It skips tests, fixtures, dependency/build directories, declarations and symlinks. Tests verify marker dates, positions, JSDoc, closing delimiters, string literals, empty files, empty scans and CLI exit codes. `make deprecations` lists markers without changing them. The shared package API and generated reference checks are implemented in P01.
 
 ## 5. Expand, migrate, contract
 

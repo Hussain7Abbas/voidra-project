@@ -1,0 +1,33 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "incomplete-write",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "$",
+      "line": 1,
+      "message": "Incomplete write: closing frontmatter delimiter is missing"
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/acceptance.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/blueprint.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    },
+    {
+      "code": "missing-reference",
+      "file": ".voidra/actions/act-000000/requirements.md",
+      "field": "action",
+      "line": 2,
+      "message": "Record does not exist: act-000000"
+    }
+  ]
+}

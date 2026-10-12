@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "newer-format",
+      "file": ".voidra/voidra.json",
+      "field": "format",
+      "line": 1,
+      "message": "Project needs voidra ≥ 9.0.0; this package is 0.1.0"
+    }
+  ]
+}

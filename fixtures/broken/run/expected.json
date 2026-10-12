@@ -1,0 +1,54 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "id",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "action",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "agent",
+      "line": 2,
+      "message": "Invalid option: expected one of \"claude-code\"|\"codex\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "startedAt",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "consumedRecords",
+      "line": 2,
+      "message": "Invalid input: expected array, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "fromStage",
+      "line": 2,
+      "message": "Invalid option: expected one of \"discovery\"|\"plan\"|\"implement\"|\"verify\"|\"review\"|\"done\"|\"released\"|\"cancelled\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/runs/time-codex-run-000000.md",
+      "field": "outcome",
+      "line": 2,
+      "message": "Invalid option: expected one of \"running\"|\"advanced\"|\"waiting\"|\"failed\"|\"interrupted\""
+    }
+  ]
+}

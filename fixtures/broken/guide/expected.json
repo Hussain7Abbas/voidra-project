@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "required-file",
+      "file": ".voidra/README.md",
+      "field": "$",
+      "line": 1,
+      "message": "Required project file is missing or empty"
+    }
+  ]
+}

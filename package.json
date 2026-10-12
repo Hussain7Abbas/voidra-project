@@ -13,10 +13,14 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc -b",
-    "build": "tsc -b",
-    "test": "vitest run --coverage",
+    "build": "tsc -b tsconfig.json packages/voidra/tsconfig.json",
+    "test": "pnpm --filter voidra build && vitest run --coverage",
     "test:watch": "vitest",
-    "deprecations": "node tools/standards/src/deprecations-cli.ts"
+    "deprecations": "node tools/standards/src/deprecations-cli.ts",
+    "gen": "node packages/voidra/scripts/generate.ts",
+    "gen:check": "node packages/voidra/scripts/generate.ts --check",
+    "fixtures": "node packages/voidra/scripts/fixtures.ts",
+    "fixture:large": "node packages/voidra/scripts/fixtures.ts --large"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

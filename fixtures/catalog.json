@@ -1,0 +1,167 @@
+[
+  {
+    "name": "empty-folder",
+    "project": "fixtures/empty-folder/project",
+    "expected": "fixtures/empty-folder/expected.json"
+  },
+  {
+    "name": "existing-code",
+    "project": "fixtures/existing-code/project",
+    "expected": "fixtures/existing-code/expected.json"
+  },
+  {
+    "name": "new-project",
+    "project": "fixtures/new-project/project",
+    "expected": "fixtures/new-project/expected.json"
+  },
+  {
+    "name": "busy-project",
+    "project": "fixtures/busy-project/project",
+    "expected": "fixtures/busy-project/expected.json"
+  },
+  {
+    "name": "broken/project",
+    "project": "fixtures/broken/project/project",
+    "expected": "fixtures/broken/project/expected.json"
+  },
+  {
+    "name": "broken/profile",
+    "project": "fixtures/broken/profile/project",
+    "expected": "fixtures/broken/profile/expected.json"
+  },
+  {
+    "name": "broken/idea",
+    "project": "fixtures/broken/idea/project",
+    "expected": "fixtures/broken/idea/expected.json"
+  },
+  {
+    "name": "broken/action",
+    "project": "fixtures/broken/action/project",
+    "expected": "fixtures/broken/action/expected.json"
+  },
+  {
+    "name": "broken/questions",
+    "project": "fixtures/broken/questions/project",
+    "expected": "fixtures/broken/questions/expected.json"
+  },
+  {
+    "name": "broken/requirements",
+    "project": "fixtures/broken/requirements/project",
+    "expected": "fixtures/broken/requirements/expected.json"
+  },
+  {
+    "name": "broken/blueprint",
+    "project": "fixtures/broken/blueprint/project",
+    "expected": "fixtures/broken/blueprint/expected.json"
+  },
+  {
+    "name": "broken/acceptance",
+    "project": "fixtures/broken/acceptance/project",
+    "expected": "fixtures/broken/acceptance/expected.json"
+  },
+  {
+    "name": "broken/run",
+    "project": "fixtures/broken/run/project",
+    "expected": "fixtures/broken/run/expected.json"
+  },
+  {
+    "name": "broken/release",
+    "project": "fixtures/broken/release/project",
+    "expected": "fixtures/broken/release/expected.json"
+  },
+  {
+    "name": "broken/queue",
+    "project": "fixtures/broken/queue/project",
+    "expected": "fixtures/broken/queue/expected.json"
+  },
+  {
+    "name": "broken/lock",
+    "project": "fixtures/broken/lock/project",
+    "expected": "fixtures/broken/lock/expected.json"
+  },
+  {
+    "name": "broken/operation",
+    "project": "fixtures/broken/operation/project",
+    "expected": "fixtures/broken/operation/expected.json"
+  },
+  {
+    "name": "broken/missing-reference",
+    "project": "fixtures/broken/missing-reference/project",
+    "expected": "fixtures/broken/missing-reference/expected.json"
+  },
+  {
+    "name": "broken/missing-link",
+    "project": "fixtures/broken/missing-link/project",
+    "expected": "fixtures/broken/missing-link/expected.json"
+  },
+  {
+    "name": "broken/missing-plan",
+    "project": "fixtures/broken/missing-plan/project",
+    "expected": "fixtures/broken/missing-plan/expected.json"
+  },
+  {
+    "name": "broken/dependency-cycle",
+    "project": "fixtures/broken/dependency-cycle/project",
+    "expected": "fixtures/broken/dependency-cycle/expected.json"
+  },
+  {
+    "name": "broken/parent-cycle",
+    "project": "fixtures/broken/parent-cycle/project",
+    "expected": "fixtures/broken/parent-cycle/expected.json"
+  },
+  {
+    "name": "broken/stage",
+    "project": "fixtures/broken/stage/project",
+    "expected": "fixtures/broken/stage/expected.json"
+  },
+  {
+    "name": "broken/status",
+    "project": "fixtures/broken/status/project",
+    "expected": "fixtures/broken/status/expected.json"
+  },
+  {
+    "name": "broken/guide",
+    "project": "fixtures/broken/guide/project",
+    "expected": "fixtures/broken/guide/expected.json"
+  },
+  {
+    "name": "broken/ignore",
+    "project": "fixtures/broken/ignore/project",
+    "expected": "fixtures/broken/ignore/expected.json"
+  },
+  {
+    "name": "broken/parent-incomplete",
+    "project": "fixtures/broken/parent-incomplete/project",
+    "expected": "fixtures/broken/parent-incomplete/expected.json"
+  },
+  {
+    "name": "broken/truncated",
+    "project": "fixtures/broken/truncated/project",
+    "expected": "fixtures/broken/truncated/expected.json"
+  },
+  {
+    "name": "newer-format",
+    "project": "fixtures/newer-format/project",
+    "expected": "fixtures/newer-format/expected.json"
+  },
+  {
+    "name": "conflicted",
+    "project": "fixtures/conflicted/project",
+    "expected": "fixtures/conflicted/expected.json"
+  },
+  {
+    "name": "interrupted-run",
+    "project": "fixtures/interrupted-run/project",
+    "expected": "fixtures/interrupted-run/expected.json"
+  },
+  {
+    "name": "stale-approval",
+    "project": "fixtures/stale-approval/project",
+    "expected": "fixtures/stale-approval/expected.json"
+  },
+  {
+    "name": "prototype-format",
+    "project": "fixtures/prototype-format/project",
+    "expected": "fixtures/prototype-format/expected.json"
+  }
+]

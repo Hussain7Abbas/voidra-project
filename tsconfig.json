@@ -7,6 +7,6 @@
     "outDir": ".cache/typecheck",
     "types": ["node"]
   },
-  "include": ["vitest.config.ts", "tools/*/**/*.ts"],
-  "exclude": ["node_modules", ".cache", "coverage"]
+  "include": ["vitest.config.ts", "tools/*/**/*.ts", "packages/voidra/**/*.ts"],
+  "exclude": ["node_modules", ".cache", "coverage", "packages/voidra/dist"]
 }

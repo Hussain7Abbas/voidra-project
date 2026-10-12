@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "dependency-cycle",
+      "file": ".voidra/actions/act-000000/action.md",
+      "field": "blockedBy",
+      "line": 9,
+      "message": "Cycle includes act-000000"
+    }
+  ]
+}

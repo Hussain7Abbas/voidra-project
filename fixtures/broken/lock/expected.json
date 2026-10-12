@@ -1,0 +1,68 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "ownerToken",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "pid",
+      "line": 1,
+      "message": "Invalid input: expected number, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "processStartedAt",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "agent",
+      "line": 1,
+      "message": "Invalid option: expected one of \"claude-code\"|\"codex\""
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "host",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "run",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "action",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "startedAt",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    },
+    {
+      "code": "schema",
+      "file": ".voidra/local/run.lock",
+      "field": "heartbeatAt",
+      "line": 1,
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+}

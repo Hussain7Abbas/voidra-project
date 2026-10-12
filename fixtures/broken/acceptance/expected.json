@@ -1,0 +1,12 @@
+{
+  "exitCode": 1,
+  "diagnostics": [
+    {
+      "code": "schema",
+      "file": ".voidra/actions/act-000000/acceptance.md",
+      "field": "action",
+      "line": 2,
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+}
