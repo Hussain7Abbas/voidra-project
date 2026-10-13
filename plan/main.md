@@ -1,20 +1,20 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P08 are Done; P09 is In progress. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P09 are Done; P10 is In progress. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Session hand-off — 2026-10-13
 
-Resume P09 closure, then continue through P17 under D24. P00–P08 are Done; P09 is In progress; P10–P17 remain Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; actual account access and physical checks still need evidence.
+Continue P10, then through P17 under D24. P00–P09 are Done; P10 is In progress; P11–P17 remain Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
 
-P09's seven stories are now implemented: shared queue/revision guards and Run picker; real trailer history and verified GitHub links; durable selected planning commits preserving unrelated/partial staging; Git identity assignment and actual pull refresh; scoped conflicts; the measured 1,000-action baseline; and this repository's valid `.voidra/`. [P09 evidence](../docs/verification/p09.md) records actual checks, failures, model retries and limits. M2 awaits final closure rather than implementation.
+P09 reached M2. Corrected implementation `8bd0be9` passes [CI](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38439174733), attempt 2: 298 quality tests, 44 Electron workflows, packaging and packaged SQLite startup. The first attempt failed to acquire a hosted macOS arm64 runner; annotations confirm capacity constraints. [P09 evidence](../docs/verification/p09.md) records the Git checks, performance, real-agent intake retries and valid repository dogfooding.
 
-- Final quality passes with 298 tests in 55 files, including generation freshness. The desktop rerun reached the aggregate one-minute lifecycle test limit; its six scenarios are now independent with unchanged assertions and per-test limits. Final desktop and CI closure remain pending. Do not edit runtime inputs during verification.
-- Both real `voidra-init` default retries validate nine blocks/17 inferred answers and preserve source, glossary/instruction bytes and Git history. The validated Codex output was applied here. `idea-0g353s` tracks performance variance; `act-jxg00v` tracks the non-Git Bootstrap/repository-root follow-up. Neither is claimed implemented.
-- The root now links the workspace CLI; offline `npx voidra@0` resolves 0.2.0. Public npm remains 0.1.0. Temporary real-agent copies install the genuine packed candidate under D25; do not publish until P15.
-- Preserve exact approval hashes, durable consumption, ownership, safe Git recovery and private-file exclusions. Planning commits refuse non-root project folders. Check the remaining standalone non-Git Bootstrap/subfolder boundary before release, as tracked in the bug/P17 follow-up.
-- Root instructions authorize phase commits and pushes using Hussain7Abbas's existing authentication without changing the active account. The original `f08e6c6` checkpoint CI failed on stale generated bundles; do not attribute P08's green CI to P09.
-- P17 still needs a real human VoiceOver pass. P15 may need one npm website/account step. D24 does not authorize inventing those results.
+- P10's working tree contains the root-scoped writer observer, bounded local SQLite history, exact replay/recovery, persistent consumed-record protection, validated bridge classification, overwrite confirmation, native menus and renderer shortcuts. Nine engine tests pass. Whole quality passes 310 tests but still awaits the corrected coverage collection: compiled native fixture bundles now use inline maps, an explicit coverage input glob and retention until reporting. No gate was lowered; the diagnostic engine report is 89.67% lines.
+- Three of five focused P10 desktop checks pass (question/native-menu and undo/redo run blocking). Light/dark promotion/restart/profile checks exposed keyboard and timing issues; those are corrected. The latest failure showed a stale displayed snapshot rejecting an outside overwrite safely instead of opening confirmation; Undo now refreshes the same operation before choosing its prompt. Verify that fix, then run full quality/Electron checks and close P10. Keep runtime sources stable during checks.
+- Use temporary idle-sleep inhibition for local checks. An earlier lifecycle rerun timed out across repeated deep-idle intervals; the macOS sleep log confirmed system sleep. Awake tests passed in seconds. Do not describe sleeping-host timeouts as product evidence.
+- This repository's profile remains nine blocks/17 inferred answers from the validated Codex default intake. `idea-0g353s` tracks open-time variance; `act-jxg00v` tracks the non-Git Bootstrap/repository-root follow-up. Neither is claimed implemented. Root offline CLI links workspace 0.2.0; public npm remains 0.1.0 until P15 under D25. Real-agent fixtures must install the genuine freshly packed matching candidate.
+- Preserve exact approval hashes, durable consumption/ownership, selected Git recovery and private-file exclusions. Check the remaining standalone non-Git Bootstrap/subfolder boundary before release (P17 follow-up).
+- Phase commits/pushes use Hussain7Abbas's existing authentication without changing the active account. P17 still needs real human VoiceOver evidence. P15 may need one npm account/website step; D24 does not authorize invented results.
 
 ## Sources of truth
 
@@ -50,8 +50,8 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p06.md) |
 | P07 | [Questions, gates and inbox](phase-07-questions-gates-and-inbox.md) | Question rounds, plan and review gates, Waiting for you | P04, P06 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p07.md) |
 | P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p08.md) |
-| P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | In progress | [Evidence](../docs/verification/p09.md) |
-| P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | Not started | — |
+| P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p09.md) |
+| P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | In progress | — |
 | P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | Not started | — |
 | P12 | [Releases and `voidra-sync`](phase-12-releases-and-sync.md) | Releases from done actions; catching up with outside work | P09 | M3 | Not started | — |
 | P13 | [AI in the app](phase-13-ai-in-the-app.md) | Optional OpenRouter features | P04, P06, P12 | M3 | Not started | — |
@@ -67,7 +67,7 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | Milestone | Reached when | What you can do then |
 | --- | --- | --- |
 | **M1 — Tracer bullet** | P00–P03 are Done | Create a docs action in the app, run `/voidra-go` in Claude Code or `$voidra-go` in Codex, watch the result appear and accept it. |
-| **M2 — Core loop** | P04–P09 are Done | Use Voidra for real work: profile, backlog, every action type, question rounds, plans, reviews, commits and teams. **Dogfooding starts:** Voidra Project gets its own `.voidra/` and tracks its new ideas and bugs there. This plan keeps tracking the remaining phases. |
+| **M2 — Core loop** | P04–P09 are Done; reached 2026-10-13 | Use Voidra for real work: profile, backlog, every action type, question rounds, plans, reviews, commits and teams. **Dogfooding starts:** Voidra Project gets its own `.voidra/` and tracks its new ideas and bugs there. This plan keeps tracking the remaining phases. |
 | **M3 — Feature-complete** | P10–P14 are Done | Everything in the VISION.md v1 scope works. |
 | **M4 — Released** | P15–P17 are Done | v1.0.0 is on GitHub Releases, `voidra` is on npm, and the skills are on skills.sh. |
 
