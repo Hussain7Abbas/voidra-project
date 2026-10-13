@@ -98,11 +98,28 @@ function decisionProject(project: ProjectInspection): void {
   if (project.files.has(".voidra/local/run.lock"))
     throw new Error("Finish or recover the run before deciding");
 }
+function reviewFiles(
+  project: ProjectInspection,
+  id: string,
+): [string, Buffer][] {
+  const action = project.records.get(`.voidra/actions/${id}/action.md`)
+    ?.document.data;
+  const extra = new Set<string>();
+  if (action?.type === "release" && Array.isArray(action.releaseActions)) {
+    if (typeof action.releaseVersion === "string")
+      extra.add(`.voidra/releases/${action.releaseVersion}.md`);
+    for (const member of action.releaseActions)
+      if (typeof member === "string")
+        extra.add(`.voidra/actions/${member}/action.md`);
+  }
+  return [...project.files].filter(
+    ([path]) => path.startsWith(`.voidra/actions/${id}/`) || extra.has(path),
+  );
+}
 export function reviewRevision(project: ProjectInspection, id: string): string {
   return hash(
     JSON.stringify(
-      [...project.files]
-        .filter(([path]) => path.startsWith(`.voidra/actions/${id}/`))
+      reviewFiles(project, id)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([path, bytes]) => [path, hash(bytes)]),
     ),
@@ -289,11 +306,8 @@ export async function decideReview(
           expectedHash: hash(doc.raw),
           content: serializeRecord(doc, next).toString(),
         },
-        ...[...project.files]
-          .filter(
-            ([file]) =>
-              file.startsWith(`.voidra/actions/${id}/`) && file !== path,
-          )
+        ...reviewFiles(project, id)
+          .filter(([file]) => file !== path)
           .map(([path, raw]) => ({
             path,
             expectedHash: hash(raw),

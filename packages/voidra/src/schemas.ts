@@ -92,6 +92,9 @@ export const actionSchema = object({
   blockedBy: z.array(id("act")).optional(),
   links: z.array(text).optional(),
   commits: z.array(text).optional(),
+  releaseActions: z.array(id("act")).min(1).optional(),
+  releaseVersion: version.optional(),
+  releaseTag: text.optional(),
   completedBySlices: z.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date.optional(),
@@ -196,6 +199,7 @@ export const schemas = {
   }),
   release: object({
     version,
+    action: id("act").optional(),
     actions: z.array(id("act")),
     status: z.enum(["draft", "released"]),
     tag: text.optional(),
@@ -261,6 +265,13 @@ export function validateRecord(
   };
   const d = record.data;
   if (kind === "action") {
+    if (d.releaseActions !== undefined) {
+      if (d.type !== "release")
+        add("releaseActions", "Only Release actions select release members");
+      const members = d.releaseActions as string[];
+      if (new Set(members).size !== members.length)
+        add("releaseActions", "Release members must be unique");
+    }
     if (d.doneBy === "agent" && !d.stage)
       add("stage", "Agent actions require a stage");
     if (d.doneBy === "you" && d.stage && d.stage !== "cancelled")

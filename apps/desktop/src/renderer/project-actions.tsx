@@ -553,6 +553,42 @@ export function ProjectActions({
           )}
         </section>
         <ActionQuestions action={current} disabled={!gateEditable} />
+        {current.data.type === "release" && current.data.releaseActions && (
+          <section className="card action-detail">
+            <h2>Release proposal</h2>
+            {current.data.releaseVersion && (
+              <p>Version: {current.data.releaseVersion}</p>
+            )}
+            {current.data.releaseTag && (
+              <p>
+                Tag: <code>{current.data.releaseTag}</code>
+              </p>
+            )}
+            <h3>Selected work</h3>
+            <ul>
+              {current.data.releaseActions.map((id) => (
+                <li key={id}>
+                  <Button variant="ghost" onClick={() => setSelected(id)}>
+                    {data.actions.find((action) => action.data.id === id)?.data
+                      .title ?? id}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            {data.releases
+              .filter(
+                (release) =>
+                  release.data.version === current.data.releaseVersion,
+              )
+              .map((release) => (
+                <SafeMarkdown
+                  key={release.path}
+                  body={release.body}
+                  source={release.path}
+                />
+              ))}
+          </section>
+        )}
         <PlanGate action={current} disabled={!gateEditable} />
         {current.data.planFeedback && (
           <section className="card action-detail">

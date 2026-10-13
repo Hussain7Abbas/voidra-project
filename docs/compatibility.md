@@ -12,6 +12,8 @@ Add optional fields or new record files before removing anything. Readers ignore
 
 `voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. Format 1 starts at voidra 0.1.0; newer metadata supplies its own `requiredVoidra` minimum. P06's aggregate-without-parent-plan and human cancellation forms require 0.2.0. Their optional markers/end states extend the accepted record forms; old required fields and meanings remain. Existing plan-bearing parents keep exact approval and their own work keeps Review. Parent completion continues to mean all children completed, including human parents; invalid states are diagnosed rather than silently repaired.
 
+P12 adds optional Release selection/version/tag fields and the owning action link on release records. Structured writers declare reader 0.2.0; legacy forms retain their contract. Structured Review revisions include selection/notes and plan files; changed proposals need acceptance again.
+
 ## 3. Dated deprecations
 
 Every deprecated production API or schema field carries an actual source-comment tag with its replacement and final supported date, for example:

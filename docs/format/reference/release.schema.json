@@ -6,6 +6,10 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
     },
+    "action": {
+      "type": "string",
+      "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"
+    },
     "actions": {
       "type": "array",
       "items": {

@@ -56,7 +56,8 @@ const runIds = (project: ProjectInspection): string[] =>
 const historyPath = (path: string): boolean =>
   path.startsWith(".voidra/") &&
   (!path.startsWith(".voidra/local/") ||
-    path === ".voidra/local/pending-actions.md");
+    path === ".voidra/local/pending-actions.md" ||
+    path === ".voidra/local/release-selection.json");
 
 /** Local app history. The format writer still owns every file mutation. */
 export class UndoHistory {

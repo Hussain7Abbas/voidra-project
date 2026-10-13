@@ -224,6 +224,31 @@ export const workspaceSchema = z.strictObject({
       }),
     }),
   ),
+  releases: z
+    .array(
+      z.strictObject({
+        path: z.string(),
+        body: z.string(),
+        data: z.looseObject({
+          version: z.string(),
+          action: z.string().optional(),
+          actions: z.array(z.string()),
+          status: z.enum(["draft", "released"]),
+          tag: z.string().optional(),
+          date: z.string().optional(),
+        }),
+      }),
+    )
+    .default([]),
+  releaseCandidates: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        title: z.string(),
+        revision: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+    )
+    .default([]),
   actions: z.array(
     z.strictObject({
       data: z.looseObject({
@@ -244,6 +269,9 @@ export const workspaceSchema = z.strictObject({
           )
           .optional(),
         commits: z.array(z.string()).optional(),
+        releaseActions: z.array(z.string()).optional(),
+        releaseVersion: z.string().optional(),
+        releaseTag: z.string().optional(),
         planFeedback: z
           .looseObject({ feedback: z.string(), by: z.string(), at: z.string() })
           .optional(),
@@ -392,6 +420,17 @@ export const serviceStateSchema = z.enum([
   "failed",
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
+  z.strictObject({
+    command: z.literal("create-release"),
+    actions: z
+      .array(
+        z.strictObject({
+          id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+          revision: z.string().regex(/^[a-f0-9]{64}$/),
+        }),
+      )
+      .min(1),
+  }),
   z.strictObject({
     command: z.literal("revisit-assumption"),
     id: z.string().min(1).max(1024),
@@ -558,6 +597,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
 /** Exhaustive classification: a new project command must declare its edit label. */
 export const workspaceEdits = {
+  "create-release": "Create release",
   "revisit-assumption": "Revisit assumption",
   workspace: null,
   "commit-planning": null,

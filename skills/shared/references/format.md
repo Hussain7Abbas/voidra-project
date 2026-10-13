@@ -449,6 +449,22 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         "minLength": 1
       }
     },
+    "releaseActions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"
+      }
+    },
+    "releaseVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "releaseTag": {
+      "type": "string",
+      "minLength": 1
+    },
     "completedBySlices": {
       "type": "boolean"
     },
@@ -1225,6 +1241,10 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"
     },
     "actions": {
       "type": "array",

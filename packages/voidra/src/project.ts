@@ -151,6 +151,20 @@ export async function readProjectFiles(
   await walk(".voidra");
   return { files, diagnostics };
 }
+function planDocument(
+  files: ProjectFiles,
+  path: string,
+  records?: Map<string, CheckedRecord>,
+): RecordDocument | undefined {
+  if (records) return records.get(path)?.document;
+  const raw = files.get(path);
+  if (!raw) return undefined;
+  try {
+    return parseRecord(path, raw);
+  } catch {
+    return undefined;
+  }
+}
 export function readPlan(
   files: ProjectFiles,
   id: string,
@@ -163,7 +177,38 @@ export function readPlan(
     if (!bytes || (records && !records.has(path))) return undefined;
     values[file] = bytes;
   }
-  return planRevision(values as Record<(typeof planFiles)[number], Buffer>);
+  const plan = planRevision(
+      values as Record<(typeof planFiles)[number], Buffer>,
+    ),
+    actionPath = `.voidra/actions/${id}/action.md`;
+  const parsed = schemas.action.safeParse(
+      planDocument(files, actionPath, records)?.data,
+    ),
+    action = parsed.success ? parsed.data : undefined;
+  if (action?.type === "release" && action.releaseActions) {
+    const version = action.releaseVersion ?? null,
+      path = version ? `.voidra/releases/${version}.md` : null;
+    const record = path ? planDocument(files, path, records) : undefined;
+    // Final status/date are bookkeeping; the approved version, members, tag and notes remain fixed.
+    const data = record ? { ...record.data } : null;
+    if (data) {
+      delete data.status;
+      delete data.date;
+    }
+    return {
+      ...plan,
+      revision: hash(
+        JSON.stringify({
+          plan: plan.revision,
+          actions: action.releaseActions,
+          version,
+          tag: action.releaseTag ?? null,
+          record: record ? { data, body: record.body } : null,
+        }),
+      ),
+    };
+  }
+  return plan;
 }
 function minimumNewer(required: string): boolean {
   const current = PACKAGE_VERSION.split(".").map(Number);
@@ -452,7 +497,65 @@ export function inspectFiles(
       questions.set(String(d.action), all);
     }
   }
+  const releaseClaims = new Map<string, string>();
   for (const [id, { action: a, file }] of actions) {
+    if (a.releaseActions) {
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Release selections require voidra ≥ 0.2.0",
+        );
+      for (const member of a.releaseActions) {
+        reference(member, file, "releaseActions");
+        const selected = actions.get(member)?.action;
+        if (
+          selected?.type === "release" ||
+          (a.stage !== "cancelled" &&
+            selected &&
+            (!actionComplete(selected) ||
+              (a.stage !== "released" && selected.stage === "released")))
+        )
+          add(
+            "release-selection",
+            file,
+            "releaseActions",
+            `${member} must be completed, unreleased work`,
+          );
+        if (!["cancelled", "released"].includes(a.stage ?? "")) {
+          const prior = releaseClaims.get(member);
+          if (prior)
+            add(
+              "release-selection",
+              file,
+              "releaseActions",
+              `${member} is already selected by ${prior}`,
+            );
+          releaseClaims.set(member, id);
+        }
+      }
+      if (["review", "released"].includes(a.stage ?? "")) {
+        const record = a.releaseVersion
+          ? records.get(`.voidra/releases/${a.releaseVersion}.md`)
+          : undefined;
+        if (
+          !a.releaseVersion ||
+          !a.releaseTag ||
+          record?.kind !== "release" ||
+          record.document.data.action !== id ||
+          JSON.stringify(record.document.data.actions) !==
+            JSON.stringify(a.releaseActions) ||
+          record.document.data.tag !== a.releaseTag
+        )
+          add(
+            "release-proposal",
+            file,
+            "releaseVersion",
+            "Release review requires a matching version, tag and member proposal record",
+          );
+      }
+    }
     for (const dep of a.blockedBy ?? []) reference(dep, file, "blockedBy");
     if (a.parent) reference(a.parent, file, "parent");
     for (const link of a.links ?? [])

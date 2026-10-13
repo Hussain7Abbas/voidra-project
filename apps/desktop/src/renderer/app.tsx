@@ -36,6 +36,7 @@ import {
   ProjectProfile,
   useWorkspace,
 } from "./project-profile.tsx";
+import { ProjectReleases } from "./project-releases.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -92,6 +93,7 @@ function Shell() {
     | "inbox"
     | "decisions"
     | "glossary"
+    | "releases"
   >("actions");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const showAction = (id: string): void => {
@@ -254,7 +256,7 @@ function Shell() {
                 <button
                   type="button"
                   aria-label={item.label}
-                  className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                  className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                   disabled={
                     hasPlanning
                       ? ![
@@ -265,6 +267,7 @@ function Shell() {
                           "Waiting for you",
                           "Decisions",
                           "Glossary",
+                          "Releases",
                         ].includes(item.label)
                       : index !== 0
                   }
@@ -272,19 +275,21 @@ function Shell() {
                     setSelectedAction(null);
                     setNavigationEpoch((value) => value + 1);
                     setNavigationTarget(
-                      item.label === "Decisions"
-                        ? "decisions"
-                        : item.label === "Glossary"
-                          ? "glossary"
-                          : item.label === "Waiting for you"
-                            ? "inbox"
-                            : item.label === "Run"
-                              ? "run"
-                              : item.label === "Backlog"
-                                ? "backlog"
-                                : item.label === "Profile"
-                                  ? "profile"
-                                  : "actions",
+                      item.label === "Releases"
+                        ? "releases"
+                        : item.label === "Decisions"
+                          ? "decisions"
+                          : item.label === "Glossary"
+                            ? "glossary"
+                            : item.label === "Waiting for you"
+                              ? "inbox"
+                              : item.label === "Run"
+                                ? "run"
+                                : item.label === "Backlog"
+                                  ? "backlog"
+                                  : item.label === "Profile"
+                                    ? "profile"
+                                    : "actions",
                     );
                     setMenu(false);
                   }}
@@ -298,13 +303,15 @@ function Shell() {
                               ? "Run"
                               : navigationTarget === "decisions"
                                 ? "Decisions"
-                                : navigationTarget === "glossary"
-                                  ? "Glossary"
-                                  : navigationTarget === "profile"
-                                    ? "Profile"
-                                    : navigationTarget === "backlog"
-                                      ? "Backlog"
-                                      : "Actions")
+                                : navigationTarget === "releases"
+                                  ? "Releases"
+                                  : navigationTarget === "glossary"
+                                    ? "Glossary"
+                                    : navigationTarget === "profile"
+                                      ? "Profile"
+                                      : navigationTarget === "backlog"
+                                        ? "Backlog"
+                                        : "Actions")
                         : index === 0
                     )
                       ? "page"
@@ -486,11 +493,14 @@ function Content({
     | "backlog"
     | "inbox"
     | "decisions"
-    | "glossary";
+    | "glossary"
+    | "releases";
 }) {
   const project = data.project;
   if (project && hasPlanning)
-    return navigationTarget === "decisions" ? (
+    return navigationTarget === "releases" ? (
+      <ProjectReleases key={navigationEpoch} onAction={onAction} />
+    ) : navigationTarget === "decisions" ? (
       <ProjectDecisions
         key={navigationEpoch}
         onAction={onAction}

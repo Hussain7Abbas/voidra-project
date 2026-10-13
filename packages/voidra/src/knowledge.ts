@@ -96,9 +96,24 @@ export function collectPlanningDecisions(
     }
     if (kind === "action") {
       const action = schemas.action.parse(doc.data);
-      if (!action.planApproval) continue;
+      const approval =
+        action.planApproval ??
+        (action.type === "release" &&
+        action.reviewDecision?.decision === "accepted" &&
+        action.reviewDecision.hashes
+          ? {
+              hashes: action.reviewDecision.hashes,
+              at: action.reviewDecision.at,
+              by: action.reviewDecision.by,
+            }
+          : undefined);
+      if (!approval) continue;
       const plan = readPlan(project.files, action.id, project.records),
-        current = !!plan && approvalCurrent(action.planApproval, plan);
+        current =
+          !!plan &&
+          approvalCurrent(approval, plan) &&
+          (action.type !== "release" ||
+            action.reviewDecision?.revision === plan.revision);
       entries.push({
         id: `plan:${action.id}`,
         kind: "plan",
@@ -112,13 +127,22 @@ export function collectPlanningDecisions(
                     project.records.get(`.voidra/actions/${action.id}/${file}`)
                       ?.document.body ?? "",
                 )
+                .concat(
+                  action.type === "release" && action.releaseVersion
+                    ? [
+                        project.records.get(
+                          `.voidra/releases/${action.releaseVersion}.md`,
+                        )?.document.body ?? "",
+                      ]
+                    : [],
+                )
                 .join("\n\n")
             : "Approval applies to an earlier revision; review the current plan.",
         path: doc.file,
         anchor: null,
         action: action.id,
-        at: action.planApproval.at,
-        by: action.planApproval.by,
+        at: approval.at,
+        by: approval.by,
         revision: plan?.revision ?? revision,
         state: current ? "recorded" : "stale",
       });

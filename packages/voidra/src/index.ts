@@ -11,6 +11,7 @@ export * from "./planning.ts";
 export * from "./project.ts";
 export * from "./queue.ts";
 export * from "./records.ts";
+export * from "./releases.ts";
 export * from "./schemas.ts";
 export * from "./templates.ts";
 export * from "./writer.ts";

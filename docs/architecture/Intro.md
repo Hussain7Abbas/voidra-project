@@ -23,3 +23,5 @@ P16 adds the v2 design documents after the v1 core is built. No v2 directory or 
 - [Questions, gates and inbox](questions-gates-inbox.md): saved rounds, assumptions, exact revisions and Waiting for you.
 
 - [Decisions and documents](knowledge.md): FTS search, assumption revisits, read-only glossary/docs and ADR rules.
+
+- [Releases and outside work](releases-sync.md): completed-work selection and exact proposals; standalone finalization/Sync in progress.

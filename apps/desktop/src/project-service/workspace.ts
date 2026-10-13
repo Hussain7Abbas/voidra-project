@@ -25,6 +25,7 @@ import {
   createId,
   createIdea,
   createAction as createPlanningAction,
+  createReleaseAction,
   decideReview,
   detectCode,
   editAction,
@@ -42,6 +43,7 @@ import {
   readPlan,
   readProjectDocument,
   readTemplates,
+  releaseCandidates,
   replaceActionQueue,
   requestPlanChanges,
   reviewRevision,
@@ -62,7 +64,7 @@ import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 5;
+const INDEX_VERSION = 6;
 export class ProjectWorkspace {
   private database: Database.Database;
   private history: UndoHistory;
@@ -148,7 +150,7 @@ export class ProjectWorkspace {
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
         db.exec(
-          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists decision_index; drop table if exists decisions_fts;",
+          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists releases; drop table if exists release_candidates; drop table if exists decision_index; drop table if exists decisions_fts;",
         );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
@@ -159,7 +161,7 @@ export class ProjectWorkspace {
       db.pragma(`user_version = ${INDEX_VERSION}`);
     }
     db.exec(
-      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null); create table if not exists ideas (id text primary key, value text not null);",
+      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null); create table if not exists ideas (id text primary key, value text not null); create table if not exists releases (id text primary key, value text not null); create table if not exists release_candidates (id text primary key, value text not null);",
     );
     return db;
   }
@@ -195,6 +197,23 @@ export class ProjectWorkspace {
   private async applyRequest(
     request: WorkspaceRequest,
   ): Promise<WorkspaceSnapshot> {
+    if (request.command === "create-release") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw new Error(
+          "Finish or recover pending work before creating a release",
+        );
+      await createReleaseAction(this.root, {
+        actions: request.actions,
+        by: "You",
+      });
+      await this.publish();
+    }
     if (request.command === "revisit-assumption") {
       const current = await this.snapshot();
       if (
@@ -681,7 +700,7 @@ export class ProjectWorkspace {
     if (!pending)
       this.database.transaction(() => {
         this.database.exec(
-          "delete from actions; delete from runs; delete from profiles; delete from ideas;",
+          "delete from actions; delete from runs; delete from profiles; delete from ideas; delete from releases; delete from release_candidates;",
         );
         const addAction = this.database.prepare(
           "insert into actions values (?, ?)",
@@ -695,6 +714,14 @@ export class ProjectWorkspace {
         const addIdea = this.database.prepare(
           "insert into ideas values (?, ?)",
         );
+        const addRelease = this.database.prepare(
+            "insert into releases values (?, ?)",
+          ),
+          addCandidate = this.database.prepare(
+            "insert into release_candidates values (?, ?)",
+          );
+        for (const candidate of releaseCandidates(project))
+          addCandidate.run(candidate.id, JSON.stringify(candidate));
         for (const [path, { kind, document }] of project.records) {
           if (
             project.diagnostics.some(
@@ -715,6 +742,13 @@ export class ProjectWorkspace {
             const data = schemas.profile.parse(document.data);
             addProfile.run(
               data.block,
+              JSON.stringify({ data, body: document.body, path }),
+            );
+          }
+          if (kind === "release") {
+            const data = schemas.release.parse(document.data);
+            addRelease.run(
+              data.version,
               JSON.stringify({ data, body: document.body, path }),
             );
           }
@@ -796,14 +830,24 @@ export class ProjectWorkspace {
         changedPlans: (() => {
           const approved =
             data.planApproval?.hashes ?? data.reviewDecision?.hashes;
-          if (approved)
-            return planFiles.filter(
+          if (approved) {
+            const changed = planFiles.filter(
               (file) =>
                 approved[file] !==
                 hash(
                   project.files.get(`.voidra/actions/${data.id}/${file}`) ?? "",
                 ),
             );
+            if (
+              !changed.length &&
+              data.type === "release" &&
+              data.reviewDecision?.decision === "accepted" &&
+              data.reviewDecision.revision !==
+                readPlan(project.files, data.id, project.records)?.revision
+            )
+              return ["Release proposal"];
+            return changed;
+          }
           return data.type === "release" &&
             data.reviewDecision?.decision === "accepted" &&
             data.reviewDecision.revision !==
@@ -858,6 +902,16 @@ export class ProjectWorkspace {
         const idea = JSON.parse(row.value) as { path: string };
         return { ...idea, revision: hash(project.files.get(idea.path) ?? "") };
       }),
+      releases: (
+        this.database
+          .prepare("select value from releases order by id desc")
+          .all() as { value: string }[]
+      ).map((row) => JSON.parse(row.value) as unknown),
+      releaseCandidates: (
+        this.database
+          .prepare("select value from release_candidates order by id")
+          .all() as { value: string }[]
+      ).map((row) => JSON.parse(row.value) as unknown),
       profiles: (
         this.database
           .prepare("select value from profiles order by id")

@@ -27360,6 +27360,9 @@ var actionSchema = object2({
   blockedBy: external_exports.array(id("act")).optional(),
   links: external_exports.array(text).optional(),
   commits: external_exports.array(text).optional(),
+  releaseActions: external_exports.array(id("act")).min(1).optional(),
+  releaseVersion: version2.optional(),
+  releaseTag: text.optional(),
   completedBySlices: external_exports.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date5.optional(),
@@ -27462,6 +27465,7 @@ var schemas = {
   }),
   release: object2({
     version: version2,
+    action: id("act").optional(),
     actions: external_exports.array(id("act")),
     status: external_exports.enum(["draft", "released"]),
     tag: text.optional(),
@@ -27515,6 +27519,13 @@ function validateRecord(kind, record2) {
   };
   const d = record2.data;
   if (kind === "action") {
+    if (d.releaseActions !== void 0) {
+      if (d.type !== "release")
+        add("releaseActions", "Only Release actions select release members");
+      const members2 = d.releaseActions;
+      if (new Set(members2).size !== members2.length)
+        add("releaseActions", "Release members must be unique");
+    }
     if (d.doneBy === "agent" && !d.stage)
       add("stage", "Agent actions require a stage");
     if (d.doneBy === "you" && d.stage && d.stage !== "cancelled")
@@ -27879,6 +27890,16 @@ async function readProjectFiles(root) {
   await walk(".voidra");
   return { files, diagnostics };
 }
+function planDocument(files, path, records) {
+  if (records) return records.get(path)?.document;
+  const raw = files.get(path);
+  if (!raw) return void 0;
+  try {
+    return parseRecord(path, raw);
+  } catch {
+    return void 0;
+  }
+}
 function readPlan(files, id2, records) {
   const values = {};
   for (const file2 of planFiles) {
@@ -27887,7 +27908,34 @@ function readPlan(files, id2, records) {
     if (!bytes || records && !records.has(path)) return void 0;
     values[file2] = bytes;
   }
-  return planRevision(values);
+  const plan = planRevision(
+    values
+  ), actionPath = `.voidra/actions/${id2}/action.md`;
+  const parsed = schemas.action.safeParse(
+    planDocument(files, actionPath, records)?.data
+  ), action = parsed.success ? parsed.data : void 0;
+  if (action?.type === "release" && action.releaseActions) {
+    const version3 = action.releaseVersion ?? null, path = version3 ? `.voidra/releases/${version3}.md` : null;
+    const record2 = path ? planDocument(files, path, records) : void 0;
+    const data = record2 ? { ...record2.data } : null;
+    if (data) {
+      delete data.status;
+      delete data.date;
+    }
+    return {
+      ...plan,
+      revision: hash2(
+        JSON.stringify({
+          plan: plan.revision,
+          actions: action.releaseActions,
+          version: version3,
+          tag: action.releaseTag ?? null,
+          record: record2 ? { data, body: record2.body } : null
+        })
+      )
+    };
+  }
+  return plan;
 }
 function minimumNewer(required2) {
   const current2 = PACKAGE_VERSION.split(".").map(Number);
@@ -28131,7 +28179,49 @@ function inspectFiles(files, options = {}) {
       questions.set(String(d.action), all);
     }
   }
+  const releaseClaims = /* @__PURE__ */ new Map();
   for (const [id2, { action: a, file: file2 }] of actions) {
+    if (a.releaseActions) {
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Release selections require voidra \u2265 0.2.0"
+        );
+      for (const member of a.releaseActions) {
+        reference(member, file2, "releaseActions");
+        const selected = actions.get(member)?.action;
+        if (selected?.type === "release" || a.stage !== "cancelled" && selected && (!actionComplete(selected) || a.stage !== "released" && selected.stage === "released"))
+          add(
+            "release-selection",
+            file2,
+            "releaseActions",
+            `${member} must be completed, unreleased work`
+          );
+        if (!["cancelled", "released"].includes(a.stage ?? "")) {
+          const prior = releaseClaims.get(member);
+          if (prior)
+            add(
+              "release-selection",
+              file2,
+              "releaseActions",
+              `${member} is already selected by ${prior}`
+            );
+          releaseClaims.set(member, id2);
+        }
+      }
+      if (["review", "released"].includes(a.stage ?? "")) {
+        const record2 = a.releaseVersion ? records.get(`.voidra/releases/${a.releaseVersion}.md`) : void 0;
+        if (!a.releaseVersion || !a.releaseTag || record2?.kind !== "release" || record2.document.data.action !== id2 || JSON.stringify(record2.document.data.actions) !== JSON.stringify(a.releaseActions) || record2.document.data.tag !== a.releaseTag)
+          add(
+            "release-proposal",
+            file2,
+            "releaseVersion",
+            "Release review requires a matching version, tag and member proposal record"
+          );
+      }
+    }
     for (const dep of a.blockedBy ?? []) reference(dep, file2, "blockedBy");
     if (a.parent) reference(a.parent, file2, "parent");
     for (const link of a.links ?? [])
@@ -28913,6 +29003,17 @@ var queueInput = external_exports.strictObject({
     id: schemas.action.shape.id,
     revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
   }).optional()
+});
+
+// packages/voidra/src/releases.ts
+var selection = external_exports.strictObject({
+  actions: external_exports.array(
+    external_exports.strictObject({
+      id: schemas.action.shape.id,
+      revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+    })
+  ).min(1),
+  by: external_exports.string().trim().min(1)
 });
 
 // packages/voidra/src/templates.ts
