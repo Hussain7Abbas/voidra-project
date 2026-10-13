@@ -1,6 +1,6 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 implements the Docs/chore tracer bullet.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 is complete and M1 proves the Docs/chore tracer bullet; P04 adds onboarding and the project profile.
 
 ## Structure and shared rules
 
