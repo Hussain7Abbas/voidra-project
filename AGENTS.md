@@ -1,13 +1,15 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 adds the tracer bullet.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 implements the Docs/chore tracer bullet.
 
 ## Structure and shared rules
 
 - `apps/desktop/`: secure Electron shell, static Next renderer, bridge, utility services and native/e2e/package tests; follow its [local instructions](apps/desktop/AGENTS.md).
 - `packages/voidra/`: shared format, lifecycles, CLI, safe writes, fixtures and schema generation; follow its [local instructions](packages/voidra/AGENTS.md).
 - `fixtures/`: committed validation catalog; large output is generated into temporary folders.
-- `skills/shared/references/`: generated format reference only; executable skills begin in P03.
+- `skills/`: executable skills and self-contained generated references; follow its [local instructions](skills/AGENTS.md).
+- `tools/run-engine/`: standalone run ownership, durable Git recovery, skill linking and artifact generation. Follow its [local instructions](tools/run-engine/AGENTS.md).
+- `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
 - `docs/`: development, compatibility, architecture, ADRs and verification evidence. Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
@@ -31,7 +33,8 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 | `make build` | Compile tooling, format package and desktop into ignored output |
 | `make test` / `make test-watch` | Run coverage-gated tests / watch tests |
 | `make deprecations` | List markers and fail on invalid deadlines or an empty scan |
-| `make gen` / `make gen-check` | Generate format references / reject stale output |
+| `make gen` / `make gen-check` | Generate schemas, references and skill runtime / reject stale output |
+| `make skills-link PROJECT=/absolute/project` | Link skills into project Claude Code and Codex folders |
 | `make dev` | Build and open the desktop app |
 | `make native` | Rebuild native modules for Electron |
 | `make e2e` | Electron workflow and accessibility checks |

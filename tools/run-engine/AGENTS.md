@@ -1,0 +1,10 @@
+# Local run coordination
+
+Extends [root instructions](../../AGENTS.md). This scope implements deterministic Node helpers shared by the desktop and standalone skill runtime. It has no Electron, SQLite or authenticated agent dependency.
+
+- Keep planning-file rules and writes in `voidra`. Own local process identity, run ownership/checkpoints and git side-effect reconciliation here.
+- Heartbeat age is a warning, never proof that a live owner may be cleared. Compare host, PID/start identity and token before recovery or further effects.
+- Tests use real temporary repositories, files, processes and git. Never fake an agent as evidence that a real skill ran.
+- Keep the run architecture, skill runtime/reference generation and phase evidence current with public helper changes. Runtime changes need source/bundle synchronization before linking or agent checks.
+
+`CLAUDE.md` contains only the sibling instruction pointer.

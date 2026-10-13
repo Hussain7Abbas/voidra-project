@@ -58,8 +58,9 @@ Other action types, questions, plans, onboarding, the board and teams.
 | P03-07 | `voidra-go` v0 | 5 | P01 | The golden outputs pass `voidra check`. The commit carries the trailer. Unsupported types get a clear run result. |
 | P03-08 | Review gate | 3 | P03-05 | Accept moves the action to Done. Reject saves the feedback and returns the action to Implement. |
 | P03-09 | Fake agent | 3 | P03-07 | Scenarios for success, an invalid write, a crash mid-run and a stale lock. |
-| P03-10 | Skill linking and a real-agent check | 2 | P03-07 | `make skills-link` works for both agents. The agent runs `voidra-go` once with Claude Code and once with Codex, using the real-agent check procedure, and records both. This is the M1 proof. |
+| P03-10 | Skill linking and a real-agent check | 2 | P03-07 | `make skills-link` works for both agents. The agent runs `voidra-go` once with Claude Code and once with Codex, using the real-agent check procedure, and records both, including a rejected review and a follow-up commit. This is the M1 proof. |
 | P03-11 | Run start, lock ownership and retry recovery | 5 | P03-07, P01-13 | Before any work, the valid start record identifies consumed records. Two local starts allow only one owner. Tests interrupt before commit, after commit and before result finalization; recovery preserves outside edits, finds the existing trailer and creates no duplicate commit. An active owner cannot be cleared, and repeated recovery produces the same outcome. |
+| P03-12 | Deterministic skill-artifact checks | 2 | P03-07 | Runtime and local format references are generated and checked for staleness; skill metadata, length and relative links are linted; the scanner excludes only the generated runtime while keeping authored scripts in its scan. The packaged utility successfully reads a live lock using its unpacked native process helper. |
 
 ## Tests
 

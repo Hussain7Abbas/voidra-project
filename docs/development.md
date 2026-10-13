@@ -27,7 +27,7 @@ Sources: [Electron releases](https://releases.electronjs.org/), [TypeScript comp
 
 ## Testing seams and coverage
 
-The workspace members are `tools/standards`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
+The workspace members are `tools/standards`, `tools/run-engine`, `tools/fake-agent`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
 
 | Scope | Minimum line coverage |
 | --- | --- |
@@ -37,13 +37,13 @@ The workspace members are `tools/standards`, `packages/voidra` and `apps/desktop
 | `tools/*/src/**` | 90% |
 | UI components | No percentage target |
 
-V8 includes unimported production files, so uncovered new code contributes to the gates. The coverage policy has no global percentage target that would accidentally impose one on UI components. Keep test locations under each workspace's `tests/` directory. Electron end-to-end testing runs separately with `make e2e`; real-agent checks remain local and begin in P03.
+V8 includes unimported production files, so uncovered new code contributes to the gates. The coverage policy has no global percentage target that would accidentally impose one on UI components. Keep test locations under each workspace's `tests/` directory. Electron end-to-end testing runs separately with `make e2e`; real-agent checks run locally, with their commands and outcomes in the phase evidence.
 
 ## Deprecation scan
 
 `make deprecations` scans JavaScript and TypeScript source comments. The CLI also accepts `--root`, `--today YYYY-MM-DD`, `--json` and `--help`. Exit codes are 0 for a passing scan (including warnings), 1 for invalid/expired/undated markers, no scanned files or an I/O error, and 2 for bad arguments.
 
-Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test directories, fixtures, `*.test.*`, `*.spec.*`, declaration files and symlinks. Next output, e2e artifacts and desktop export/package paths are also excluded; ordinary production out/release directories remain scanned. Markdown examples and strings/template literals are not comment markers. A source file with no deprecated fields passes; a source file list of zero does not. See [compatibility](compatibility.md) for the marker contract and UTC deadline semantics.
+Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test directories, fixtures, `*.test.*`, `*.spec.*`, declaration files and symlinks. Next output, e2e artifacts and desktop export/package paths are also excluded; ordinary production out/release directories remain scanned. The generated `skills/voidra-go/scripts/runtime.mjs` alone is excluded from the skill sources; authored scripts remain scanned. Markdown examples and strings/template literals are not comment markers. A source file with no deprecated fields passes; a source file list of zero does not. See [compatibility](compatibility.md) for the marker contract and UTC deadline semantics.
 
 ## CI
 
@@ -63,4 +63,10 @@ The format package uses zod 4.6.7 and yaml 2.9.1. See the [API contract](format/
 
 Frontend build pins: Next 16.4.0, React 19.3.0, Tailwind/PostCSS 4.3.3, Inter Variable 5.3.0, Lucide 1.55.0, TanStack Query 5.104.2. Native/build pins: better-sqlite3 13.0.3, electron-builder 26.15.3, esbuild 0.28.2. Playwright is 1.64.0 and axe integration 4.13.0. Frontend dependencies are bundled build inputs, not unused runtime servers in the app.
 
-The scanner excludes `.next`, e2e/results directories, and the desktop's exported/packaged output paths. Real source directories named out/release elsewhere remain scanned. Native tests selectively collect source-mapped Electron subprocess coverage; direct Node TS stripping has incompatible V8 offsets and remains covered at parent/API seams. UI has no line percentage requirement. Only OS chooser results are substituted in e2e tests.
+The scanner excludes `.next`, e2e/results directories, and the desktop's exported/packaged output paths. Real source directories named out/release elsewhere remain scanned. Native tests selectively collect source-mapped Electron subprocess coverage; direct Node TS stripping has incompatible V8 offsets and remains covered at parent/API seams. UI has no line percentage requirement. Only OS chooser results are substituted in e2e tests; command-copy checks use the real Electron clipboard.
+
+## Skills and run development
+
+`make skills-link PROJECT=/absolute/project` creates project-local `.claude/skills` and `.agents/skills` links; omit PROJECT to use this checkout. It refuses conflicting contents. `make gen` builds the standalone runtime, local format reference and Apple Silicon process-identity helper; `make gen-check` rejects stale assets. The helper is compiled from repository-owned C using clang and macOS libproc, avoiding the setuid `ps` executable that agent sandboxes deny. Its source/flags hash is embedded; compiler bytes are not claimed reproducible across SDK versions. The arm64 helper is also unpacked in the desktop archive.
+
+`make lint` checks skill metadata, length and relative resources. The shared run library and fake agent use real temporary Git repositories in tests. Unit/native tests run serially so the watcher timing assertion is not distorted by competing native builds. `make e2e` includes create, queue, reject, rework, accept, invalid-output and explicit recovery workflows; CI never runs authenticated agents. See [run architecture](architecture/runs.md).

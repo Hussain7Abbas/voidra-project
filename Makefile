@@ -9,7 +9,7 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
         install setup \
         build dev native e2e package-dir smoke-packaged \
         lint format typecheck deprecations check clean \
-        test test-watch gen gen-check
+        test test-watch gen gen-check skills-link
 
 help: # Show this help
 	@awk 'BEGIN {FS = ": *#+ *"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+( +[a-zA-Z0-9_-]+)*: *#/ { gsub(/ +/, ", ", $$1); printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -72,3 +72,6 @@ package-dir: # Package the unsigned arm64 app directory
 
 smoke-packaged: # Start the packaged app and verify native SQLite
 	@cd "$(ROOT)" && pnpm smoke:packaged
+
+skills-link: # Link development skills in this project or PROJECT folder
+	@cd "$(ROOT)" && node tools/run-engine/scripts/link.ts "$(if $(PROJECT),$(PROJECT),$(ROOT))"

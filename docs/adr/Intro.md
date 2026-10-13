@@ -14,3 +14,7 @@ These records describe confirmed project decisions, not completed runtime featur
 - [Utility project process](2026-10-13-utility-process.md)
 - [Storylens design port](2026-10-13-storylens-design-port.md)
 - [Bridge query cache](2026-10-13-bridge-query-cache.md)
+
+- [Project watcher](2026-10-13-project-watcher.md): debounce, echo suppression and recovery boundaries.
+
+- [Run ownership](2026-10-13-run-ownership.md): live-owner protection and durable commit reconciliation.

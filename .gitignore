@@ -12,3 +12,6 @@ out/
 release/
 playwright-report/
 test-results/
+
+.agents/skills/
+.claude/skills/

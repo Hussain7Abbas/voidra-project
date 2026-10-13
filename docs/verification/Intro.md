@@ -9,3 +9,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P01 — Format package](p01.md): library, CLI, fixtures, recovery checks and publication status.
 
 - [P02 — Desktop shell](p02.md): security, native services, themes, workflows, accessibility and arm64 packaging.
+
+- [P03 — Tracer bullet](p03.md): action/run loop, explicit recovery, fake-agent workflows and both real agents.

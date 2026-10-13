@@ -3,6 +3,7 @@ import { extname, join } from "node:path";
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   Menu,
@@ -13,6 +14,7 @@ import {
 import {
   type BridgeEvent,
   type BridgeResponse,
+  isWorkspaceRequest,
   type ProjectInfo,
   requestSchema,
   responseSchema,
@@ -244,6 +246,26 @@ async function start(): Promise<void> {
               serviceState: service?.state ?? null,
             },
           };
+        } else if (isWorkspaceRequest(request)) {
+          const service = services.get(window.id);
+          if (!service) throw new Error("Open a project first");
+          response = {
+            ok: true,
+            data: {
+              kind: "workspace",
+              workspace: await service.workspace(request),
+            },
+          };
+        } else if (request.command === "copy-recovery-command") {
+          await clipboard.writeText(
+            `${request.agent === "claude-code" ? "/voidra-go" : "$voidra-go"} recover ${request.kind} ${request.id}`,
+          );
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "copy-agent-command") {
+          await clipboard.writeText(
+            request.agent === "claude-code" ? "/voidra-go" : "$voidra-go",
+          );
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-theme") {
           await store.setTheme(request.theme);
           nativeTheme.themeSource = request.theme;

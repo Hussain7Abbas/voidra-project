@@ -25,6 +25,7 @@ import type {
   Snapshot,
   ThemePreference,
 } from "../shared/bridge.ts";
+import { ProjectActions } from "./project-actions.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -69,13 +70,17 @@ function Shell() {
   const [remove, setRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [navigationEpoch, setNavigationEpoch] = useState(0);
+  const [navigationTarget, setNavigationTarget] = useState<"actions" | "run">(
+    "actions",
+  );
   const data = snapshot.data;
   const themePreference = data?.theme;
   useEffect(
     () =>
       window.voidra.subscribe((event) => {
         if (event.type === "settings") setSettings(true);
-        else void query.invalidateQueries({ queryKey: ["snapshot"] });
+        else void query.invalidateQueries();
       }),
     [query],
   );
@@ -211,9 +216,29 @@ function Shell() {
               <li key={item.label}>
                 <button
                   type="button"
-                  className={`nav-item ${index === 0 ? "active" : ""}`}
-                  disabled={index !== 0}
-                  aria-current={index === 0 ? "page" : undefined}
+                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : "Actions") : index === 0) ? "active" : ""}`}
+                  disabled={
+                    data?.project?.hasVoidra
+                      ? !["Actions", "Run"].includes(item.label)
+                      : index !== 0
+                  }
+                  onClick={() => {
+                    setNavigationEpoch((value) => value + 1);
+                    setNavigationTarget(
+                      item.label === "Run" ? "run" : "actions",
+                    );
+                    setMenu(false);
+                  }}
+                  aria-current={
+                    (
+                      data?.project?.hasVoidra
+                        ? item.label ===
+                          (navigationTarget === "run" ? "Run" : "Actions")
+                        : index === 0
+                    )
+                      ? "page"
+                      : undefined
+                  }
                 >
                   <item.icon size={18} strokeWidth={1.75} aria-hidden />
                   {item.label}
@@ -262,6 +287,23 @@ function Shell() {
           className="main-content"
           data-app-ready={Boolean(data)}
         >
+          {data?.serviceState && data?.serviceState !== "ready" && (
+            <div
+              className="service-notice"
+              role="alert"
+              aria-label="Project connection"
+            >
+              <p>
+                {data?.serviceState === "failed"
+                  ? "The project connection stopped."
+                  : "The project connection stopped. Reconnecting…"}
+              </p>
+              <Button onClick={() => void act({ command: "service-retry" })}>
+                Reconnect
+              </Button>
+            </div>
+          )}
+
           {snapshot.isPending ? (
             <div className="loading-state">
               <Spinner label="Loading workspace" />
@@ -277,7 +319,14 @@ function Shell() {
               data={data as Snapshot}
               open={open}
               busy={busy}
-              retry={() => void act({ command: "service-retry" })}
+              navigationEpoch={navigationEpoch}
+              navigationTarget={navigationTarget}
+              initialize={() =>
+                void act(
+                  { command: "create-voidra" },
+                  "Planning folder created",
+                )
+              }
             />
           )}
         </main>
@@ -333,14 +382,20 @@ function Content({
   data,
   open,
   busy,
-  retry,
+  initialize,
+  navigationEpoch,
+  navigationTarget,
 }: {
   data: Snapshot;
   open: () => void;
   busy: boolean;
-  retry: () => void;
+  initialize: () => void;
+  navigationEpoch: number;
+  navigationTarget: "actions" | "run";
 }) {
   const project = data.project;
+  if (project?.hasVoidra)
+    return <ProjectActions key={navigationEpoch} view={navigationTarget} />;
   return (
     <>
       <PageHeader
@@ -361,20 +416,6 @@ function Content({
           </Button>
         }
       />
-      {data.serviceState && data.serviceState !== "ready" && (
-        <div
-          className="service-notice"
-          role="alert"
-          aria-label="Project connection"
-        >
-          <p>
-            {data.serviceState === "failed"
-              ? "The project connection stopped."
-              : "The project connection stopped. Reconnecting…"}
-          </p>
-          <Button onClick={retry}>Reconnect</Button>
-        </div>
-      )}
       <section className="welcome-card card" aria-labelledby="welcome-title">
         <div className="welcome-symbol">
           <Layers size={34} strokeWidth={1.5} aria-hidden />
@@ -409,6 +450,16 @@ function Content({
             </Button>
           )}
           {project && <code className="project-path">{project.path}</code>}
+          {project && !project.hasVoidra && (
+            <Button
+              className="mt-6"
+              variant="primary"
+              loading={busy}
+              onClick={initialize}
+            >
+              Create .voidra/
+            </Button>
+          )}
         </div>
       </section>
       {!project && (

@@ -9,3 +9,7 @@
 P16 adds the v2 design documents after the v1 core is built. No v2 directory or placeholder documents are created yet.
 
 - [Desktop](desktop.md): secure static renderer, windows, bridge and project services.
+
+- [Project files and index](project-files.md): package validation, SQLite rebuilds and live notifications.
+
+- [Runs and review](runs.md): standalone helpers, ownership, checkpoints and human gates.

@@ -10,15 +10,15 @@
     "pnpm": "10.30.3"
   },
   "scripts": {
-    "lint": "biome check .",
+    "lint": "biome check . && node tools/run-engine/scripts/lint-skills.ts",
     "format": "biome check --write .",
     "typecheck": "tsc -b && pnpm --filter voidra-project exec next typegen && tsc -p apps/desktop/tsconfig.json",
     "build": "tsc -b tsconfig.json packages/voidra/tsconfig.json && pnpm --filter voidra-project build",
     "test": "pnpm --filter voidra build && pnpm --filter voidra-project build && vitest run --coverage",
     "test:watch": "vitest",
     "deprecations": "node tools/standards/src/deprecations-cli.ts",
-    "gen": "node packages/voidra/scripts/generate.ts",
-    "gen:check": "node packages/voidra/scripts/generate.ts --check",
+    "gen": "node packages/voidra/scripts/generate.ts && node tools/run-engine/scripts/generate.ts && node tools/run-engine/scripts/native.ts",
+    "gen:check": "node packages/voidra/scripts/generate.ts --check && node tools/run-engine/scripts/generate.ts --check && node tools/run-engine/scripts/native.ts --check",
     "fixtures": "node packages/voidra/scripts/fixtures.ts",
     "fixture:large": "node packages/voidra/scripts/fixtures.ts --large",
     "dev": "pnpm --filter voidra-project dev",

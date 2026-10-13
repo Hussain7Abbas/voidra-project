@@ -5,6 +5,7 @@ import { coveragePolicy } from "./tools/standards/src/coverage-policy.ts";
 export default defineConfig({
   test: {
     environment: "node",
+    fileParallelism: false,
     setupFiles: [
       fileURLToPath(
         new URL("./apps/desktop/tests/coverage-setup.ts", import.meta.url),

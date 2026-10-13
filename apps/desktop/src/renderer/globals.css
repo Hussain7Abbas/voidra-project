@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* Ink & Iris tokens, mirrored from storylens-website `src/app/globals.css`
-   (canonical table: website `design-system/MASTER.md`). */
+/* Ink & Iris port from storylens dashboard src/styles/globals.css.
+   Copyright 2026 Hussain Abbas; owner-authorized AGPL relicensing.
+   Source revision and dashboard MASTER.md are recorded in docs/verification/p02.md. */
 @theme inline {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
@@ -682,4 +683,77 @@
   .welcome-card {
     flex-direction: column;
   }
+}
+
+.action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.action-list > li {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.action-list > li:last-child {
+  border-bottom: 0;
+}
+
+.action-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.action-detail {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.action-detail > h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.action-detail > article + article {
+  border-top: 1px solid var(--border);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+.markdown {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown pre {
+  margin: 0.75rem 0;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 1.5rem;
+}
+.markdown h3 {
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+.markdown pre {
+  background: var(--wash);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.command-row {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+}
+.command-row + .command-row {
+  border-top: 1px solid var(--border);
+}
+.command-row h3 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
 }

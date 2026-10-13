@@ -1,0 +1,114 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import {
+  commitResult,
+  finalizeResult,
+  prepareResult,
+  startRun,
+} from "@voidra/run-engine";
+import { applyOperation, hash, parseRecord, serializeRecord } from "voidra";
+export type Scenario =
+  | "success"
+  | "invalid-write"
+  | "crash-mid-run"
+  | "crash-after-commit"
+  | "stale-lock"
+  | "live-stale"
+  | "interrupted-operation";
+export async function runFakeAgent(
+  root: string,
+  scenario: Scenario,
+): Promise<{ run: string; scenario: Scenario }> {
+  const ctx = await startRun(root, "codex", process.pid);
+  if (!ctx) throw new Error("No queued action");
+  if (ctx.phase === "unsupported") return { run: ctx.run, scenario };
+  if (scenario === "invalid-write") {
+    await writeFile(
+      join(root, ctx.actionPath),
+      "---\nid: broken\n---\nInvalid fixture output.\n",
+    );
+    return { run: ctx.run, scenario };
+  }
+  if (scenario === "stale-lock" || scenario === "live-stale") {
+    const path = ".voidra/local/run.lock",
+      old = await readFile(join(root, path), "utf8");
+    await applyOperation(root, {
+      changes: [
+        {
+          path,
+          expectedHash: hash(old),
+          content: JSON.stringify({
+            ...JSON.parse(old),
+            heartbeatAt: new Date(Date.now() - 180000).toISOString(),
+          }),
+        },
+      ],
+    });
+    return { run: ctx.run, scenario };
+  }
+  if (scenario === "interrupted-operation") {
+    const old = await readFile(join(root, ctx.actionPath)),
+      doc = parseRecord(ctx.actionPath, old);
+    try {
+      await applyOperation(
+        root,
+        {
+          changes: [
+            {
+              path: ctx.actionPath,
+              expectedHash: hash(old),
+              content: serializeRecord(doc, {
+                ...doc.data,
+                title: "Unfinished fixture operation",
+              }).toString(),
+            },
+          ],
+        },
+        {
+          checkpoint(point) {
+            if (point === "change-applied")
+              throw new Error("Scripted interruption");
+          },
+        },
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        error.message !== "Scripted interruption"
+      )
+        throw error;
+    }
+    return { run: ctx.run, scenario };
+  }
+  const action = parseRecord(
+      ctx.actionPath,
+      await readFile(join(root, ctx.actionPath)),
+    ),
+    before = await readFile(join(root, "README.md"), "utf8");
+  const feedback = (
+    action.data.reviewDecision as { feedback?: string } | undefined
+  )?.feedback;
+  await writeFile(
+    join(root, "README.md"),
+    `${before}\n${feedback ? "Troubleshooting: reinstall dependencies if setup fails." : "Install dependencies with pnpm install."}\n`,
+  );
+  if (scenario === "crash-mid-run") return { run: ctx.run, scenario };
+  await prepareResult(root, ctx.ownerToken, {
+    summary: feedback
+      ? "Added troubleshooting guidance from the review feedback."
+      : "Added installation guidance.",
+    paths: ["README.md"],
+    checks: [
+      { name: "Documentation reviewed", passed: true },
+      { name: "voidra check", passed: true },
+    ],
+  });
+  await commitResult(
+    root,
+    ctx.ownerToken,
+    feedback ? "Add troubleshooting guidance" : "Document installation",
+  );
+  if (scenario !== "crash-after-commit")
+    await finalizeResult(root, ctx.ownerToken);
+  return { run: ctx.run, scenario };
+}

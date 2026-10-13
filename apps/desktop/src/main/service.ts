@@ -7,15 +7,27 @@ import {
   type BridgeEvent,
   type ProjectInfo,
   projectSchema,
+  type WorkspaceRequest,
+  type WorkspaceSnapshot,
+  workspaceSchema,
 } from "../shared/bridge.ts";
 
-const responseSchema = z.discriminatedUnion("ok", [
+const responseSchema = z.union([
   z.strictObject({
-    id: z.string(),
+    requestId: z.string(),
+    ok: z.literal(true),
+    workspace: workspaceSchema,
+  }),
+  z.strictObject({
+    requestId: z.string(),
     ok: z.literal(true),
     project: projectSchema,
   }),
-  z.strictObject({ id: z.string(), ok: z.literal(false), message: z.string() }),
+  z.strictObject({
+    requestId: z.string(),
+    ok: z.literal(false),
+    message: z.string(),
+  }),
 ]);
 export class ProjectService {
   state: "starting" | "ready" | "restarting" | "failed" = "starting";
@@ -25,7 +37,7 @@ export class ProjectService {
   private pending = new Map<
     string,
     {
-      resolve: (project: ProjectInfo) => void;
+      resolve: (project: ProjectInfo | WorkspaceSnapshot) => void;
       reject: (error: Error) => void;
       timer: ReturnType<typeof setTimeout>;
     }
@@ -58,16 +70,24 @@ export class ProjectService {
       { serviceName: "Voidra project service" },
     );
     this.child.on("message", (input) => {
+      if (
+        z.strictObject({ event: z.literal("changed") }).safeParse(input).success
+      ) {
+        this.notify({ type: "changed" });
+        return;
+      }
       const parsed = responseSchema.safeParse(input);
       if (!parsed.success) return;
       const result = parsed.data;
-      const pending = this.pending.get(result.id);
+      const pending = this.pending.get(result.requestId);
       if (!pending) return;
       clearTimeout(pending.timer);
-      this.pending.delete(result.id);
+      this.pending.delete(result.requestId);
       if (result.ok) {
         this.state = "ready";
-        pending.resolve(result.project);
+        pending.resolve(
+          "project" in result ? result.project : result.workspace,
+        );
       } else pending.reject(new Error(result.message));
     });
     this.child.on("exit", () => {
@@ -95,6 +115,16 @@ export class ProjectService {
     });
   }
   status(): Promise<ProjectInfo> {
+    return this.call({ command: "status" }) as Promise<ProjectInfo>;
+  }
+  workspace(
+    request: WorkspaceRequest = { command: "workspace" },
+  ): Promise<WorkspaceSnapshot> {
+    return this.call(request) as Promise<WorkspaceSnapshot>;
+  }
+  private call(
+    input: { command: "status" } | WorkspaceRequest,
+  ): Promise<ProjectInfo | WorkspaceSnapshot> {
     const child = this.child;
     if (!child)
       return Promise.reject(new Error("Project service is unavailable"));
@@ -105,7 +135,7 @@ export class ProjectService {
         reject(new Error("Project service timed out"));
       }, 5000);
       this.pending.set(id, { resolve, reject, timer });
-      child.postMessage({ id, command: "status" });
+      child.postMessage({ requestId: id, ...input });
     });
   }
   async retry(): Promise<ProjectInfo> {
@@ -125,7 +155,7 @@ export class ProjectService {
         clearTimeout(timer);
         resolve();
       });
-      child.postMessage({ id: randomUUID(), command: "shutdown" });
+      child.postMessage({ requestId: randomUUID(), command: "shutdown" });
     });
     return this.shutdown;
   }

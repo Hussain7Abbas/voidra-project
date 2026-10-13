@@ -148,6 +148,8 @@ describe("repository scanning and CLI", () => {
       "src/b.js": "export const current = 1;",
       "src/out/production.ts": "export const generatedResult = 1;",
       "src/release/production.ts": "export const release = 1;",
+      "skills/voidra-go/scripts/runtime.mjs": "// @deprecated",
+      "skills/voidra-go/scripts/authored.mjs": "export const authored = 1;",
       "src/old.test.ts": "// @deprecated",
       "src/types.d.ts": "// @deprecated",
       "src/types.d.mts": "// @deprecated",
@@ -165,7 +167,7 @@ describe("repository scanning and CLI", () => {
     });
     await symlink(join(folder, "src"), join(folder, "linked-src"), "dir");
     const result = await scanDeprecations(folder, today);
-    expect(result.files).toBe(4);
+    expect(result.files).toBe(5);
     expect(result.errors).toEqual([]);
     expect(result.markers.map(({ file }) => file)).toEqual(["src/a.ts"]);
   });
