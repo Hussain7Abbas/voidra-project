@@ -27693,6 +27693,43 @@ function upgradePrototype(files) {
 }
 
 // packages/voidra/src/project.ts
+function diagnosticFingerprint(diagnostic) {
+  return hash2(
+    JSON.stringify([
+      diagnostic.code,
+      diagnostic.file,
+      diagnostic.field,
+      diagnostic.message
+    ])
+  );
+}
+function deferredConflictDiagnostics(project) {
+  if (!project.metadata) return [];
+  const conflicts = project.diagnostics.filter((d) => d.code === "conflict");
+  const ids = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+        d.file
+      )?.[1] ?? /^\.voidra\/backlog\/(idea-[0-9a-hjkmnp-tv-z]{6})\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  const planActions = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/(requirements|blueprint|acceptance)\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  return project.diagnostics.filter(
+    (d) => d.code === "conflict" || d.code === "missing-reference" && ids.has(d.message.replace(/^Record does not exist: /, "")) || d.code === "missing-plan" && [...planActions].some(
+      (id2) => d.file === `.voidra/actions/${id2}/action.md`
+    )
+  );
+}
 function fileKind(path) {
   if (path === ".voidra/voidra.json") return "project";
   if (/^\.voidra\/profile\/[^/]+\.md$/.test(path)) return "profile";
@@ -27733,7 +27770,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore"))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27853,6 +27890,8 @@ function inspectFiles(files, options = {}) {
   for (const [file2] of files) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
+    else if (!kind && file2.endsWith(".md") && !file2.startsWith(".voidra/local/") && file2 !== ".voidra/README.md" && /^(<<<<<<< |>>>>>>> )/m.test(files.get(file2)?.toString() ?? ""))
+      add("conflict", file2, "$", "Unresolved merge conflict");
   }
   let rules;
   try {
@@ -28350,20 +28389,33 @@ async function acquire(root, _options, recovery = false) {
     }
   };
 }
-function blockingDiagnostics(diagnostics, changes, rollback) {
+function blockingDiagnostics(diagnostics, changes, rollback, deferredDiagnostics = []) {
   const touched = new Set(
     changes.filter((c) => c.before !== c.after).map(
       (c) => /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\//.exec(c.path)?.[1]
     ).filter(Boolean)
   );
   return diagnostics.filter((d) => {
+    if (deferredDiagnostics.includes(diagnosticFingerprint(d))) return false;
     const action = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
       d.file
     )?.[1];
     return !(action && ["stale-approval", "stale-review"].includes(d.code) && (rollback || !touched.has(action)));
   });
 }
-function validateOverlay(files, changes, id2, options, rollback = false) {
+function validateOverlay(files, changes, id2, options, rollback = false, deferredDiagnostics) {
+  const before = inspectFiles(files, { ignoreOperation: id2 });
+  for (const conflict of before.diagnostics.filter(
+    (d) => d.code === "conflict"
+  )) {
+    if (changes.some((c) => c.path === conflict.file && c.before !== c.after))
+      fail(
+        "conflict",
+        conflict.file,
+        "Resolve this conflict outside the app before editing the record"
+      );
+  }
+  const deferred = deferredDiagnostics ?? deferredConflictDiagnostics(before).map(diagnosticFingerprint);
   const overlay = new Map(files);
   for (const change of changes) {
     const content = rollback ? change.before : change.after;
@@ -28374,7 +28426,12 @@ function validateOverlay(files, changes, id2, options, rollback = false) {
     ...options.lifecycles ? { lifecycles: options.lifecycles } : {},
     ignoreOperation: id2
   });
-  const problems = blockingDiagnostics(result2.diagnostics, changes, rollback);
+  const problems = blockingDiagnostics(
+    result2.diagnostics,
+    changes,
+    rollback,
+    deferred
+  );
   if (problems.length)
     fail(
       "invalid-overlay",
@@ -28428,6 +28485,7 @@ async function readJournal(root, id2) {
   return op;
 }
 async function finish(root, operation, options, rollback = false) {
+  const deferred = external_exports.array(external_exports.string().regex(/^[a-f0-9]{64}$/)).parse(operation.deferredDiagnostics ?? []);
   const targets = operation.changes.map((change) => ({
     change,
     wanted: rollback ? change.before : change.after
@@ -28460,7 +28518,8 @@ async function finish(root, operation, options, rollback = false) {
     operation.changes,
     operation.id,
     options,
-    rollback
+    rollback,
+    deferred
   );
   for (const { change, wanted } of targets) {
     const actual = await optionalRead(
@@ -28490,7 +28549,12 @@ async function finish(root, operation, options, rollback = false) {
       ignoreOperation: operation.id
     }
   );
-  if (final.diagnostics.length || blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length)
+  if (final.diagnostics.length || blockingDiagnostics(
+    checked.diagnostics,
+    operation.changes,
+    rollback,
+    deferred
+  ).length)
     fail(
       "post-validation",
       operation.id,
@@ -28580,7 +28644,10 @@ async function applyOperation(root, input4, options = {}, migration = false) {
       id: id2,
       fingerprint,
       state: "prepared",
-      changes
+      changes,
+      deferredDiagnostics: deferredConflictDiagnostics(
+        inspectFiles(read.files, { ignoreOperation: id2 })
+      ).map(diagnosticFingerprint)
     };
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id2);
@@ -28651,6 +28718,21 @@ var stepInput = external_exports.strictObject({
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
   step: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   done: external_exports.boolean()
+});
+
+// packages/voidra/src/queue.ts
+var queueInput = external_exports.strictObject({
+  ids: external_exports.array(schemas.action.shape.id).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Duplicate queued action"
+  ),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  by: external_exports.string().min(1),
+  revisions: external_exports.record(schemas.action.shape.id, external_exports.string().regex(/^[a-f0-9]{64}$/)).optional(),
+  activate: external_exports.object({
+    id: schemas.action.shape.id,
+    revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+  }).optional()
 });
 
 // packages/voidra/src/templates.ts

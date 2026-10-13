@@ -9,6 +9,7 @@ import {
   transition,
 } from "./lifecycle.ts";
 import {
+  blockingPlanningDiagnostics,
   checkProject,
   PACKAGE_VERSION,
   type ProjectInspection,
@@ -35,12 +36,7 @@ const ideaEdit = ideaInput.omit({ by: true }).extend({
 
 async function planningProject(root: string): Promise<ProjectInspection> {
   const project = await checkProject(root);
-  if (
-    !project.metadata ||
-    project.diagnostics.some(
-      (d) => !["stale-approval", "stale-review"].includes(d.code),
-    )
-  )
+  if (!project.metadata || blockingPlanningDiagnostics(project).length > 0)
     throw new Error("Fix planning-file problems before editing");
   if (
     project.records.has(".voidra/local/run.lock") ||

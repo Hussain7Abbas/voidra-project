@@ -19,3 +19,9 @@ Extends [root instructions](../../AGENTS.md). Desktop package name is `voidra-pr
 - Package the arm64 process helper outside asar and keep preload free of Node-dependent imports.
 
 Keep [desktop architecture](../../docs/architecture/desktop.md), [design system](../../docs/design-system.md) and evidence current. `CLAUDE.md` only imports these instructions.
+
+- The Run picker uses package eligibility from the snapshot. Queue replacement carries displayed queue/action hashes through the validated bridge; Profile draft activation remains an explicit action-page decision. Keep reorder controls keyboard operable and state live.
+
+- Commit links come from actual Git trailer history, including untagged history retained for Sync. Main opens only current service-verified GitHub commit URLs. Planning commits carry an exact displayed preview and selected paths; use the Node-only helper and its explicit recovery results. Never include private planning files or expand selection to intake glossary/instructions.
+
+- Conflicted action files use diagnostic projections with disabled edit/queue controls. Do not parse them as valid cached actions. Keep conflict guidance and refresh live after an editor save or pull; unrelated valid records can still be edited through the shared scoped-write contract.

@@ -6,6 +6,7 @@
   stage: discovery,
   status: ready,
   doneBy: agent,
+  assignee: Voidra Golden <golden@example.test>,
   blockedBy: [ act-000001 ]
 }
 ---

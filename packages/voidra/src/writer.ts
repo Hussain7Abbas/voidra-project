@@ -14,6 +14,8 @@ import { type Diagnostic, VoidraError } from "./errors.ts";
 import { createId } from "./ids.ts";
 import { hash, type Lifecycles } from "./lifecycle.ts";
 import {
+  deferredConflictDiagnostics,
+  diagnosticFingerprint,
   FORMAT_VERSION,
   inspectFiles,
   type ProjectFiles,
@@ -236,6 +238,7 @@ function blockingDiagnostics(
   diagnostics: Diagnostic[],
   changes: Operation["changes"],
   rollback: boolean,
+  deferredDiagnostics: string[] = [],
 ): Diagnostic[] {
   // A stale gate in an untouched action is pending human work, not corruption.
   // Never permit work on that action to bypass its own approval.
@@ -249,6 +252,7 @@ function blockingDiagnostics(
       .filter(Boolean),
   );
   return diagnostics.filter((d) => {
+    if (deferredDiagnostics.includes(diagnosticFingerprint(d))) return false;
     const action =
       /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
         d.file,
@@ -266,7 +270,22 @@ function validateOverlay(
   id: string,
   options: WriteOptions,
   rollback = false,
+  deferredDiagnostics?: string[],
 ): void {
+  const before = inspectFiles(files, { ignoreOperation: id });
+  for (const conflict of before.diagnostics.filter(
+    (d) => d.code === "conflict",
+  )) {
+    if (changes.some((c) => c.path === conflict.file && c.before !== c.after))
+      fail(
+        "conflict",
+        conflict.file,
+        "Resolve this conflict outside the app before editing the record",
+      );
+  }
+  const deferred =
+    deferredDiagnostics ??
+    deferredConflictDiagnostics(before).map(diagnosticFingerprint);
   const overlay = new Map(files);
   for (const change of changes) {
     const content = rollback ? change.before : change.after;
@@ -277,7 +296,12 @@ function validateOverlay(
     ...(options.lifecycles ? { lifecycles: options.lifecycles } : {}),
     ignoreOperation: id,
   });
-  const problems = blockingDiagnostics(result.diagnostics, changes, rollback);
+  const problems = blockingDiagnostics(
+    result.diagnostics,
+    changes,
+    rollback,
+    deferred,
+  );
   if (problems.length)
     fail(
       "invalid-overlay",
@@ -349,6 +373,9 @@ async function finish(
   options: WriteOptions,
   rollback = false,
 ): Promise<OperationResult> {
+  const deferred = z
+    .array(z.string().regex(/^[a-f0-9]{64}$/))
+    .parse(operation.deferredDiagnostics ?? []);
   const targets = operation.changes.map((change) => ({
     change,
     wanted: rollback ? change.before : change.after,
@@ -383,6 +410,7 @@ async function finish(
     operation.id,
     options,
     rollback,
+    deferred,
   );
   for (const { change, wanted } of targets) {
     const actual = await optionalRead(
@@ -419,7 +447,12 @@ async function finish(
   );
   if (
     final.diagnostics.length ||
-    blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length
+    blockingDiagnostics(
+      checked.diagnostics,
+      operation.changes,
+      rollback,
+      deferred,
+    ).length
   )
     fail(
       "post-validation",
@@ -524,6 +557,9 @@ export async function applyOperation(
       fingerprint,
       state: "prepared",
       changes,
+      deferredDiagnostics: deferredConflictDiagnostics(
+        inspectFiles(read.files, { ignoreOperation: id }),
+      ).map(diagnosticFingerprint),
     };
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id);

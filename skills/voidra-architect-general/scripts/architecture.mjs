@@ -27692,6 +27692,43 @@ function upgradePrototype(files) {
 }
 
 // packages/voidra/src/project.ts
+function diagnosticFingerprint(diagnostic) {
+  return hash2(
+    JSON.stringify([
+      diagnostic.code,
+      diagnostic.file,
+      diagnostic.field,
+      diagnostic.message
+    ])
+  );
+}
+function deferredConflictDiagnostics(project) {
+  if (!project.metadata) return [];
+  const conflicts = project.diagnostics.filter((d) => d.code === "conflict");
+  const ids = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+        d.file
+      )?.[1] ?? /^\.voidra\/backlog\/(idea-[0-9a-hjkmnp-tv-z]{6})\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  const planActions = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/(requirements|blueprint|acceptance)\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  return project.diagnostics.filter(
+    (d) => d.code === "conflict" || d.code === "missing-reference" && ids.has(d.message.replace(/^Record does not exist: /, "")) || d.code === "missing-plan" && [...planActions].some(
+      (id2) => d.file === `.voidra/actions/${id2}/action.md`
+    )
+  );
+}
 function fileKind(path) {
   if (path === ".voidra/voidra.json") return "project";
   if (/^\.voidra\/profile\/[^/]+\.md$/.test(path)) return "profile";
@@ -27732,7 +27769,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore"))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27852,6 +27889,8 @@ function inspectFiles(files, options = {}) {
   for (const [file2] of files) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
+    else if (!kind && file2.endsWith(".md") && !file2.startsWith(".voidra/local/") && file2 !== ".voidra/README.md" && /^(<<<<<<< |>>>>>>> )/m.test(files.get(file2)?.toString() ?? ""))
+      add("conflict", file2, "$", "Unresolved merge conflict");
   }
   let rules;
   try {
@@ -28349,20 +28388,33 @@ async function acquire(root, _options, recovery = false) {
     }
   };
 }
-function blockingDiagnostics(diagnostics, changes, rollback) {
+function blockingDiagnostics(diagnostics, changes, rollback, deferredDiagnostics = []) {
   const touched = new Set(
     changes.filter((c) => c.before !== c.after).map(
       (c) => /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\//.exec(c.path)?.[1]
     ).filter(Boolean)
   );
   return diagnostics.filter((d) => {
+    if (deferredDiagnostics.includes(diagnosticFingerprint(d))) return false;
     const action = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
       d.file
     )?.[1];
     return !(action && ["stale-approval", "stale-review"].includes(d.code) && (rollback || !touched.has(action)));
   });
 }
-function validateOverlay(files, changes, id2, options, rollback = false) {
+function validateOverlay(files, changes, id2, options, rollback = false, deferredDiagnostics) {
+  const before = inspectFiles(files, { ignoreOperation: id2 });
+  for (const conflict of before.diagnostics.filter(
+    (d) => d.code === "conflict"
+  )) {
+    if (changes.some((c) => c.path === conflict.file && c.before !== c.after))
+      fail(
+        "conflict",
+        conflict.file,
+        "Resolve this conflict outside the app before editing the record"
+      );
+  }
+  const deferred = deferredDiagnostics ?? deferredConflictDiagnostics(before).map(diagnosticFingerprint);
   const overlay = new Map(files);
   for (const change of changes) {
     const content = rollback ? change.before : change.after;
@@ -28373,7 +28425,12 @@ function validateOverlay(files, changes, id2, options, rollback = false) {
     ...options.lifecycles ? { lifecycles: options.lifecycles } : {},
     ignoreOperation: id2
   });
-  const problems = blockingDiagnostics(result2.diagnostics, changes, rollback);
+  const problems = blockingDiagnostics(
+    result2.diagnostics,
+    changes,
+    rollback,
+    deferred
+  );
   if (problems.length)
     fail(
       "invalid-overlay",
@@ -28427,6 +28484,7 @@ async function readJournal(root, id2) {
   return op;
 }
 async function finish(root, operation, options, rollback = false) {
+  const deferred = external_exports.array(external_exports.string().regex(/^[a-f0-9]{64}$/)).parse(operation.deferredDiagnostics ?? []);
   const targets = operation.changes.map((change) => ({
     change,
     wanted: rollback ? change.before : change.after
@@ -28459,7 +28517,8 @@ async function finish(root, operation, options, rollback = false) {
     operation.changes,
     operation.id,
     options,
-    rollback
+    rollback,
+    deferred
   );
   for (const { change, wanted } of targets) {
     const actual = await optionalRead(
@@ -28489,7 +28548,12 @@ async function finish(root, operation, options, rollback = false) {
       ignoreOperation: operation.id
     }
   );
-  if (final.diagnostics.length || blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length)
+  if (final.diagnostics.length || blockingDiagnostics(
+    checked.diagnostics,
+    operation.changes,
+    rollback,
+    deferred
+  ).length)
     fail(
       "post-validation",
       operation.id,
@@ -28579,7 +28643,10 @@ async function applyOperation(root, input3, options = {}, migration = false) {
       id: id2,
       fingerprint,
       state: "prepared",
-      changes
+      changes,
+      deferredDiagnostics: deferredConflictDiagnostics(
+        inspectFiles(read.files, { ignoreOperation: id2 })
+      ).map(diagnosticFingerprint)
     };
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id2);
@@ -28652,6 +28719,21 @@ var stepInput = external_exports.strictObject({
   done: external_exports.boolean()
 });
 
+// packages/voidra/src/queue.ts
+var queueInput = external_exports.strictObject({
+  ids: external_exports.array(schemas.action.shape.id).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Duplicate queued action"
+  ),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  by: external_exports.string().min(1),
+  revisions: external_exports.record(schemas.action.shape.id, external_exports.string().regex(/^[a-f0-9]{64}$/)).optional(),
+  activate: external_exports.object({
+    id: schemas.action.shape.id,
+    revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+  }).optional()
+});
+
 // packages/voidra/src/templates.ts
 var slug2 = external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 var text2 = external_exports.string().min(1);
@@ -28691,7 +28773,7 @@ var templateSchema = external_exports.looseObject({
 });
 
 // tools/run-engine/src/run.ts
-import { execFile as execFile2 } from "node:child_process";
+import { execFile as execFile4 } from "node:child_process";
 import {
   lstat as lstat3,
   readdir as readdir2,
@@ -28702,13 +28784,18 @@ import {
 } from "node:fs/promises";
 import { hostname as hostname3 } from "node:os";
 import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve } from "node:path";
-import { promisify as promisify2 } from "node:util";
+import { promisify as promisify4 } from "node:util";
 
-// tools/run-engine/src/process.ts
+// tools/run-engine/src/git.ts
 import { execFile } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 var execute = promisify(execFile);
+
+// tools/run-engine/src/process.ts
+import { execFile as execFile2 } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { promisify as promisify2 } from "node:util";
+var execute2 = promisify2(execFile2);
 var processSchema2 = external_exports.strictObject({
   pid: external_exports.number().int().positive(),
   parentPid: external_exports.number().int().nonnegative(),
@@ -28723,12 +28810,12 @@ async function processInfo(pid) {
         import.meta.url
       )
     );
-    const result2 = await execute(binary, [String(pid)], { encoding: "utf8" });
+    const result2 = await execute2(binary, [String(pid)], { encoding: "utf8" });
     const data = JSON.parse(result2.stdout);
     return data === null ? null : processSchema2.parse(data);
   }
   try {
-    const result2 = await execute(
+    const result2 = await execute2(
       "ps",
       ["-p", String(pid), "-o", "ppid=,lstart=,comm="],
       {
@@ -28760,8 +28847,45 @@ async function processIdentity(pid) {
   return (await processInfo(pid))?.identity ?? null;
 }
 
+// tools/run-engine/src/planning-commit.ts
+import { execFile as execFile3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
+var execute3 = promisify3(execFile3);
+var inputSchema = external_exports.strictObject({
+  id: external_exports.string().uuid(),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  paths: external_exports.array(
+    external_exports.string().refine(
+      (path) => path.startsWith(".voidra/") && !path.startsWith(".voidra/local/") && path !== ".voidra/local" && !path.includes("\\") && !path.includes("\0") && !path.split("/").some((part) => [".", "..", ""].includes(part)),
+      "Only shared planning paths are allowed"
+    )
+  ).min(1),
+  message: external_exports.string().trim().min(1).max(2e3)
+});
+var journalSchema = external_exports.strictObject({
+  input: inputSchema,
+  preview: external_exports.strictObject({
+    enabled: external_exports.boolean(),
+    reason: external_exports.string().nullable(),
+    files: external_exports.array(
+      external_exports.strictObject({
+        path: external_exports.string(),
+        status: external_exports.enum(["new", "modified", "deleted"]),
+        hash: external_exports.string().nullable(),
+        mode: external_exports.number().nullable()
+      })
+    ),
+    revision: external_exports.string(),
+    head: external_exports.string().nullable(),
+    indexHash: external_exports.string().nullable()
+  }),
+  indexBefore: external_exports.string(),
+  phase: external_exports.enum(["prepared", "committed", "reconciled", "failed"]),
+  commit: external_exports.string().optional()
+});
+
 // tools/run-engine/src/run.ts
-var execute2 = promisify2(execFile2);
+var execute4 = promisify4(execFile4);
 var checkpointSchema = external_exports.looseObject({
   schema: external_exports.literal(1),
   run: schemas.run.shape.id,

@@ -4,6 +4,7 @@ import { type Diagnostic, VoidraError } from "./errors.ts";
 import {
   actionComplete,
   approvalCurrent,
+  hash,
   type Lifecycles,
   type PlanRevision,
   planFiles,
@@ -34,6 +35,66 @@ export interface ProjectInspection {
   records: Map<string, CheckedRecord>;
   metadata?: ProjectMetadata;
   files: ProjectFiles;
+}
+export function diagnosticFingerprint(diagnostic: Diagnostic): string {
+  return hash(
+    JSON.stringify([
+      diagnostic.code,
+      diagnostic.file,
+      diagnostic.field,
+      diagnostic.message,
+    ]),
+  );
+}
+/** Unresolved records may coexist with edits to other records; diagnostics remain visible. */
+export function deferredConflictDiagnostics(
+  project: ProjectInspection,
+): Diagnostic[] {
+  if (!project.metadata) return [];
+  const conflicts = project.diagnostics.filter((d) => d.code === "conflict");
+  const ids = new Set(
+    conflicts.flatMap((d) => {
+      const id =
+        /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+          d.file,
+        )?.[1] ??
+        /^\.voidra\/backlog\/(idea-[0-9a-hjkmnp-tv-z]{6})\.md$/.exec(
+          d.file,
+        )?.[1];
+      return id ? [id] : [];
+    }),
+  );
+  const planActions = new Set(
+    conflicts.flatMap((d) => {
+      const id =
+        /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/(requirements|blueprint|acceptance)\.md$/.exec(
+          d.file,
+        )?.[1];
+      return id ? [id] : [];
+    }),
+  );
+  return project.diagnostics.filter(
+    (d) =>
+      d.code === "conflict" ||
+      (d.code === "missing-reference" &&
+        ids.has(d.message.replace(/^Record does not exist: /, ""))) ||
+      (d.code === "missing-plan" &&
+        [...planActions].some(
+          (id) => d.file === `.voidra/actions/${id}/action.md`,
+        )),
+  );
+}
+export function blockingPlanningDiagnostics(
+  project: ProjectInspection,
+): Diagnostic[] {
+  const deferred = new Set(
+    deferredConflictDiagnostics(project).map(diagnosticFingerprint),
+  );
+  return project.diagnostics.filter(
+    (d) =>
+      !["stale-approval", "stale-review"].includes(d.code) &&
+      !deferred.has(diagnosticFingerprint(d)),
+  );
 }
 export function fileKind(path: string): RecordKind | undefined {
   if (path === ".voidra/voidra.json") return "project";
@@ -82,7 +143,8 @@ export async function readProjectFiles(
       stat.isFile() &&
       (fileKind(path) ||
         path === ".voidra/README.md" ||
-        path === ".voidra/.gitignore")
+        path === ".voidra/.gitignore" ||
+        (path.endsWith(".md") && !path.startsWith(".voidra/local/")))
     )
       files.set(path, await readFile(join(root, path)));
   };
@@ -228,6 +290,14 @@ export function inspectFiles(
   for (const [file] of files) {
     const kind = fileKind(file);
     if (kind && kind !== "project") parse(file, kind);
+    else if (
+      !kind &&
+      file.endsWith(".md") &&
+      !file.startsWith(".voidra/local/") &&
+      file !== ".voidra/README.md" &&
+      /^(<<<<<<< |>>>>>>> )/m.test(files.get(file)?.toString() ?? "")
+    )
+      add("conflict", file, "$", "Unresolved merge conflict");
   }
   let rules: Lifecycles;
   try {

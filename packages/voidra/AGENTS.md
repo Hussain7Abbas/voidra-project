@@ -11,3 +11,7 @@ Extends [root instructions](../../AGENTS.md). This package is the shared contrac
 - Package publication requires passing checks, built-artifact smoke tests and CI. Keep AGPL license, repository metadata and bin entry in the npm archive. npm account access is required; never print credentials.
 
 Update the corresponding [format page](../../docs/format/Intro.md), API docs and generated references with every schema/API change. Keep sibling CLAUDE.md as `@AGENTS.md` plus newline.
+
+- `queue.ts` owns queue eligibility/reasons and ordered private queue writes, including displayed revisions, explicit Profile draft activation and lock/input guards. Runtime and desktop use this contract rather than duplicating eligibility rules.
+
+- Validation always reports conflicts. Scoped planning writes may preserve unchanged conflict diagnostics from other records, including their existing missing references; private operation receipts retain those diagnostic fingerprints for recovery. Refuse writes into conflicted files, new references to them and newly arriving conflicts. Project metadata must still validate. Shared Markdown files are checked for conflict markers even when their record kind is unknown.

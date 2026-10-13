@@ -13,13 +13,13 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   type Action,
-  actionComplete,
   applyOperation,
   checkProject,
   createId,
   hash,
   parseRecord,
   projectLifecycles,
+  queueDecision,
   readPlan,
   schemas,
   serializeRecord,
@@ -30,7 +30,9 @@ import {
   architectureProposalSchema,
   proposeArchitecture,
 } from "./architecture.ts";
+import { readGitIdentity } from "./git.ts";
 import { inspectLock, processIdentity } from "./lock.ts";
+import { pendingPlanning } from "./planning-commit.ts";
 
 const execute = promisify(execFile);
 const checkpointSchema = z.looseObject({
@@ -277,6 +279,13 @@ export async function startRun(
     );
   if (checked.files.has(".voidra/local/run.lock"))
     throw new Error("A run lock already has an owner");
+  if (
+    checked.files.has(".voidra/local/planning.lock") ||
+    (await pendingPlanning(root)).length
+  )
+    throw new Error(
+      "Finish or recover the planning commit before starting an agent run",
+    );
   const queuePath = ".voidra/local/pending-actions.md",
     queue = checked.records.get(queuePath)?.document;
   if (!queue) return null;
@@ -290,29 +299,17 @@ export async function startRun(
     doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
-  if (action.type === "profile-change" && action.status === "draft")
-    throw new Error("Review the Profile change draft before queueing it");
-  if (
-    action.doneBy !== "agent" ||
-    !["ready", "draft", "failed"].includes(action.status) ||
-    ["done", "released", "cancelled"].includes(action.stage ?? "")
-  )
-    throw new Error("Queued action is at a gate or already running");
-  for (const dependency of action.blockedBy ?? []) {
-    const other = checked.records.get(`.voidra/actions/${dependency}/action.md`)
-      ?.document.data;
-    if (!other || !actionComplete(schemas.action.parse(other)))
-      throw new Error("Queued action is blocked");
+  if (!action.assignee) {
+    const runner = await readGitIdentity(root);
+    if (!runner.value)
+      throw new Error(
+        "Configure Git name and email before starting unassigned work",
+      );
+    action.assignee = runner.value;
   }
-  if (
-    [...checked.records.values()].some(
-      (r) =>
-        r.kind === "action" &&
-        r.document.data.parent === actionId &&
-        !actionComplete(schemas.action.parse(r.document.data)),
-    )
-  )
-    throw new Error("Queued parent is blocked by unfinished child slices");
+  const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
+  if (!decision.allowed)
+    throw new Error(decision.reason ?? "Queued action cannot run");
   const identity = await processIdentity(ownerPid);
   if (!identity) throw new Error("Run owner process is missing");
   if (
@@ -509,6 +506,7 @@ export async function startRun(
       };
     }),
     { path: runPath, expectedHash: null, content: runRaw },
+    { path: ".voidra/local/planning.lock", expectedHash: null, content: null },
     {
       path: queuePath,
       expectedHash: hash(queue.raw),

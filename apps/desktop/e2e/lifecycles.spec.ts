@@ -7,44 +7,45 @@ import { _electron, expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
 
 const execute = promisify(execFile);
-test("queues, plans, runs and accepts every P08 type through the desktop", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "voidra-lifecycles-ui-")),
-    root = join(temp, "project"),
-    repository = resolve("../..");
-  await cp(join(repository, "fixtures/new-project/project"), root, {
-    recursive: true,
-  });
-  await writeFile(join(root, "README.md"), "# Fixture\n");
-  for (const args of [
-    ["init", "-q"],
-    ["config", "user.name", "Voidra Verification"],
-    ["config", "user.email", "verification@example.test"],
-    ["add", "."],
-    ["commit", "-qm", "Initial fixture"],
-  ])
-    execFileSync("git", args, { cwd: root });
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(
-      (p): p is [string, string] =>
-        p[1] !== undefined &&
-        !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
-    ),
-  );
-  const app = await _electron.launch({
-    args: [resolve("."), `--project=${root}`],
-    env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
-  });
-  try {
-    const page = await app.firstWindow();
-    await page.locator('[data-app-ready="true"]').waitFor();
-    for (const type of [
-      "feature",
-      "bug",
-      "improvement",
-      "profile-change",
-      "research",
-      "docs",
-    ]) {
+for (const type of [
+  "feature",
+  "bug",
+  "improvement",
+  "profile-change",
+  "research",
+  "docs",
+])
+  test(`queues, plans, runs and accepts ${type} through the desktop`, async () => {
+    const temp = await mkdtemp(join(tmpdir(), "voidra-lifecycles-ui-")),
+      root = join(temp, "project"),
+      repository = resolve("../..");
+    await cp(join(repository, "fixtures/new-project/project"), root, {
+      recursive: true,
+    });
+    await writeFile(join(root, "README.md"), "# Fixture\n");
+    for (const args of [
+      ["init", "-q"],
+      ["config", "user.name", "Voidra Verification"],
+      ["config", "user.email", "verification@example.test"],
+      ["add", "."],
+      ["commit", "-qm", "Initial fixture"],
+    ])
+      execFileSync("git", args, { cwd: root });
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        (p): p is [string, string] =>
+          p[1] !== undefined &&
+          !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
+      ),
+    );
+    const app = await _electron.launch({
+      args: [resolve("."), `--project=${root}`],
+      env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
+    });
+    try {
+      const page = await app.firstWindow();
+      await page.locator('[data-app-ready="true"]').waitFor();
+
       await page
         .getByRole("button", { name: "New action", exact: true })
         .click();
@@ -90,6 +91,22 @@ test("queues, plans, runs and accepts every P08 type through the desktop", async
         ).toBeVisible();
         await expect(queue).toBeEnabled();
         await queue.click();
+        await expect
+          .poll(async () => {
+            const project = await checkProject(root);
+            const id = [...project.records.values()].find(
+              (record) =>
+                record.kind === "action" &&
+                record.document.data.title === `Lifecycle ${type}`,
+            )?.document.data.id;
+            return Boolean(
+              id &&
+                project.records
+                  .get(".voidra/local/pending-actions.md")
+                  ?.document.body.includes(String(id)),
+            );
+          })
+          .toBe(true);
         await execute(
           process.execPath,
           [
@@ -115,9 +132,8 @@ test("queues, plans, runs and accepts every P08 type through the desktop", async
       await page
         .getByRole("button", { name: "Back to actions", exact: true })
         .click();
+    } finally {
+      await app.close();
+      await rm(temp, { recursive: true, force: true, maxRetries: 3 });
     }
-  } finally {
-    await app.close();
-    await rm(temp, { recursive: true, force: true, maxRetries: 3 });
-  }
-});
+  });

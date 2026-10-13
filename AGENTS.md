@@ -82,3 +82,8 @@ When a story asks for a skill to be tried with real agents, run the check yourse
 Until P15 publishes the matching library, build and pack the current `voidra` candidate, install that genuine archive into each temporary fixture with `npm install --no-save --package-lock=false --ignore-scripts <archive>`, and verify `npx --offline --yes voidra@0 version` resolves the candidate. Ignore `node_modules/` before setup commits and include its prepared state in the allowed fixture tooling. This is the actual CLI, not a mock; record archive integrity and version in evidence. npm 0.1.0 remains the public baseline until trusted publishing.
 
 Use the real-agent coverage matrix in [plan/main.md](plan/main.md#real-agent-coverage-matrix) to select scenarios. Snapshot files and git history before each run, then check allowed write paths, gate stops and commit trailers as well as file validity. A fake-agent run or a valid golden example never substitutes for these checks.
+
+<!-- Voidra planning -->
+## Voidra planning
+
+Read [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run `npx voidra@0 check` after planning writes.

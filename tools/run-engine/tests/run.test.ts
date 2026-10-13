@@ -152,3 +152,35 @@ it("refuses live-owner recovery, keeps ownership loss from writing and preserves
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("assigns unassigned work to the runner’s Git identity and preserves an existing teammate assignment", async () => {
+  for (const assigned of [false, true]) {
+    const root = await fixture();
+    try {
+      const path = ".voidra/actions/act-000000/action.md";
+      if (assigned) {
+        const { serializeRecord } = await import("voidra");
+        const doc = parseRecord(path, await readFile(join(root, path)));
+        await writeFile(
+          join(root, path),
+          serializeRecord(doc, {
+            ...doc.data,
+            assignee: "Teammate <teammate@example.test>",
+          }),
+        );
+      }
+      const ctx = await startRun(root, "codex", process.pid);
+      expect(ctx).not.toBeNull();
+      expect(
+        (await checkProject(root)).records.get(path)?.document.data.assignee,
+      ).toBe(
+        assigned
+          ? "Teammate <teammate@example.test>"
+          : "Voidra Verification <verification@example.test>",
+      );
+      if (ctx) await failRun(root, ctx.ownerToken, "Assignment verified");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});

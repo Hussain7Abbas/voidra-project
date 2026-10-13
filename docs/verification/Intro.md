@@ -19,3 +19,7 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P06 — Backlog and actions](p06.md): typed editing, promotion, dependencies, checklists, board views and validator publication.
 
 - [P07 — Questions, gates and inbox](p07.md): saved rounds, assumptions, exact decisions, type-specific reviews and keyboard inbox flows.
+
+- [P08 — Standalone lifecycles](p08.md): Go/Plan execution, all implementation types and real-agent evidence.
+
+- [P09 — Runs, commits and teams](p09.md): ordered queues, safe planning commits, team refresh, conflicts, performance and dogfooding; closure in progress.

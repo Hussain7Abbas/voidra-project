@@ -10,6 +10,7 @@ import {
   nativeTheme,
   protocol,
   session,
+  shell,
 } from "electron";
 import {
   type BridgeEvent,
@@ -256,6 +257,22 @@ async function start(): Promise<void> {
               workspace: await service.workspace(request),
             },
           };
+        } else if (request.command === "open-commit") {
+          const service = services.get(window.id);
+          if (!service) throw new Error("Open a project first");
+          const workspace = await service.workspace({ command: "workspace" });
+          const commit = workspace.history.commits.find(
+            (c) => c.hash === request.hash,
+          );
+          if (
+            !commit?.url ||
+            !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/commit\/[a-f0-9]{40,64}$/.test(
+              commit.url,
+            )
+          )
+            throw new Error("No verified GitHub link for this commit");
+          await shell.openExternal(commit.url);
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "copy-recovery-command") {
           await clipboard.writeText(
             `${request.agent === "claude-code" ? "/voidra-go" : "$voidra-go"} recover ${request.kind} ${request.id}`,

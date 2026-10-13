@@ -14,7 +14,12 @@ import { z } from "zod";
 import { type Diagnostic, VoidraError } from "./errors.ts";
 import { createId } from "./ids.ts";
 import { hash, lifecycles, validateLifecycles } from "./lifecycle.ts";
-import { checkProject, FORMAT_VERSION, PACKAGE_VERSION } from "./project.ts";
+import {
+  blockingPlanningDiagnostics,
+  checkProject,
+  FORMAT_VERSION,
+  PACKAGE_VERSION,
+} from "./project.ts";
 import { fieldLine, parseRecord, serializeRecord } from "./records.ts";
 import { lifecycleOverridesSchema, schemas, version } from "./schemas.ts";
 import { applyOperation, type WriteManifest } from "./writer.ts";
@@ -398,7 +403,7 @@ export async function updateProfileAnswer(
   if (!question) throw new Error("Profile question not found in template");
   const value = validateTemplateAnswer(question, options.value),
     checked = await checkProject(root);
-  if (checked.diagnostics.length)
+  if (blockingPlanningDiagnostics(checked).length)
     throw new Error("Fix planning validation/recovery problems first");
   const path = `.voidra/profile/${options.block}.md`,
     doc = checked.records.get(path)?.document;

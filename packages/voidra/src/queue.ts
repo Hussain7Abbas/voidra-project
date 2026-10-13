@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { actionComplete, hash } from "./lifecycle.ts";
-import { checkProject, type ProjectInspection } from "./project.ts";
+import {
+  blockingPlanningDiagnostics,
+  checkProject,
+  type ProjectInspection,
+} from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { schemas } from "./schemas.ts";
-import { applyOperation } from "./writer.ts";
+import { applyOperation, type WriteOptions } from "./writer.ts";
 
 export function queueDecision(
   project: ProjectInspection,
@@ -12,7 +16,12 @@ export function queueDecision(
 ): { allowed: boolean; reason: string | null } {
   const refused = (reason: string) => ({ allowed: false, reason });
   const record = project.records.get(`.voidra/actions/${id}/action.md`);
-  if (record?.kind !== "action") return refused("Action not found");
+  if (record?.kind !== "action")
+    return refused(
+      project.files.has(`.voidra/actions/${id}/action.md`)
+        ? "Repair this action’s fields before queueing"
+        : "Action not found",
+    );
   const parsed = schemas.action.safeParse(record.document.data);
   if (!parsed.success)
     return refused("Repair this action’s fields before queueing");
@@ -28,7 +37,7 @@ export function queueDecision(
   )
     return refused("Answer the open questions before queueing");
   if (action.stage === "review" && action.type !== "release" && !questionData)
-    return refused("Review needs a human decision");
+    return refused("Review gate needs a human decision");
   if (
     project.diagnostics.some(
       (d) =>
@@ -55,7 +64,9 @@ export function queueDecision(
     const dep = project.records.get(`.voidra/actions/${id}/action.md`),
       parsed = schemas.action.safeParse(dep?.document.data);
     if (!parsed.success || !actionComplete(parsed.data))
-      return refused("Finish the blocking actions before queueing");
+      return refused(
+        "This action is blocked; finish the blocking actions before queueing",
+      );
   }
   if (
     [...project.records.values()].some(
@@ -81,21 +92,29 @@ const queueInput = z.strictObject({
     .regex(/^[a-f0-9]{64}$/)
     .nullable(),
   by: z.string().min(1),
+  revisions: z
+    .record(schemas.action.shape.id, z.string().regex(/^[a-f0-9]{64}$/))
+    .optional(),
+  activate: z
+    .object({
+      id: schemas.action.shape.id,
+      revision: z.string().regex(/^[a-f0-9]{64}$/),
+    })
+    .optional(),
 });
 export async function replaceActionQueue(
   root: string,
   raw: z.input<typeof queueInput>,
+  options: WriteOptions = {},
 ): Promise<void> {
   const input = queueInput.parse(raw),
     project = await checkProject(root);
-  if (
-    !project.metadata ||
-    project.diagnostics.some(
-      (d) => !["stale-approval", "stale-review"].includes(d.code),
-    )
-  )
+  if (!project.metadata || blockingPlanningDiagnostics(project).length > 0)
     throw new Error("Fix planning-file problems before editing the queue");
-  if (project.files.has(".voidra/local/run.lock"))
+  if (
+    project.files.has(".voidra/local/run.lock") ||
+    project.files.has(".voidra/local/planning.lock")
+  )
     throw new Error(
       "Finish or recover the active run before editing the queue",
     );
@@ -112,38 +131,73 @@ export async function replaceActionQueue(
   if ((bytes ? hash(bytes) : null) !== input.revision)
     throw new Error("Queue changed on disk; refresh before editing");
   for (const id of input.ids) {
-    const decision = queueDecision(project, id);
+    const actionBytes = project.files.get(`.voidra/actions/${id}/action.md`);
+    if (
+      input.revisions &&
+      input.revisions[id] !== (actionBytes ? hash(actionBytes) : null)
+    )
+      throw new Error("Action changed on disk; refresh before queueing");
+    if (
+      input.activate?.id === id &&
+      input.activate.revision !== (actionBytes ? hash(actionBytes) : null)
+    )
+      throw new Error("Profile change draft changed; review it again");
+    const decision = queueDecision(project, id, {
+      activatingProfileDraft: input.activate?.id === id,
+    });
     if (!decision.allowed)
       throw new Error(decision.reason ?? "Cannot queue this action");
   }
   const doc = bytes
     ? parseRecord(path, bytes)
     : parseRecord(path, "---\n{}\n---\n");
-  await applyOperation(root, {
-    changes: [
-      {
-        path,
-        expectedHash: input.revision,
-        content: serializeRecord(
-          doc,
-          {
-            ...doc.data,
-            queuedBy: input.by,
-            queuedAt: new Date().toISOString(),
-          },
-          input.ids.map((id, i) => `${i + 1}. [ ] ${id}`).join("\n"),
-        ).toString(),
-      },
-      ...input.ids.map((id) => {
-        const path = `.voidra/actions/${id}/action.md`,
-          bytes = project.files.get(path);
-        return {
+  await applyOperation(
+    root,
+    {
+      changes: [
+        {
           path,
-          expectedHash: bytes ? hash(bytes) : null,
-          content: bytes?.toString() ?? null,
-        };
-      }),
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-    ],
-  });
+          expectedHash: input.revision,
+          content: serializeRecord(
+            doc,
+            {
+              ...doc.data,
+              queuedBy: input.by,
+              queuedAt: new Date().toISOString(),
+            },
+            input.ids.map((id, i) => `${i + 1}. [ ] ${id}`).join("\n"),
+          ).toString(),
+        },
+        ...[...project.files]
+          .filter(([file]) => !file.startsWith(".voidra/local/"))
+          .map(([path, bytes]) => {
+            const record = project.records.get(path);
+            const activate =
+              path === `.voidra/actions/${input.activate?.id}/action.md` &&
+              record?.document.data.type === "profile-change" &&
+              record.document.data.status === "draft";
+            return {
+              path,
+              expectedHash: hash(bytes),
+              content:
+                activate && record
+                  ? serializeRecord(record.document, {
+                      ...record.document.data,
+                      status: "ready",
+                      activatedBy: input.by,
+                      activatedAt: new Date().toISOString(),
+                    }).toString()
+                  : bytes.toString(),
+            };
+          }),
+        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        {
+          path: ".voidra/local/planning.lock",
+          expectedHash: null,
+          content: null,
+        },
+      ],
+    },
+    options,
+  );
 }

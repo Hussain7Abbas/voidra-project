@@ -87,6 +87,20 @@ const templateViewSchema = z.object({
   ),
 });
 export type TemplateView = z.infer<typeof templateViewSchema>;
+export const gitHistorySchema = z.strictObject({
+  commits: z.array(
+    z.strictObject({
+      hash: z.string().regex(/^[a-f0-9]{40,64}$/),
+      subject: z.string(),
+      author: z.string(),
+      at: z.string(),
+      actions: z.array(z.string()),
+      url: z.string().nullable(),
+    }),
+  ),
+  repository: z.string().nullable(),
+  notice: z.string().nullable(),
+});
 export const workspaceSchema = z.strictObject({
   name: z.string(),
   hasVoidra: z.boolean(),
@@ -192,6 +206,8 @@ export const workspaceSchema = z.strictObject({
         .default(null),
 
       blocked: z.boolean(),
+      queueable: z.boolean().default(false),
+      queueReason: z.string().nullable().default(null),
       plans: z
         .array(
           z.object({ name: z.string(), path: z.string(), body: z.string() }),
@@ -217,7 +233,46 @@ export const workspaceSchema = z.strictObject({
       ),
     }),
   ),
+  planning: z
+    .strictObject({
+      enabled: z.boolean(),
+      reason: z.string().nullable(),
+      revision: z.string(),
+      head: z.string().nullable(),
+      indexHash: z.string().nullable(),
+      files: z.array(
+        z.strictObject({
+          path: z.string(),
+          status: z.enum(["new", "modified", "deleted"]),
+          hash: z.string().nullable(),
+          mode: z.number().nullable(),
+        }),
+      ),
+      pending: z.array(
+        z.strictObject({
+          id: z.string().uuid(),
+          commit: z.string().nullable(),
+          recoverable: z.boolean(),
+          message: z.string(),
+        }),
+      ),
+    })
+    .default({
+      enabled: false,
+      reason: "Open a project",
+      revision: "",
+      head: null,
+      indexHash: null,
+      files: [],
+      pending: [],
+    }),
+  history: gitHistorySchema.default({
+    commits: [],
+    repository: null,
+    notice: null,
+  }),
   queue: z.array(z.string()),
+  queueRevision: z.string().nullable().default(null),
   recoveries: z.array(
     z.strictObject({
       kind: z.enum(["run", "operation"]),
@@ -265,6 +320,22 @@ export const serviceStateSchema = z.enum([
   "failed",
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
+  z.strictObject({
+    command: z.literal("commit-planning"),
+    id: z.string().uuid(),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    paths: z.array(z.string()).min(1),
+    message: z.string().trim().min(1).max(2000),
+  }),
+  z.strictObject({
+    command: z.literal("recover-planning"),
+    id: z.string().uuid(),
+  }),
+  z.strictObject({
+    command: z.literal("discard-planning"),
+    id: z.string().uuid(),
+  }),
+
   z.strictObject({ command: z.literal("workspace") }),
   z.strictObject({
     command: z.literal("answer-question"),
@@ -355,6 +426,18 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
     revision: z.string().regex(/^[a-f0-9]{64}$/),
   }),
   z.strictObject({
+    command: z.literal("replace-queue"),
+    ids: z.array(z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)),
+    revision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    revisions: z.record(
+      z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+      z.string().regex(/^[a-f0-9]{64}$/),
+    ),
+  }),
+  z.strictObject({
     command: z.literal("queue-action"),
     id: z.string().min(1),
     revision: z
@@ -382,6 +465,10 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
 export const requestSchema = z.discriminatedUnion("command", [
   ...workspaceRequestSchema.options,
+  z.strictObject({
+    command: z.literal("open-commit"),
+    hash: z.string().regex(/^[a-f0-9]{40,64}$/),
+  }),
   z.strictObject({ command: z.literal("snapshot") }),
   z.strictObject({ command: z.literal("choose-folder") }),
   z.strictObject({

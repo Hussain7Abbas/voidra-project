@@ -5360,10 +5360,10 @@ var require_cst_scalar = __commonJS({
         case "|":
         case ">": {
           const he = source.indexOf("\n");
-          const head2 = source.substring(0, he);
+          const head3 = source.substring(0, he);
           const body = source.substring(he + 1) + "\n";
           const props = [
-            { type: "block-scalar-header", offset, indent, source: head2 }
+            { type: "block-scalar-header", offset, indent, source: head3 }
           ];
           if (!addEndtoBlockProps(props, end))
             props.push({ type: "newline", offset: -1, indent, source: "\n" });
@@ -5423,19 +5423,19 @@ var require_cst_scalar = __commonJS({
     }
     function setBlockScalarValue(token, source) {
       const he = source.indexOf("\n");
-      const head2 = source.substring(0, he);
+      const head3 = source.substring(0, he);
       const body = source.substring(he + 1) + "\n";
       if (token.type === "block-scalar") {
         const header = token.props[0];
         if (header.type !== "block-scalar-header")
           throw new Error("Invalid block scalar header");
-        header.source = head2;
+        header.source = head3;
         token.source = body;
       } else {
         const { offset } = token;
         const indent = "indent" in token ? token.indent : -1;
         const props = [
-          { type: "block-scalar-header", offset, indent, source: head2 }
+          { type: "block-scalar-header", offset, indent, source: head3 }
         ];
         if (!addEndtoBlockProps(props, "end" in token ? token.end : void 0))
           props.push({ type: "newline", offset: -1, indent, source: "\n" });
@@ -7371,8 +7371,8 @@ var require_dist = __commonJS({
 });
 
 // tools/run-engine/src/runtime.ts
-import { readFile as readFile6 } from "node:fs/promises";
-import { resolve as resolve2 } from "node:path";
+import { readFile as readFile7 } from "node:fs/promises";
+import { resolve as resolve3 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // packages/voidra/src/errors.ts
@@ -10229,9 +10229,9 @@ var asciiTabOrNewline = /[\t\n\r]/g;
 function stripTabAndNewline(value) {
   return value.replace(asciiTabOrNewline, "");
 }
-function urlHostnameOk(url2, hostname5) {
-  hostname5.lastIndex = 0;
-  return hostname5.test(url2.hostname);
+function urlHostnameOk(url2, hostname6) {
+  hostname6.lastIndex = 0;
+  return hostname6.test(url2.hostname);
 }
 function urlProtocolOk(url2, protocol) {
   protocol.lastIndex = 0;
@@ -12470,7 +12470,7 @@ var recursive = /* @__PURE__ */ new WeakMap();
 var NONE = 0;
 var ASSUMED = 1;
 var PROVEN = 2;
-function isRecursive(inst, stack, resolve3) {
+function isRecursive(inst, stack, resolve4) {
   const cached2 = recursive.get(inst);
   if (cached2 !== void 0)
     return cached2 ? PROVEN : NONE;
@@ -12480,7 +12480,7 @@ function isRecursive(inst, stack, resolve3) {
   let result2 = NONE;
   const check2 = (child) => {
     if (result2 !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve3);
+      const answer = isRecursive(child, stack, resolve4);
       if (answer > result2)
         result2 = answer;
     }
@@ -12491,7 +12491,7 @@ function isRecursive(inst, stack, resolve3) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
-      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve3) : NONE;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve4) : NONE;
       if (child > answer)
         answer = child;
     }
@@ -12555,7 +12555,7 @@ function isRecursive(inst, stack, resolve3) {
       break;
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
-      const inner = def._cachedInner ?? (resolve3 ? inst._zod.innerType : void 0);
+      const inner = def._cachedInner ?? (resolve4 ? inst._zod.innerType : void 0);
       merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
@@ -27796,6 +27796,43 @@ function upgradePrototype(files) {
 }
 
 // packages/voidra/src/project.ts
+function diagnosticFingerprint(diagnostic) {
+  return hash2(
+    JSON.stringify([
+      diagnostic.code,
+      diagnostic.file,
+      diagnostic.field,
+      diagnostic.message
+    ])
+  );
+}
+function deferredConflictDiagnostics(project) {
+  if (!project.metadata) return [];
+  const conflicts = project.diagnostics.filter((d) => d.code === "conflict");
+  const ids = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+        d.file
+      )?.[1] ?? /^\.voidra\/backlog\/(idea-[0-9a-hjkmnp-tv-z]{6})\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  const planActions = new Set(
+    conflicts.flatMap((d) => {
+      const id2 = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/(requirements|blueprint|acceptance)\.md$/.exec(
+        d.file
+      )?.[1];
+      return id2 ? [id2] : [];
+    })
+  );
+  return project.diagnostics.filter(
+    (d) => d.code === "conflict" || d.code === "missing-reference" && ids.has(d.message.replace(/^Record does not exist: /, "")) || d.code === "missing-plan" && [...planActions].some(
+      (id2) => d.file === `.voidra/actions/${id2}/action.md`
+    )
+  );
+}
 function fileKind(path) {
   if (path === ".voidra/voidra.json") return "project";
   if (/^\.voidra\/profile\/[^/]+\.md$/.test(path)) return "profile";
@@ -27836,7 +27873,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore"))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27956,6 +27993,8 @@ function inspectFiles(files, options = {}) {
   for (const [file2] of files) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
+    else if (!kind && file2.endsWith(".md") && !file2.startsWith(".voidra/local/") && file2 !== ".voidra/README.md" && /^(<<<<<<< |>>>>>>> )/m.test(files.get(file2)?.toString() ?? ""))
+      add("conflict", file2, "$", "Unresolved merge conflict");
   }
   let rules;
   try {
@@ -28098,10 +28137,10 @@ function inspectFiles(files, options = {}) {
     for (const link of a.links ?? [])
       if (/^(act|idea|q|run|prj)-[0-9a-hjkmnp-tv-z]{6}$/.test(link))
         reference(link, file2, "links");
-    const open3 = (questions.get(id2) ?? []).some((q) => !q.answer);
-    if (open3 && a.status !== "waiting")
+    const open4 = (questions.get(id2) ?? []).some((q) => !q.answer);
+    if (open4 && a.status !== "waiting")
       add("status", file2, "status", "Open questions require waiting status");
-    if (!open3 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
+    if (!open4 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
       add(
         "status",
         file2,
@@ -28123,7 +28162,7 @@ function inspectFiles(files, options = {}) {
           "requiredVoidra",
           "Aggregate completion without a parent plan requires voidra \u2265 0.2.0"
         );
-      if (a.stage === "plan" && a.status === "waiting" && !open3 && !plan)
+      if (a.stage === "plan" && a.status === "waiting" && !open4 && !plan)
         add(
           "missing-plan",
           file2,
@@ -28453,20 +28492,33 @@ async function acquire(root, _options, recovery = false) {
     }
   };
 }
-function blockingDiagnostics(diagnostics, changes, rollback) {
+function blockingDiagnostics(diagnostics, changes, rollback, deferredDiagnostics = []) {
   const touched = new Set(
     changes.filter((c) => c.before !== c.after).map(
       (c) => /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\//.exec(c.path)?.[1]
     ).filter(Boolean)
   );
   return diagnostics.filter((d) => {
+    if (deferredDiagnostics.includes(diagnosticFingerprint(d))) return false;
     const action = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
       d.file
     )?.[1];
     return !(action && ["stale-approval", "stale-review"].includes(d.code) && (rollback || !touched.has(action)));
   });
 }
-function validateOverlay(files, changes, id2, options, rollback = false) {
+function validateOverlay(files, changes, id2, options, rollback = false, deferredDiagnostics) {
+  const before = inspectFiles(files, { ignoreOperation: id2 });
+  for (const conflict of before.diagnostics.filter(
+    (d) => d.code === "conflict"
+  )) {
+    if (changes.some((c) => c.path === conflict.file && c.before !== c.after))
+      fail(
+        "conflict",
+        conflict.file,
+        "Resolve this conflict outside the app before editing the record"
+      );
+  }
+  const deferred = deferredDiagnostics ?? deferredConflictDiagnostics(before).map(diagnosticFingerprint);
   const overlay = new Map(files);
   for (const change of changes) {
     const content = rollback ? change.before : change.after;
@@ -28477,7 +28529,12 @@ function validateOverlay(files, changes, id2, options, rollback = false) {
     ...options.lifecycles ? { lifecycles: options.lifecycles } : {},
     ignoreOperation: id2
   });
-  const problems = blockingDiagnostics(result2.diagnostics, changes, rollback);
+  const problems = blockingDiagnostics(
+    result2.diagnostics,
+    changes,
+    rollback,
+    deferred
+  );
   if (problems.length)
     fail(
       "invalid-overlay",
@@ -28531,6 +28588,7 @@ async function readJournal(root, id2) {
   return op;
 }
 async function finish(root, operation, options, rollback = false) {
+  const deferred = external_exports.array(external_exports.string().regex(/^[a-f0-9]{64}$/)).parse(operation.deferredDiagnostics ?? []);
   const targets = operation.changes.map((change) => ({
     change,
     wanted: rollback ? change.before : change.after
@@ -28563,7 +28621,8 @@ async function finish(root, operation, options, rollback = false) {
     operation.changes,
     operation.id,
     options,
-    rollback
+    rollback,
+    deferred
   );
   for (const { change, wanted } of targets) {
     const actual = await optionalRead(
@@ -28593,7 +28652,12 @@ async function finish(root, operation, options, rollback = false) {
       ignoreOperation: operation.id
     }
   );
-  if (final.diagnostics.length || blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length)
+  if (final.diagnostics.length || blockingDiagnostics(
+    checked.diagnostics,
+    operation.changes,
+    rollback,
+    deferred
+  ).length)
     fail(
       "post-validation",
       operation.id,
@@ -28683,7 +28747,10 @@ async function applyOperation(root, input2, options = {}, migration = false) {
       id: id2,
       fingerprint,
       state: "prepared",
-      changes
+      changes,
+      deferredDiagnostics: deferredConflictDiagnostics(
+        inspectFiles(read.files, { ignoreOperation: id2 })
+      ).map(diagnosticFingerprint)
     };
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id2);
@@ -28754,6 +28821,61 @@ var stepInput = external_exports.strictObject({
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
   step: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   done: external_exports.boolean()
+});
+
+// packages/voidra/src/queue.ts
+function queueDecision(project, id2, options = {}) {
+  const refused = (reason) => ({ allowed: false, reason });
+  const record2 = project.records.get(`.voidra/actions/${id2}/action.md`);
+  if (record2?.kind !== "action")
+    return refused(
+      project.files.has(`.voidra/actions/${id2}/action.md`) ? "Repair this action\u2019s fields before queueing" : "Action not found"
+    );
+  const parsed = schemas.action.safeParse(record2.document.data);
+  if (!parsed.success)
+    return refused("Repair this action\u2019s fields before queueing");
+  const action = parsed.data;
+  const questionData = project.records.get(`.voidra/actions/${id2}/questions.md`)?.document.data;
+  const questions = questionData ? schemas.questions.safeParse(questionData) : null;
+  if (questions?.success && questions.data.rounds.some((r) => r.questions.some((q) => !q.answer)))
+    return refused("Answer the open questions before queueing");
+  if (action.stage === "review" && action.type !== "release" && !questionData)
+    return refused("Review gate needs a human decision");
+  if (project.diagnostics.some(
+    (d) => d.file.startsWith(`.voidra/actions/${id2}/`) && !(options.stopAtStalePlan && d.code === "stale-approval")
+  ))
+    return refused(
+      "Resolve this action\u2019s planning-file problems before queueing"
+    );
+  if (action.type === "profile-change" && action.status === "draft" && !options.activatingProfileDraft)
+    return refused("Review and activate the Profile change draft first");
+  if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["done", "released", "cancelled"].includes(action.stage ?? ""))
+    return refused("This action cannot be queued at its current gate");
+  for (const id3 of action.blockedBy ?? []) {
+    const dep = project.records.get(`.voidra/actions/${id3}/action.md`), parsed2 = schemas.action.safeParse(dep?.document.data);
+    if (!parsed2.success || !actionComplete(parsed2.data))
+      return refused(
+        "This action is blocked; finish the blocking actions before queueing"
+      );
+  }
+  if ([...project.records.values()].some(
+    (r) => r.kind === "action" && r.document.data.parent === id2 && (!schemas.action.safeParse(r.document.data).success || !actionComplete(schemas.action.parse(r.document.data)))
+  ))
+    return refused("Complete the child slices before queueing their parent");
+  return { allowed: true, reason: null };
+}
+var queueInput = external_exports.strictObject({
+  ids: external_exports.array(schemas.action.shape.id).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Duplicate queued action"
+  ),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  by: external_exports.string().min(1),
+  revisions: external_exports.record(schemas.action.shape.id, external_exports.string().regex(/^[a-f0-9]{64}$/)).optional(),
+  activate: external_exports.object({
+    id: schemas.action.shape.id,
+    revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+  }).optional()
 });
 
 // packages/voidra/src/templates.ts
@@ -28938,19 +29060,19 @@ async function processInfo(pid) {
 }
 
 // tools/run-engine/src/run.ts
-import { execFile as execFile2 } from "node:child_process";
+import { execFile as execFile4 } from "node:child_process";
 import { randomUUID as randomUUID2 } from "node:crypto";
 import {
-  lstat as lstat4,
-  readdir as readdir3,
-  readFile as readFile5,
+  lstat as lstat5,
+  readdir as readdir4,
+  readFile as readFile6,
   readlink,
-  realpath as realpath2,
+  realpath as realpath3,
   rm as rm2
 } from "node:fs/promises";
-import { hostname as hostname4 } from "node:os";
-import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve } from "node:path";
-import { promisify as promisify2 } from "node:util";
+import { hostname as hostname5 } from "node:os";
+import { dirname as dirname2, isAbsolute as isAbsolute2, join as join4, relative, resolve as resolve2 } from "node:path";
+import { promisify as promisify4 } from "node:util";
 
 // tools/run-engine/src/architecture.ts
 import { readFile as readFile4 } from "node:fs/promises";
@@ -29182,6 +29304,35 @@ async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
   };
 }
 
+// tools/run-engine/src/git.ts
+import { execFile as execFile2 } from "node:child_process";
+import { promisify as promisify2 } from "node:util";
+var execute2 = promisify2(execFile2);
+async function readGitIdentity(root, environment = {}) {
+  async function value(key) {
+    try {
+      const result2 = await execute2("git", ["config", "--get", key], {
+        cwd: root,
+        env: { ...process.env, ...environment },
+        encoding: "utf8"
+      });
+      return result2.stdout.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+  const [name, email3] = await Promise.all([
+    value("user.name"),
+    value("user.email")
+  ]);
+  return {
+    name,
+    email: email3,
+    value: name && email3 ? `${name} <${email3}>` : null,
+    notice: name && email3 ? null : `Git ${[!name ? "name" : null, !email3 ? "email" : null].filter(Boolean).join(" and ")} is not configured. You can leave work unassigned.`
+  };
+}
+
 // tools/run-engine/src/lock.ts
 import { hostname as hostname3 } from "node:os";
 var HEARTBEAT_STALE_MS = 12e4;
@@ -29246,8 +29397,153 @@ async function inspectLock(input2, now = Date.now()) {
   };
 }
 
+// tools/run-engine/src/planning-commit.ts
+import { execFile as execFile3 } from "node:child_process";
+import {
+  lstat as lstat4,
+  open as open3,
+  readdir as readdir3,
+  readFile as readFile5,
+  realpath as realpath2,
+  rename as rename3,
+  unlink as unlink2
+} from "node:fs/promises";
+import { hostname as hostname4 } from "node:os";
+import { join as join3, resolve } from "node:path";
+import { promisify as promisify3 } from "node:util";
+var execute3 = promisify3(execFile3);
+async function git(root, args, index, input2) {
+  if (input2 !== void 0) {
+    return new Promise((resolveResult, reject) => {
+      const child = execFile3(
+        "git",
+        ["--literal-pathspecs", ...args],
+        {
+          cwd: root,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            GIT_OPTIONAL_LOCKS: "0",
+            ...index ? { GIT_INDEX_FILE: index } : {}
+          },
+          maxBuffer: 16 * 1024 * 1024
+        },
+        (error62, stdout) => error62 ? reject(error62) : resolveResult(stdout)
+      );
+      child.stdin?.end(input2);
+    });
+  }
+  return (await execute3("git", ["--literal-pathspecs", ...args], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_OPTIONAL_LOCKS: "0",
+      ...index ? { GIT_INDEX_FILE: index } : {}
+    },
+    maxBuffer: 16 * 1024 * 1024
+  })).stdout;
+}
+var optionalRead2 = async (path) => {
+  try {
+    return await readFile5(path);
+  } catch (error62) {
+    if (error62.code === "ENOENT") return null;
+    throw error62;
+  }
+};
+var inputSchema = external_exports.strictObject({
+  id: external_exports.string().uuid(),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  paths: external_exports.array(
+    external_exports.string().refine(
+      (path) => path.startsWith(".voidra/") && !path.startsWith(".voidra/local/") && path !== ".voidra/local" && !path.includes("\\") && !path.includes("\0") && !path.split("/").some((part) => [".", "..", ""].includes(part)),
+      "Only shared planning paths are allowed"
+    )
+  ).min(1),
+  message: external_exports.string().trim().min(1).max(2e3)
+});
+var journalSchema = external_exports.strictObject({
+  input: inputSchema,
+  preview: external_exports.strictObject({
+    enabled: external_exports.boolean(),
+    reason: external_exports.string().nullable(),
+    files: external_exports.array(
+      external_exports.strictObject({
+        path: external_exports.string(),
+        status: external_exports.enum(["new", "modified", "deleted"]),
+        hash: external_exports.string().nullable(),
+        mode: external_exports.number().nullable()
+      })
+    ),
+    revision: external_exports.string(),
+    head: external_exports.string().nullable(),
+    indexHash: external_exports.string().nullable()
+  }),
+  indexBefore: external_exports.string(),
+  phase: external_exports.enum(["prepared", "committed", "reconciled", "failed"]),
+  commit: external_exports.string().optional()
+});
+var lockPath2 = ".voidra/local/planning.lock";
+async function head(root) {
+  return (await git(root, ["rev-parse", "--verify", "HEAD"]).catch(() => "")).trim() || null;
+}
+async function findCommit(root, id2) {
+  if (!await head(root)) return null;
+  const raw = await git(root, [
+    "log",
+    "-z",
+    "--format=%H%x00%(trailers:key=Voidra-Planning,valueonly)",
+    "HEAD",
+    "--"
+  ]), fields = raw.split("\0"), found = [];
+  for (let i = 0; i + 1 < fields.length; i += 2)
+    if (fields[i + 1]?.trim() === id2) found.push(fields[i] ?? "");
+  if (found.length > 1)
+    throw new Error(
+      "Duplicate planning-operation commits; inspect Git history"
+    );
+  return found[0] ?? null;
+}
+async function pendingPlanning(root) {
+  const pending = [];
+  let owner = null;
+  const raw = await optionalRead2(await safePath(root, lockPath2));
+  if (raw)
+    owner = external_exports.object({
+      id: external_exports.string(),
+      pid: external_exports.number(),
+      host: external_exports.string(),
+      started: external_exports.string()
+    }).parse(JSON.parse(raw.toString()));
+  const directory = ".voidra/local/planning-commits";
+  await safePath(root, `${directory}/.probe`);
+  const files = await readdir3(join3(root, directory)).catch(
+    (error62) => {
+      if (error62.code === "ENOENT") return [];
+      throw error62;
+    }
+  );
+  for (const name of files) {
+    if (!/^[a-f0-9-]+\.json$/.test(name)) continue;
+    const path = `${directory}/${name}`, bytes = await readFile5(await safePath(root, path));
+    const journal2 = journalSchema.parse(JSON.parse(bytes.toString()));
+    if (["failed", "reconciled"].includes(journal2.phase) && owner?.id !== journal2.input.id)
+      continue;
+    const commit = journal2.commit ?? await findCommit(root, journal2.input.id);
+    const recoverable = !owner || owner.id === journal2.input.id && owner.host === hostname4() && await processIdentity(owner.pid) !== owner.started;
+    pending.push({
+      id: journal2.input.id,
+      commit: commit ?? null,
+      recoverable,
+      message: commit ? "The planning commit exists. Recover to reconcile its index without creating another commit." : "A planning attempt was interrupted. Recover it or discard the attempt before continuing."
+    });
+  }
+  return pending;
+}
+
 // tools/run-engine/src/run.ts
-var execute2 = promisify2(execFile2);
+var execute4 = promisify4(execFile4);
 var checkpointSchema = external_exports.looseObject({
   schema: external_exports.literal(1),
   run: schemas.run.shape.id,
@@ -29304,9 +29600,9 @@ var checkpointPath = (run) => `.voidra/local/run-checkpoints/${run}.json`;
 async function assertUnlinked(root, path) {
   let current2 = root;
   for (const part of path.split("/")) {
-    current2 = join3(current2, part);
+    current2 = join4(current2, part);
     try {
-      if ((await lstat4(current2)).isSymbolicLink())
+      if ((await lstat5(current2)).isSymbolicLink())
         throw new Error("Private run path contains a symlink");
     } catch (error62) {
       if (error62.code === "ENOENT") return;
@@ -29317,14 +29613,14 @@ async function assertUnlinked(root, path) {
 var text4 = async (root, path) => {
   await assertUnlinked(root, path);
   try {
-    return await readFile5(join3(root, path), "utf8");
+    return await readFile6(join4(root, path), "utf8");
   } catch (error62) {
     if (error62.code === "ENOENT") return null;
     throw error62;
   }
 };
-async function git(root, args, env = {}) {
-  const result2 = await execute2("git", ["--literal-pathspecs", ...args], {
+async function git2(root, args, env = {}) {
+  const result2 = await execute4("git", ["--literal-pathspecs", ...args], {
     cwd: root,
     env: {
       ...process.env,
@@ -29336,9 +29632,9 @@ async function git(root, args, env = {}) {
   });
   return result2.stdout.trim();
 }
-async function head(root) {
+async function head2(root) {
   try {
-    return await git(root, ["rev-parse", "--verify", "HEAD"]);
+    return await git2(root, ["rev-parse", "--verify", "HEAD"]);
   } catch {
     return null;
   }
@@ -29364,7 +29660,7 @@ async function owned(root, token) {
   const lock = schemas.lock.parse(JSON.parse(lockRaw));
   if (lock.ownerToken !== token)
     throw new Error("Run owner token changed; stop before another write");
-  if (lock.host !== hostname4() || await processIdentity(lock.pid) !== lock.processStartedAt)
+  if (lock.host !== hostname5() || await processIdentity(lock.pid) !== lock.processStartedAt)
     throw new Error("Run owner is not active on this computer");
   const ctx = await runContext(root, lock.run);
   if (ctx.ownerToken !== token) throw new Error("Run checkpoint owner differs");
@@ -29433,6 +29729,10 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     );
   if (checked.files.has(".voidra/local/run.lock"))
     throw new Error("A run lock already has an owner");
+  if (checked.files.has(".voidra/local/planning.lock") || (await pendingPlanning(root)).length)
+    throw new Error(
+      "Finish or recover the planning commit before starting an agent run"
+    );
   const queuePath = ".voidra/local/pending-actions.md", queue = checked.records.get(queuePath)?.document;
   if (!queue) return null;
   const ids = Array.from(
@@ -29443,22 +29743,20 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
   const actionPath = `.voidra/actions/${actionId}/action.md`, doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
-  if (action.type === "profile-change" && action.status === "draft")
-    throw new Error("Review the Profile change draft before queueing it");
-  if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["done", "released", "cancelled"].includes(action.stage ?? ""))
-    throw new Error("Queued action is at a gate or already running");
-  for (const dependency of action.blockedBy ?? []) {
-    const other = checked.records.get(`.voidra/actions/${dependency}/action.md`)?.document.data;
-    if (!other || !actionComplete(schemas.action.parse(other)))
-      throw new Error("Queued action is blocked");
+  if (!action.assignee) {
+    const runner = await readGitIdentity(root);
+    if (!runner.value)
+      throw new Error(
+        "Configure Git name and email before starting unassigned work"
+      );
+    action.assignee = runner.value;
   }
-  if ([...checked.records.values()].some(
-    (r) => r.kind === "action" && r.document.data.parent === actionId && !actionComplete(schemas.action.parse(r.document.data))
-  ))
-    throw new Error("Queued parent is blocked by unfinished child slices");
+  const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
+  if (!decision.allowed)
+    throw new Error(decision.reason ?? "Queued action cannot run");
   const identity = await processIdentity(ownerPid2);
   if (!identity) throw new Error("Run owner process is missing");
-  if (await git(root, ["rev-parse", "--is-inside-work-tree"]).catch(
+  if (await git2(root, ["rev-parse", "--is-inside-work-tree"]).catch(
     () => "false"
   ) !== "true")
     throw new Error(
@@ -29541,7 +29839,7 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     ownerToken,
     ownerPid: ownerPid2,
     ownerProcessStartedAt: identity,
-    ownerHost: hostname4(),
+    ownerHost: hostname5(),
     runPath,
     actionPath,
     actionHash: hash2(actionRaw),
@@ -29556,21 +29854,21 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
         ([path]) => path === ".voidra/voidra.json" || path.startsWith(".voidra/profile/") || path.startsWith(".voidra/backlog/") || path.startsWith(`.voidra/actions/${action.id}/`) && ![actionPath].includes(path) && !path.includes("/runs/")
       ).map(([path, bytes]) => [path, hash2(bytes)])
     ),
-    baseTags: await git(root, [
+    baseTags: await git2(root, [
       "for-each-ref",
       "--format=%(refname):%(objectname)",
       "refs/tags"
     ]),
     ...plan ? { planRevision: plan.revision } : {},
-    baseCommit: await head(root),
+    baseCommit: await head2(root),
     startingChanges: Object.fromEntries(
       await Promise.all(
         [
           ...new Set(
             (await Promise.all([
-              git(root, ["diff", "--name-only", "-z"]),
-              git(root, ["diff", "--cached", "--name-only", "-z"]),
-              git(root, ["ls-files", "--others", "--exclude-standard", "-z"])
+              git2(root, ["diff", "--name-only", "-z"]),
+              git2(root, ["diff", "--cached", "--name-only", "-z"]),
+              git2(root, ["ls-files", "--others", "--exclude-standard", "-z"])
             ])).flatMap((list) => list.split("\0").filter(Boolean))
           )
         ].filter((path) => !path.startsWith(".voidra/")).map(async (path) => [path, await fileHash(root, path)])
@@ -29584,7 +29882,7 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     pid: ownerPid2,
     processStartedAt: identity,
     agent,
-    host: hostname4(),
+    host: hostname5(),
     run,
     action: actionId,
     startedAt: at,
@@ -29601,6 +29899,7 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
       };
     }),
     { path: runPath, expectedHash: null, content: runRaw },
+    { path: ".voidra/local/planning.lock", expectedHash: null, content: null },
     {
       path: queuePath,
       expectedHash: hash2(queue.raw),
@@ -29646,13 +29945,13 @@ async function heartbeat(root, token) {
 async function safeGitPath(root, path) {
   if (!path || isAbsolute2(path) || path.includes("\0") || path.includes("\\") || path.split("/").some((p) => p === ".." || p === ".git") || path.startsWith(".voidra/local/") || path === ".voidra/local")
     throw new Error("Invalid implementation commit path");
-  const absoluteRoot = resolve(root);
-  let parent = resolve(root, path);
+  const absoluteRoot = resolve2(root);
+  let parent = resolve2(root, path);
   if (relative(absoluteRoot, parent).startsWith(".."))
     throw new Error("Commit path escapes project");
   while (parent !== absoluteRoot) {
     try {
-      const info = await lstat4(parent);
+      const info = await lstat5(parent);
       if (info.isSymbolicLink())
         throw new Error("Commit paths cannot be symlinks");
     } catch (error62) {
@@ -29660,8 +29959,8 @@ async function safeGitPath(root, path) {
     }
     parent = dirname2(parent);
   }
-  const canonical = await realpath2(root);
-  if (relative(canonical, join3(canonical, path)).startsWith(".."))
+  const canonical = await realpath3(root);
+  if (relative(canonical, join4(canonical, path)).startsWith(".."))
     throw new Error("Commit path escapes project");
 }
 async function prepareResult(root, token, input2) {
@@ -29752,9 +30051,9 @@ Plan: ${report.reviews.plan.summary}
     ]
   );
 }
-async function findCommit(root, ctx) {
-  if (!await head(root)) return null;
-  const values = (await git(root, ["log", "--all", "--format=%H%x00%B%x00"])).split("\0");
+async function findCommit2(root, ctx) {
+  if (!await head2(root)) return null;
+  const values = (await git2(root, ["log", "--all", "--format=%H%x00%B%x00"])).split("\0");
   const found = [];
   for (let i = 0; i + 1 < values.length; i += 2) {
     const commit = values[i]?.trim(), body = values[i + 1] ?? "";
@@ -29767,9 +30066,9 @@ async function findCommit(root, ctx) {
 }
 async function fileHash(root, path) {
   try {
-    if ((await lstat4(join3(root, path))).isSymbolicLink())
-      return hash2(`link:${await readlink(join3(root, path))}`);
-    return hash2(await readFile5(join3(root, path)));
+    if ((await lstat5(join4(root, path))).isSymbolicLink())
+      return hash2(`link:${await readlink(join4(root, path))}`);
+    return hash2(await readFile6(join4(root, path)));
   } catch (error62) {
     if (error62.code === "ENOENT") return null;
     throw error62;
@@ -29790,16 +30089,16 @@ async function commitResult(root, token, message, options = {}) {
     throw new Error("The runtime owns commit trailers");
   if (!["prepared", "commit-pending", "committed"].includes(ctx.phase))
     throw new Error("Prepare the result before committing");
-  const existing = await findCommit(root, ctx);
+  const existing = await findCommit2(root, ctx);
   if (existing) {
     await checkPreparedFiles(root, ctx);
     await save(root, { ...ctx, phase: "committed", commit: existing });
     return existing;
   }
   await checkPreparedFiles(root, ctx);
-  if (await head(root) !== ctx.baseCommit)
+  if (await head2(root) !== ctx.baseCommit)
     throw new Error("Git HEAD changed outside this run");
-  const indexBefore = await git(root, [
+  const indexBefore = await git2(root, [
     "ls-files",
     "--stage",
     "-z",
@@ -29818,14 +30117,14 @@ async function commitResult(root, token, message, options = {}) {
   await options.checkpoint?.("before-commit");
   await owned(root, token);
   await checkPreparedFiles(root, pending);
-  const index = join3(root, `.voidra/local/commit-index-${ctx.run}`), env = { GIT_INDEX_FILE: index };
-  await git(
+  const index = join4(root, `.voidra/local/commit-index-${ctx.run}`), env = { GIT_INDEX_FILE: index };
+  await git2(
     root,
     ["read-tree", ...ctx.baseCommit ? [ctx.baseCommit] : ["--empty"]],
     env
   );
-  await git(root, ["add", "--", ...ctx.paths], env);
-  await git(
+  await git2(root, ["add", "--", ...ctx.paths], env);
+  await git2(
     root,
     [
       "commit",
@@ -29838,7 +30137,7 @@ Voidra-Run: ${ctx.run}`
     env
   );
   await options.checkpoint?.("after-commit");
-  const commit = await findCommit(root, ctx);
+  const commit = await findCommit2(root, ctx);
   if (!commit) throw new Error("Commit trailer was not found");
   await save(root, { ...pending, phase: "committed", commit });
   return commit;
@@ -29846,16 +30145,16 @@ Voidra-Run: ${ctx.run}`
 async function reconcileIndex(root, ctx, token) {
   if (!ctx.commit) throw new Error("Missing commit for index reconciliation");
   await checkPreparedFiles(root, ctx);
-  if (await head(root) !== ctx.commit)
+  if (await head2(root) !== ctx.commit)
     throw new Error("Git HEAD changed before index reconciliation");
-  const staged = await git(root, [
+  const staged = await git2(root, [
     "ls-files",
     "--stage",
     "-z",
     "--",
     ...ctx.paths
   ]);
-  const tree = await git(root, [
+  const tree = await git2(root, [
     "ls-tree",
     "-z",
     ctx.commit,
@@ -29866,8 +30165,8 @@ async function reconcileIndex(root, ctx, token) {
   if (staged !== ctx.indexBefore && staged !== after)
     throw new Error("Git index changed outside the run; preserved");
   await owned(root, token);
-  await git(root, ["reset", "-q", "HEAD", "--", ...ctx.paths]);
-  await rm2(join3(root, `.voidra/local/commit-index-${ctx.run}`), {
+  await git2(root, ["reset", "-q", "HEAD", "--", ...ctx.paths]);
+  await rm2(join4(root, `.voidra/local/commit-index-${ctx.run}`), {
     force: true
   });
   const { lockRaw } = await owned(root, token);
@@ -29967,7 +30266,7 @@ async function recoverRun(root, run, options = {}) {
   const raw = await text4(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
   if (lock && (!(await inspectLock(lock)).recoverable || lock.ownerToken !== ctx.ownerToken))
     throw new Error("Run owner is active, alive or cannot be verified");
-  if (!lock && ctx.ownerPid && ctx.ownerHost === hostname4() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
+  if (!lock && ctx.ownerPid && ctx.ownerHost === hostname5() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
     throw new Error("The original owner is still alive; wait before recovery");
   const identity = await processIdentity(process.pid);
   if (!identity) throw new Error("Recovery owner is missing");
@@ -29977,7 +30276,7 @@ async function recoverRun(root, run, options = {}) {
     ownerToken,
     ownerPid: process.pid,
     ownerProcessStartedAt: identity,
-    ownerHost: hostname4()
+    ownerHost: hostname5()
   };
   await save(root, ctx, [
     {
@@ -29988,7 +30287,7 @@ async function recoverRun(root, run, options = {}) {
         ownerToken,
         pid: process.pid,
         processStartedAt: identity,
-        host: hostname4(),
+        host: hostname5(),
         agent: ctx.agent,
         run: ctx.run,
         action: ctx.action,
@@ -30002,7 +30301,7 @@ async function recoverRun(root, run, options = {}) {
     await reconcileIndex(root, ctx, ctx.ownerToken);
     return runContext(root, run);
   }
-  const existing = await findCommit(root, ctx);
+  const existing = await findCommit2(root, ctx);
   if (existing) {
     await checkPreparedFiles(root, ctx);
     await save(root, { ...ctx, phase: "committed", commit: existing });
@@ -30019,8 +30318,8 @@ async function recoverRun(root, run, options = {}) {
 }
 async function listRunContexts(root) {
   await assertUnlinked(root, ".voidra/local/run-checkpoints");
-  const directory = join3(root, ".voidra/local/run-checkpoints");
-  const entries = await readdir3(directory, { withFileTypes: true }).catch(
+  const directory = join4(root, ".voidra/local/run-checkpoints");
+  const entries = await readdir4(directory, { withFileTypes: true }).catch(
     (error62) => {
       if (error62.code === "ENOENT") return [];
       throw error62;
@@ -30037,7 +30336,7 @@ async function publishPlanning(root, token, raw) {
   const input2 = architectureProposalSchema.parse(raw), { ctx, lockRaw } = await inspectOwnedRun(root, token);
   if (ctx.phase !== "started" || input2.action !== ctx.action)
     throw new Error("Planning report does not match the active action");
-  if (await head(root) !== ctx.baseCommit || await git(root, [
+  if (await head2(root) !== ctx.baseCommit || await git2(root, [
     "for-each-ref",
     "--format=%(refname):%(objectname)",
     "refs/tags"
@@ -30112,13 +30411,13 @@ async function snapshotSources(root) {
   const walk = async (path) => {
     if (path === ".git" || path === ".voidra" || path.split("/").includes("node_modules") || path === ".agents/skills" || path === ".claude/skills" || path === ".agent-verification")
       return;
-    const info = await lstat4(join3(root, path));
+    const info = await lstat5(join4(root, path));
     if (info.isDirectory())
-      for (const name of await readdir3(join3(root, path)))
+      for (const name of await readdir4(join4(root, path)))
         await walk(path ? `${path}/${name}` : name);
     else result2[path] = await fileHash(root, path);
   };
-  for (const name of await readdir3(root)) await walk(name);
+  for (const name of await readdir4(root)) await walk(name);
   return result2;
 }
 function sourceChanges(before, after) {
@@ -30168,7 +30467,7 @@ var humanReportSchema = external_exports.strictObject({
   steps: external_exports.array(external_exports.string().min(1)).min(1)
 });
 async function assertPlanningEffects(root, ctx) {
-  if (await head(root) !== ctx.baseCommit || await git(root, [
+  if (await head2(root) !== ctx.baseCommit || await git2(root, [
     "for-each-ref",
     "--format=%(refname):%(objectname)",
     "refs/tags"
@@ -30418,7 +30717,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     ]);
     for (const key of flags.keys())
       if (!allowed.has(key)) throw new Error(`Unknown flag ${key}`);
-    const root = resolve2(cwd, flags.get("--project") ?? "."), need = (key) => {
+    const root = resolve3(cwd, flags.get("--project") ?? "."), need = (key) => {
       const value = flags.get(key);
       if (!value) throw new Error(`Required ${key}`);
       return value;
@@ -30442,7 +30741,7 @@ async function runRuntime(args, cwd = process.cwd()) {
       let templateInfo = null;
       if (templateId) {
         const folder = typeof __voidraIntakeTemplates === "undefined" ? fileURLToPath2(new URL("../../../templates/", import.meta.url)) : __voidraIntakeTemplates;
-        const path = resolve2(folder, templateId, "template.yaml"), template = await loadTemplate(path);
+        const path = resolve3(folder, templateId, "template.yaml"), template = await loadTemplate(path);
         if (template.version !== project.metadata?.template?.version)
           throw new Error(
             "Installed template version differs from the project"
@@ -30466,7 +30765,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     }
     if (command === "planning") {
       const input2 = JSON.parse(
-        await readFile6(resolve2(root, need("--report")), "utf8")
+        await readFile7(resolve3(root, need("--report")), "utf8")
       );
       return {
         code: 0,
@@ -30477,7 +30776,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     }
     if (["guard", "choices", "research", "human"].includes(command ?? "")) {
       const input2 = JSON.parse(
-        await readFile6(resolve2(root, need("--report")), "utf8")
+        await readFile7(resolve3(root, need("--report")), "utf8")
       ), token = need("--token");
       if (command === "guard") {
         if (!Array.isArray(input2) || !input2.every((p) => typeof p === "string"))
@@ -30496,7 +30795,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     }
     if (command === "prepare") {
       const report = reportSchema.parse(
-        JSON.parse(await readFile6(resolve2(root, need("--report")), "utf8"))
+        JSON.parse(await readFile7(resolve3(root, need("--report")), "utf8"))
       );
       await prepareResult(root, need("--token"), report);
       return { code: 0, value: { prepared: true } };

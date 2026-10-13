@@ -2,9 +2,15 @@ import { existsSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  commitPlanning,
+  discardPlanning,
   inspectLock,
   listRunContexts,
+  pendingPlanning,
+  previewPlanning,
+  readGitHistory,
   readGitIdentity,
+  recoverPlanning,
 } from "@voidra/run-engine";
 import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
@@ -13,6 +19,7 @@ import {
   answerQuestion,
   applyOperation,
   approveAction,
+  blockingPlanningDiagnostics,
   checkProject,
   createId,
   createIdea,
@@ -26,16 +33,16 @@ import {
   initializeProject,
   lifecycles,
   PACKAGE_VERSION,
-  parseRecord,
   planFiles,
   projectLifecycles,
   promoteIdea,
+  queueDecision,
   readPlan,
   readTemplates,
+  replaceActionQueue,
   requestPlanChanges,
   reviewRevision,
   schemas,
-  serializeRecord,
   setHumanStep,
   updateProfileAnswer,
 } from "voidra";
@@ -74,12 +81,20 @@ export class ProjectWorkspace {
     this.database = this.open();
   }
   async start(): Promise<void> {
-    this.watcher = watch(join(this.root, ".voidra"), {
-      ignoreInitial: true,
-      followSymlinks: false,
-      atomic: 75,
-      awaitWriteFinish: { stabilityThreshold: 120, pollInterval: 25 },
-    });
+    this.watcher = watch(
+      [
+        join(this.root, ".voidra"),
+        join(this.root, ".git/HEAD"),
+        join(this.root, ".git/refs"),
+        join(this.root, ".git/index"),
+      ],
+      {
+        ignoreInitial: true,
+        followSymlinks: false,
+        atomic: 75,
+        awaitWriteFinish: { stabilityThreshold: 120, pollInterval: 25 },
+      },
+    );
     const watcher = this.watcher;
     watcher.on("all", () => {
       clearTimeout(this.timer);
@@ -132,6 +147,28 @@ export class ProjectWorkspace {
     return db;
   }
   async handle(request: WorkspaceRequest): Promise<WorkspaceSnapshot> {
+    if (request.command === "commit-planning") {
+      const result = await commitPlanning(this.root, {
+        id: request.id,
+        revision: request.revision,
+        paths: request.paths,
+        message: request.message,
+      });
+      if (!result.reconciled)
+        throw new Error(
+          `Planning commit ${result.commit} exists, but the index changed. Recover the planning operation after resolving the staged conflict.`,
+        );
+    }
+    if (request.command === "recover-planning") {
+      const result = await recoverPlanning(this.root, request.id);
+      if (!result.reconciled)
+        throw new Error(
+          `Planning commit ${result.commit} exists; conflicting index entries were preserved.`,
+        );
+    }
+    if (request.command === "discard-planning")
+      await discardPlanning(this.root, request.id);
+
     if (
       ["answer-question", "approve-plan", "reject-plan"].includes(
         request.command,
@@ -141,9 +178,7 @@ export class ProjectWorkspace {
       if (
         current.lock.state !== "none" ||
         current.recoveries.length ||
-        current.diagnostics.some(
-          (d) => !["stale-approval", "stale-review"].includes(d.code),
-        )
+        current.readOnly
       )
         throw new Error("Finish or recover pending work before deciding");
       if (request.command === "answer-question")
@@ -291,6 +326,24 @@ export class ProjectWorkspace {
         request.revision,
         request.feedback,
       );
+    if (request.command === "replace-queue") {
+      const current = await this.snapshot();
+      if (
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw new Error(
+          "Finish or recover pending work before editing the queue",
+        );
+      await replaceActionQueue(this.root, {
+        ids: request.ids,
+        revision: request.revision,
+        revisions: request.revisions,
+        by: current.identity.value ?? "You",
+      });
+      await this.publish();
+    }
     if (request.command === "queue-action")
       await this.queueAction(request.id, request.revision);
     if (request.command === "create-action")
@@ -307,9 +360,7 @@ export class ProjectWorkspace {
     if (
       displayed.lock.state !== "none" ||
       displayed.recoveries.length ||
-      displayed.diagnostics.some(
-        (d) => !["stale-approval", "stale-review"].includes(d.code),
-      )
+      displayed.readOnly
     )
       throw new Error(
         "Finish or recover pending work before deciding its review",
@@ -318,90 +369,45 @@ export class ProjectWorkspace {
     await this.publish();
   }
   async queueAction(id: string, revision?: string): Promise<void> {
-    const project = await checkProject(this.root);
+    const current = await this.snapshot();
     if (
-      project.diagnostics.some(
-        (d) =>
-          !["stale-approval", "stale-review"].includes(d.code) ||
-          d.file.startsWith(`.voidra/actions/${id}/`),
-      )
+      current.lock.state !== "none" ||
+      current.recoveries.length ||
+      current.planning.pending.length
     )
       throw new Error(
-        "Fix this action’s planning-file problems before queueing",
+        "Finish or recover pending work before editing the queue",
       );
-    const actionPath = `.voidra/actions/${id}/action.md`,
-      record = project.records.get(actionPath);
-    if (record?.kind !== "action") throw new Error("Action not found");
-    const action = schemas.action.parse(record.document.data);
-    if (
-      action.doneBy !== "agent" ||
-      !["ready", "draft", "failed"].includes(action.status) ||
-      ["done", "released", "cancelled"].includes(action.stage ?? "")
-    )
-      throw new Error("This action cannot be queued at its current gate");
+    const action = current.actions.find((a) => a.data.id === id);
+    if (!action) throw new Error("Action not found");
     const activate =
-      action.type === "profile-change" && action.status === "draft";
-    if (activate && (!revision || revision !== hash(record.document.raw)))
+      action.data.type === "profile-change" && action.data.status === "draft";
+    if (activate && !revision)
       throw new Error(
         "Review the current Profile change draft before activating it",
       );
-    for (const dependency of action.blockedBy ?? []) {
-      const data = project.records.get(
-        `.voidra/actions/${dependency}/action.md`,
-      )?.document.data;
-      if (!data || !actionComplete(schemas.action.parse(data)))
-        throw new Error("Finish the blocking actions before queueing");
-    }
-    if (
-      [...project.records.values()].some(
-        (r) =>
-          r.kind === "action" &&
-          r.document.data.parent === id &&
-          !actionComplete(schemas.action.parse(r.document.data)),
-      )
-    )
-      throw new Error("Complete the child slices before queueing their parent");
-    const path = ".voidra/local/pending-actions.md",
-      old = project.files.get(path);
-    const queue = old
-      ? parseRecord(path, old)
-      : parseRecord(path, "---\n{}\n---\n");
-    const ids = Array.from(
-      queue.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g),
-      (match) => match[0],
-    );
-    if (!ids.includes(id)) ids.push(id);
-    const content = serializeRecord(
-      queue,
-      { ...queue.data, queuedBy: "You", queuedAt: new Date().toISOString() },
-      `${ids.map((value, index) => `${index + 1}. [ ] ${value}`).join("\n")}\n`,
-    ).toString();
-    await applyOperation(this.root, {
-      changes: [
-        { path, expectedHash: old ? hash(old) : null, content },
-        ...[...new Set(action.blockedBy ?? [])].map((id) => {
-          const file = `.voidra/actions/${id}/action.md`,
-            bytes = project.files.get(file);
-          return {
-            path: file,
-            expectedHash: bytes ? hash(bytes) : null,
-            content: bytes?.toString() ?? null,
-          };
-        }),
-        {
-          path: actionPath,
-          expectedHash: hash(record.document.raw),
-          content: activate
-            ? serializeRecord(record.document, {
-                ...action,
-                status: "ready",
-                activatedBy: "You",
-                activatedAt: new Date().toISOString(),
-              }).toString()
-            : record.document.raw,
-        },
-        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+    await replaceActionQueue(this.root, {
+      ids: [
+        ...new Set([
+          ...current.queue.filter((value) =>
+            current.actions.some((a) => a.data.id === value && a.queueable),
+          ),
+          id,
+        ]),
       ],
+      revision: current.queueRevision,
+      by: "You",
+      ...(revision
+        ? {
+            revisions: Object.fromEntries(
+              current.actions.map((a) => [
+                a.data.id,
+                a.data.id === id ? revision : a.editRevision,
+              ]),
+            ),
+          }
+        : {}),
+      ...(activate && revision ? { activate: { id, revision } } : {}),
     });
     await this.publish();
   }
@@ -663,14 +669,16 @@ export class ProjectWorkspace {
       ).map((run) => JSON.parse(run.value) as unknown);
       const revision = reviewRevision(project, action.data.id);
       const data = schemas.action.parse(action.data);
-      const blockers = (data.blockedBy ?? [])
-        .map((id) => project.records.get(`.voidra/actions/${id}/action.md`))
-        .filter(Boolean);
+      const blockers = (data.blockedBy ?? []).map((id) =>
+        project.records.get(`.voidra/actions/${id}/action.md`),
+      );
       const children = [...project.records.values()].filter(
         (r) => r.kind === "action" && r.document.data.parent === data.id,
       );
       return {
         ...action,
+        queueable: queueDecision(project, data.id).allowed,
+        queueReason: queueDecision(project, data.id).reason,
         runs,
         revision,
         editRevision: hash(project.files.get(action.path) ?? ""),
@@ -708,7 +716,7 @@ export class ProjectWorkspace {
             : [],
         blocked:
           blockers.some(
-            (r) => r && !actionComplete(schemas.action.parse(r.document.data)),
+            (r) => !r || !actionComplete(schemas.action.parse(r.document.data)),
           ) ||
           children.some(
             (r) => !actionComplete(schemas.action.parse(r.document.data)),
@@ -718,11 +726,7 @@ export class ProjectWorkspace {
     return workspaceSchema.parse({
       name: project.metadata?.project.name ?? basename(this.root),
       hasVoidra,
-      readOnly:
-        hasVoidra &&
-        project.diagnostics.some(
-          (d) => !["stale-approval", "stale-review"].includes(d.code),
-        ),
+      readOnly: hasVoidra && blockingPlanningDiagnostics(project).length > 0,
       hasCode: code.hasCode,
       codeEvidence: code.evidence,
       templates: catalog.templates,
@@ -731,6 +735,11 @@ export class ProjectWorkspace {
       ),
       template: project.metadata?.template ?? null,
       identity: await readGitIdentity(this.root),
+      history: await readGitHistory(this.root),
+      planning: {
+        ...(await previewPlanning(this.root, project)),
+        pending: await pendingPlanning(this.root),
+      },
       ideas: (
         this.database.prepare("select value from ideas order by id").all() as {
           value: string;
@@ -750,7 +759,37 @@ export class ProjectWorkspace {
           revision: hash(project.files.get(profile.path) ?? ""),
         };
       }),
-      actions,
+      actions: [
+        ...actions,
+        ...project.diagnostics
+          .filter(
+            (d) =>
+              d.code === "conflict" &&
+              /^\.voidra\/actions\/act-[0-9a-hjkmnp-tv-z]{6}\/action\.md$/.test(
+                d.file,
+              ),
+          )
+          .map((d) => ({
+            data: {
+              id: d.file.split("/")[2],
+              title: `Conflicted ${d.file.split("/")[2]}`,
+              type: "unknown",
+              stage: "conflicted",
+              status: "conflicted",
+              doneBy: "agent",
+            },
+            path: d.file,
+            body: "",
+            revision: hash(project.files.get(d.file) ?? ""),
+            editRevision: hash(project.files.get(d.file) ?? ""),
+            timeline: [],
+            effectiveStage: "conflicted",
+            blocked: true,
+            queueable: false,
+            queueReason: "Resolve this record’s Git conflict before queueing",
+            runs: [],
+          })),
+      ],
       diagnostics: hasVoidra ? project.diagnostics : [],
       recoveries,
       queue: Array.from(
@@ -760,6 +799,9 @@ export class ProjectWorkspace {
         ).matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g),
         (match) => match[0],
       ),
+      queueRevision: project.files.has(".voidra/local/pending-actions.md")
+        ? hash(project.files.get(".voidra/local/pending-actions.md") as Buffer)
+        : null,
       lock,
     });
   }

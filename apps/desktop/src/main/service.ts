@@ -130,10 +130,15 @@ export class ProjectService {
       return Promise.reject(new Error("Project service is unavailable"));
     const id = randomUUID();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error("Project service timed out"));
-      }, 5000);
+      const timer = setTimeout(
+        () => {
+          this.pending.delete(id);
+          reject(new Error("Project service timed out"));
+        },
+        ["commit-planning", "recover-planning"].includes(input.command)
+          ? 60000
+          : 5000,
+      );
       this.pending.set(id, { resolve, reject, timer });
       child.postMessage({ requestId: id, ...input });
     });

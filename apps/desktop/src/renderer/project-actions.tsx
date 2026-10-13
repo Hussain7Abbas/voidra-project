@@ -8,7 +8,9 @@ import { ActionQuestions, PlanGate } from "./action-gates.tsx";
 import { actionLabels } from "./action-labels.ts";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { PlanningCommit } from "./planning-commit.tsx";
 import { ProjectInbox } from "./project-inbox.tsx";
+import { RunQueue } from "./run-queue.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -77,11 +79,7 @@ export function ProjectActions({
   const editable =
     !data.readOnly && data.lock.state === "none" && !data.recoveries.length;
   const gateEditable =
-    data.lock.state === "none" &&
-    !data.recoveries.length &&
-    data.diagnostics.every((d) =>
-      ["stale-approval", "stale-review"].includes(d.code),
-    );
+    data.lock.state === "none" && !data.recoveries.length && !data.readOnly;
   const filtered = filterActionViews(
     data.actions.map((a) => ({
       ...a,
@@ -101,11 +99,23 @@ export function ProjectActions({
     done: "Done",
     released: "Released",
     cancelled: "Cancelled",
+    conflicted: "Conflicted",
     human: "Your tasks",
   };
   const problems = data.diagnostics.length ? (
     <section className="service-notice" aria-label="Planning file problems">
-      <h2>Planning files need attention</h2>
+      <h2>
+        {data.diagnostics.some((d) => d.code === "conflict")
+          ? "Conflicted planning files"
+          : "Planning files need attention"}
+      </h2>
+      {data.diagnostics.some((d) => d.code === "conflict") && (
+        <p>
+          Resolve the Git conflict markers in your editor, then save the files.
+          Voidra refreshes automatically and leaves conflicted records
+          untouched. You can still edit unrelated records.
+        </p>
+      )}
       <ul>
         {data.diagnostics.map((d) => (
           <li key={`${d.file}:${d.field}:${d.code}`}>
@@ -192,21 +202,11 @@ export function ProjectActions({
         />
         {problems}
         {data.recoveries.length > 0 && recoveryPanel}
-        <section className="card action-detail" aria-label="Run queue">
-          <h2>Queued actions</h2>
-          {data.queue.length ? (
-            <ol>
-              {data.queue.map((id) => (
-                <li key={id}>
-                  {data.actions.find((action) => action.data.id === id)?.data
-                    .title ?? id}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>Choose an action to queue.</p>
-          )}
-        </section>
+        <RunQueue
+          data={data}
+          editable={gateEditable && !data.planning.pending.length}
+        />
+        <PlanningCommit data={data} />
         <section className="card action-detail" aria-label="Agent status">
           <h2>Agent status</h2>
           <p
@@ -259,6 +259,7 @@ export function ProjectActions({
         {problems}
       </>
     );
+  const recordEditable = editable && current?.data.status !== "conflicted";
   if (current)
     return (
       <>
@@ -283,11 +284,17 @@ export function ProjectActions({
               className="mb-6"
               variant="primary"
               disabled={
-                !editable ||
-                current.blocked ||
-                !["ready", "draft", "failed"].includes(current.data.status)
+                !gateEditable ||
+                (!current.queueable &&
+                  !(
+                    current.data.type === "profile-change" &&
+                    current.data.status === "draft" &&
+                    !current.blocked
+                  ))
               }
-              onClick={() =>
+              loading={busy}
+              onClick={() => {
+                setBusy(true);
                 void request({
                   command: "queue-action",
                   id: current.data.id,
@@ -296,7 +303,8 @@ export function ProjectActions({
                   .then(() => query.invalidateQueries())
                   .then(() => toast.success("Action queued"))
                   .catch((e) => toast.error(e.message))
-              }
+                  .finally(() => setBusy(false));
+              }}
             >
               {current.data.type === "profile-change" &&
               current.data.status === "draft"
@@ -304,6 +312,43 @@ export function ProjectActions({
                 : "Queue for agent"}
             </Button>
           )}
+        <section className="card action-detail" aria-label="Linked commits">
+          <h2>Linked commits</h2>
+          {data.history.notice && <p>{data.history.notice}</p>}
+          {data.history.commits.some((c) =>
+            c.actions.includes(current.data.id),
+          ) ? (
+            <ul>
+              {data.history.commits
+                .filter((c) => c.actions.includes(current.data.id))
+                .map((commit) => (
+                  <li key={commit.hash} className="queue-item">
+                    <div>
+                      <strong>{commit.subject}</strong>
+                      <p className="text-muted">
+                        {commit.author} · {commit.at}
+                      </p>
+                      <code>{commit.hash.slice(0, 12)}</code>
+                    </div>
+                    {commit.url && (
+                      <Button
+                        onClick={() =>
+                          void request({
+                            command: "open-commit",
+                            hash: commit.hash,
+                          }).catch((e) => toast.error(e.message))
+                        }
+                      >
+                        Open {commit.hash.slice(0, 7)} on GitHub
+                      </Button>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p>No commits with this action’s trailer yet.</p>
+          )}
+        </section>
         {current.data.reviewDecision?.feedback && (
           <section className="card action-detail">
             <h2>Review feedback</h2>
@@ -323,7 +368,7 @@ export function ProjectActions({
             <h2>Description</h2>
             <Button
               variant="ghost"
-              disabled={!editable}
+              disabled={!recordEditable}
               onClick={() => {
                 setEditBody(current.body);
                 setEditRevision(current.editRevision);
@@ -381,7 +426,7 @@ export function ProjectActions({
                           : step.done
                       }
                       disabled={
-                        !editable ||
+                        !recordEditable ||
                         busy ||
                         ["cancelled", "released"].includes(
                           current.data.stage ?? "",
@@ -421,7 +466,7 @@ export function ProjectActions({
             <h2>Dependencies and slices</h2>
             <Button
               variant="ghost"
-              disabled={!editable}
+              disabled={!recordEditable}
               onClick={() => {
                 setEditParent(current.data.parent ?? "");
                 setEditBlocked(current.data.blockedBy ?? []);
@@ -527,7 +572,7 @@ export function ProjectActions({
           current.data.status !== "complete" && (
             <Button
               variant="ghost"
-              disabled={!editable}
+              disabled={!recordEditable}
               onClick={() => setCancelOpen(true)}
             >
               Cancel action
@@ -928,7 +973,21 @@ export function ProjectActions({
       )}
       {data.diagnostics.length > 0 && (
         <section className="service-notice" aria-label="Planning file problems">
-          <h2>Planning files need attention</h2>
+          <h2>
+            {data.diagnostics.some((d) => d.code === "conflict")
+              ? "Conflicted planning files"
+              : "Planning files need attention"}
+          </h2>
+          {data.diagnostics.some((d) => d.code === "conflict") && (
+            <p>
+              Resolve the Git conflict markers in your editor, then save the
+              files. Voidra refreshes automatically and leaves conflicted
+              records untouched.{" "}
+              {data.readOnly
+                ? "Resolve the project settings or other structural problems before editing."
+                : "You can still edit unrelated records."}
+            </p>
+          )}
           <ul>
             {data.diagnostics.map((d) => (
               <li key={`${d.file}:${d.field}:${d.code}`}>
@@ -979,6 +1038,7 @@ export function ProjectActions({
                   "running",
                   "waiting",
                   "failed",
+                  "conflicted",
                   "complete",
                 ].map((s) => (
                   <option key={s} value={s}>

@@ -6,7 +6,12 @@ import {
   projectLifecycles,
   transition,
 } from "./lifecycle.ts";
-import { checkProject, type ProjectInspection, readPlan } from "./project.ts";
+import {
+  blockingPlanningDiagnostics,
+  checkProject,
+  type ProjectInspection,
+  readPlan,
+} from "./project.ts";
 import { serializeRecord } from "./records.ts";
 import { questionSchema, schemas } from "./schemas.ts";
 import { applyOperation, type WriteOptions } from "./writer.ts";
@@ -28,11 +33,7 @@ export async function answerQuestion(
 ): Promise<void> {
   const input = answerInput.parse(raw),
     project = await checkProject(root);
-  if (
-    project.diagnostics.some(
-      (d) => !["stale-approval", "stale-review"].includes(d.code),
-    )
-  )
+  if (blockingPlanningDiagnostics(project).length > 0)
     throw new Error("Fix planning-file problems before answering");
   if (project.files.has(".voidra/local/run.lock"))
     throw new Error("Finish or recover the run before answering");
@@ -92,11 +93,7 @@ export async function answerQuestion(
 }
 
 function decisionProject(project: ProjectInspection): void {
-  if (
-    project.diagnostics.some(
-      (d) => !["stale-approval", "stale-review"].includes(d.code),
-    )
-  )
+  if (blockingPlanningDiagnostics(project).length > 0)
     throw new Error("Fix planning-file problems before deciding");
   if (project.files.has(".voidra/local/run.lock"))
     throw new Error("Finish or recover the run before deciding");

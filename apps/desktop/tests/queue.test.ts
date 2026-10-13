@@ -51,6 +51,52 @@ it("queues an action, copies both agent commands and shows live/stale locks with
     expect(
       await readFile(join(root, ".voidra/local/pending-actions.md"), "utf8"),
     ).toContain("act-00000z");
+    const invoke = async (raw: unknown) =>
+      page.evaluate((value) => window.voidra.invoke(value as never), raw);
+    const shown = await invoke({ command: "workspace" });
+    if (!shown.ok || shown.data.kind !== "workspace")
+      throw new Error("Missing snapshot");
+    const displayed = shown.data.workspace;
+    const eligible = displayed.actions.filter((a) => a.queueable);
+    expect(eligible.some((a) => a.data.id === "act-00000z")).toBe(true);
+    expect(eligible.every((a) => a.data.doneBy === "agent")).toBe(true);
+    const other = eligible.find((a) => a.data.id !== "act-00000z");
+    if (!other) throw new Error("Expected another eligible action");
+    const revisions = Object.fromEntries(
+      eligible.map((a) => [a.data.id, a.editRevision]),
+    );
+    const ordered = [other.data.id, "act-00000z"];
+    expect(
+      (
+        await invoke({
+          command: "replace-queue",
+          ids: ordered,
+          revision: "0".repeat(64),
+          revisions,
+        })
+      ).ok,
+    ).toBe(false);
+    expect(
+      (
+        await invoke({
+          command: "replace-queue",
+          ids: ordered,
+          revision: displayed.queueRevision,
+          revisions,
+        })
+      ).ok,
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Move docs implement earlier", exact: true })
+      .click();
+    await page.getByText("Queue saved", { exact: true }).waitFor();
+    const reordered = await invoke({ command: "workspace" });
+    if (!reordered.ok || reordered.data.kind !== "workspace")
+      throw new Error("Missing snapshot");
+    expect(reordered.data.workspace.queue).toEqual([
+      "act-00000z",
+      other.data.id,
+    ]);
     await app.evaluate(({ clipboard }) => {
       clipboard.writeText = async (text) => {
         (globalThis as unknown as { copied: string }).copied = text;

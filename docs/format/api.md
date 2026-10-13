@@ -6,6 +6,7 @@ The ESM `voidra` package exports typed helpers from `index.js` and declarations 
 
 | Boundary | Contract |
 | --- | --- |
+| `queueDecision(project, id, options?)` / `replaceActionQueue(root, input, options?)` | Shared eligibility/reason and ordered personal queue writes. Input carries the displayed queue hash, selected action hashes and optional explicit Profile draft activation. Refuse active/unfinished runs, unanswered gates, incomplete blockers/slices and stale selected plans; preserve stale sibling gates. Guard planning bytes and absent run lock through a durable grouped write. |
 | `parseRecord(file, bytes)` / `serializeRecord(record, data?, body?)` | UTF-8 Markdown frontmatter, JSON and JSON run locks. Unchanged bytes survive; deliberate edits preserve existing YAML nodes/comments and untouched body. Cyclic/non-JSON YAML values and incomplete frontmatter fail. |
 | `schemas`, `plainSchemas`, `validateRecord(kind, record)` | Structural and conditional record/body checks. Unknown object keys survive. Diagnostics contain code, project-relative file, field, line and message. |
 | `checkProject(root, options?)` / `inspectFiles(files, options?)` | Read-only whole-project checks. A newer metadata format/minimum package version stops other parsing. `ProjectFiles` maps project-relative names to bytes. |
@@ -30,3 +31,5 @@ The ESM `voidra` package exports typed helpers from `index.js` and declarations 
 An operation stores UTF-8 snapshots in `.voidra/local/operations/`. It is local and can contain planning text. Receipts remain for idempotency; history cleanup is outside P01. Hash checks are optimistic and cooperating writers are serialized. An unrelated process can still race the last OS rename; the API is not an OS-level compare-and-swap or a sandbox against hostile concurrent filesystem changes.
 
 Callers must read current files and carry the displayed revision through human decisions. The pure engine assumes its context comes from validated current data; the disk approval/writer helpers enforce that at the filesystem boundary. A stale plan routes implementation back to Plan; stale Release authorization returns to its Review flow. No helper creates a git commit, tag or push.
+
+`deferredConflictDiagnostics(project)` and `blockingPlanningDiagnostics(project)` distinguish unchanged record conflicts (and their existing missing-reference diagnostics) from structural failures when editing an unrelated record. They do not remove diagnostics from `checkProject`. `diagnosticFingerprint` identifies the preserved diagnostic without depending on line-number drift.

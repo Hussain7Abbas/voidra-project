@@ -5,7 +5,8 @@
   title: research,
   stage: review,
   status: waiting,
-  doneBy: agent
+  doneBy: agent,
+  assignee: Voidra Golden <golden@example.test>
 }
 ---
 Investigate local numeric test coverage.
