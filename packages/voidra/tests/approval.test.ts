@@ -104,3 +104,128 @@ it("release approval stays in Review; changed plan bytes invalidate review", asy
   expect(approved.data.reviewHistory).toHaveLength(1);
   expect((await checkProject(root)).diagnostics).toEqual([]);
 });
+
+it("allows independent fresh approvals when two actions have stale plans, without changing the other action", async () => {
+  const root = await planned(),
+    { createAction, applyOperation, serializeRecord, hash } = await import(
+      "../src/index.ts"
+    );
+  const other = await createAction(root, {
+    type: "feature",
+    title: "Second",
+    description: "A separate action",
+    by: "You",
+  });
+  const project = await checkProject(root),
+    path = `.voidra/actions/${other}/action.md`,
+    doc = project.records.get(path)?.document;
+  if (!doc) throw new Error("Missing action");
+  await applyOperation(root, {
+    changes: [
+      {
+        path,
+        expectedHash: hash(doc.raw),
+        content: serializeRecord(doc, {
+          ...doc.data,
+          stage: "plan",
+          status: "waiting",
+        }).toString(),
+      },
+      ...planFiles.map((file) => ({
+        path: `.voidra/actions/${other}/${file}`,
+        expectedHash: null,
+        content: markdown({ action: other }, bodies[file.replace(".md", "")]),
+      })),
+    ],
+  });
+  for (const id of ["act-000000", other])
+    await approveAction(
+      root,
+      id,
+      "You",
+      (await getPlanRevision(root, id)).revision,
+    );
+  for (const id of ["act-000000", other]) {
+    const path = join(root, `.voidra/actions/${id}/blueprint.md`);
+    await writeFile(path, `${await readFile(path, "utf8")} \n`);
+  }
+  const otherPath = join(root, `.voidra/actions/${other}/action.md`),
+    before = await readFile(otherPath, "utf8");
+  await approveAction(
+    root,
+    "act-000000",
+    "You",
+    (await getPlanRevision(root, "act-000000")).revision,
+  );
+  expect(await readFile(otherPath, "utf8")).toBe(before);
+  expect((await checkProject(root)).diagnostics.map((d) => d.code)).toEqual([
+    "stale-approval",
+  ]);
+  await approveAction(
+    root,
+    other,
+    "You",
+    (await getPlanRevision(root, other)).revision,
+  );
+  expect((await checkProject(root)).diagnostics).toEqual([]);
+});
+
+it("guards an absent questions file and refuses work on an action whose own gate remains stale", async () => {
+  const root = await planned();
+  const revision = await getPlanRevision(root, "act-000000");
+  await expect(
+    approveAction(root, "act-000000", "You", revision.revision, {
+      checkpoint: async (point) => {
+        if (point === "validated")
+          await writeFile(
+            join(root, ".voidra/actions/act-000000/questions.md"),
+            markdown(samples.questions),
+          );
+      },
+    }),
+  ).rejects.toThrow(/conflict/);
+  const { recoverOperation, applyOperation, hash, serializeRecord } =
+    await import("../src/index.ts");
+  const project = await checkProject(root),
+    operation = [...project.records.values()].find(
+      (r) => r.kind === "operation" && r.document.data.state === "prepared",
+    );
+  expect(
+    await readFile(
+      join(root, ".voidra/actions/act-000000/questions.md"),
+      "utf8",
+    ),
+  ).toBe(markdown(samples.questions));
+  // Restore only this disposable fixture's deliberate outside edit before recovery.
+  const { unlink } = await import("node:fs/promises");
+  await unlink(join(root, ".voidra/actions/act-000000/questions.md"));
+  if (operation)
+    await recoverOperation(root, String(operation.document.data.id), {
+      rollback: true,
+    });
+  await approveAction(
+    root,
+    "act-000000",
+    "You",
+    (await getPlanRevision(root, "act-000000")).revision,
+  );
+  const blueprint = join(root, ".voidra/actions/act-000000/blueprint.md");
+  await writeFile(blueprint, `${await readFile(blueprint, "utf8")} \n`);
+  const path = ".voidra/actions/act-000000/action.md",
+    doc = (await checkProject(root)).records.get(path)?.document;
+  if (!doc) throw new Error("Missing action");
+  await expect(
+    applyOperation(root, {
+      changes: [
+        {
+          path,
+          expectedHash: hash(doc.raw),
+          content: serializeRecord(doc, {
+            ...doc.data,
+            title: "Unapproved work",
+          }).toString(),
+        },
+      ],
+    }),
+  ).rejects.toThrow(/invalid/);
+});

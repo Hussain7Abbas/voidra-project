@@ -1,6 +1,7 @@
 export * from "./approval.ts";
 export * from "./cli.ts";
 export * from "./errors.ts";
+export * from "./gates.ts";
 export * from "./ids.ts";
 export * from "./lifecycle.ts";
 export * from "./migration.ts";

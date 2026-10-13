@@ -93,7 +93,13 @@ export async function approveAction(
   const questionsOpen = questions
     ? schemas.questions
         .parse(questions.document.data)
-        .rounds.some((round) => round.questions.some((q) => !q.answer))
+        .rounds.some((round) =>
+          round.questions.some(
+            (q) =>
+              !q.answer ||
+              (q.answer.kind === "agent-decides" && !q.agentChoice),
+          ),
+        )
     : false;
   const context = {
     plan,
@@ -123,7 +129,11 @@ export async function approveAction(
       action = transition(action, "advance", context, rules).action;
     action = transition(action, "approve-plan", context, rules).action;
   }
-  const changes = planFiles.map((file) => {
+  const changes: {
+    path: string;
+    expectedHash: string | null;
+    content: string | null;
+  }[] = planFiles.map((file) => {
     const filePath = `.voidra/actions/${id}/${file}`;
     const bytes = checked.files.get(filePath) as Buffer;
     return {
@@ -136,6 +146,16 @@ export async function approveAction(
     path,
     expectedHash: hash(record.raw),
     content: serializeRecord(record, action).toString(),
+  });
+  changes.push({
+    path: `.voidra/actions/${id}/questions.md`,
+    expectedHash: questions ? hash(questions.document.raw) : null,
+    content: questions ? questions.document.raw.toString() : null,
+  });
+  changes.push({
+    path: ".voidra/local/run.lock",
+    expectedHash: null,
+    content: null,
   });
   return applyOperation(root, { changes }, options);
 }

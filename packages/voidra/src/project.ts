@@ -413,7 +413,7 @@ export function inspectFiles(
           "requiredVoidra",
           "Aggregate completion without a parent plan requires voidra ≥ 0.2.0",
         );
-      if (a.stage === "plan" && a.status === "waiting" && !plan)
+      if (a.stage === "plan" && a.status === "waiting" && !open && !plan)
         add(
           "missing-plan",
           file,

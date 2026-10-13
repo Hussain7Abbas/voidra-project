@@ -4,16 +4,22 @@ import { Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { type ActionType, actionTypeSchema } from "../shared/bridge.ts";
 import { filterActionViews, groupActionViews } from "./action-filters.ts";
+import { ActionQuestions, PlanGate } from "./action-gates.tsx";
 import { actionLabels } from "./action-labels.ts";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { ProjectInbox } from "./project-inbox.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
 import { ErrorState, PageHeader } from "./ui/page.tsx";
 import { Spinner } from "./ui/spinner.tsx";
 import { useToast } from "./ui/toast.tsx";
-export function ProjectActions({ view }: { view: "actions" | "run" }) {
+export function ProjectActions({
+  view,
+}: {
+  view: "actions" | "run" | "inbox";
+}) {
   const query = useQueryClient(),
     toast = useToast();
   const workspace = useQuery({
@@ -70,7 +76,22 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
   const data = workspace.data;
   const editable =
     !data.readOnly && data.lock.state === "none" && !data.recoveries.length;
-  const filtered = filterActionViews(data.actions, filters);
+  const gateEditable =
+    data.lock.state === "none" &&
+    !data.recoveries.length &&
+    data.diagnostics.every((d) =>
+      ["stale-approval", "stale-review"].includes(d.code),
+    );
+  const filtered = filterActionViews(
+    data.actions.map((a) => ({
+      ...a,
+      data: {
+        ...a.data,
+        ...(a.effectiveStage ? { stage: a.effectiveStage } : {}),
+      },
+    })),
+    filters,
+  );
   const stageLabels: Record<string, string> = {
     discovery: "Discovery",
     plan: "Plan",
@@ -229,7 +250,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
     return (
       <>
         <Button className="mb-6" onClick={() => setSelected(null)}>
-          Back to actions
+          {view === "inbox" ? "Back to inbox" : "Back to actions"}
         </Button>
         <PageHeader
           title="Action file needs attention"
@@ -246,7 +267,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
           variant="ghost"
           onClick={() => setSelected(null)}
         >
-          Back to actions
+          {view === "inbox" ? "Back to inbox" : "Back to actions"}
         </Button>
         <PageHeader
           title={current.data.title}
@@ -255,7 +276,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         {problems}
         {data.recoveries.length > 0 && recoveryPanel}
         {current.data.doneBy === "agent" &&
-          !["review", "done", "released", "cancelled"].includes(
+          !["done", "released", "cancelled"].includes(
             current.data.stage ?? "",
           ) && (
             <Button
@@ -284,7 +305,8 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         )}
         <div className="action-meta" data-review-revision={current.revision}>
           <span className="badge badge-accent">
-            {stageLabels[current.data.stage ?? "human"] ?? current.data.stage}
+            {stageLabels[current.effectiveStage ?? "human"] ??
+              current.effectiveStage}
           </span>
           <span className="badge">{current.data.status}</span>
           <code>{current.data.id}</code>
@@ -315,12 +337,12 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
                 <li
                   key={stage}
                   aria-current={
-                    stage === current.data.stage ? "step" : undefined
+                    stage === current.effectiveStage ? "step" : undefined
                   }
                 >
                   <span
                     className={
-                      stage === current.data.stage
+                      stage === current.effectiveStage
                         ? "badge badge-accent"
                         : "badge"
                     }
@@ -473,6 +495,14 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
             </>
           )}
         </section>
+        <ActionQuestions action={current} disabled={!gateEditable} />
+        <PlanGate action={current} disabled={!gateEditable} />
+        {current.data.planFeedback && (
+          <section className="card action-detail">
+            <h2>Plan feedback</h2>
+            <p>{current.data.planFeedback.feedback}</p>
+          </section>
+        )}
         {current.plans.length > 0 && (
           <section className="card action-detail">
             <h2>Plan files</h2>
@@ -691,47 +721,64 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
             )}
           </form>
         </Dialog>
-        {current.data.type === "docs" && current.data.stage === "review" && (
-          <section className="card action-detail" aria-label="Review decision">
-            <h2>Review this result</h2>
-            <p>Accept the completed work or explain what needs to change.</p>
-            <div className="flex gap-3 mt-4">
-              <Button
-                variant="primary"
-                disabled={
-                  data.readOnly ||
-                  data.lock.state !== "none" ||
-                  busy ||
-                  !current.runs.some(
-                    (run) => run.data.outcome === "advanced" && run.data.commit,
-                  )
-                }
-                onClick={() => {
-                  setBusy(true);
-                  void request({
-                    command: "review-action",
-                    id: current.data.id,
-                    revision: current.revision,
-                    decision: "accepted",
-                    feedback: "",
-                  })
-                    .then(() => query.invalidateQueries())
-                    .then(() => toast.success("Action accepted"))
-                    .catch((e) => toast.error(e.message))
-                    .finally(() => setBusy(false));
-                }}
-              >
-                Accept
-              </Button>
-              <Button
-                disabled={data.readOnly || data.lock.state !== "none" || busy}
-                onClick={() => setReject(true)}
-              >
-                Reject
-              </Button>
-            </div>
-          </section>
-        )}
+        {current.effectiveStage === "review" &&
+          (current.data.status === "waiting" ||
+            data.diagnostics.some(
+              (d) => d.file === current.path && d.code === "stale-review",
+            )) && (
+            <section
+              className="card action-detail"
+              aria-label="Review decision"
+            >
+              <h2>Review this result</h2>
+              <p>
+                {current.data.type === "release"
+                  ? "Acceptance authorizes the next agent run to commit the version bump and create the tag."
+                  : "Accept the completed work or explain what needs to change."}
+              </p>
+              <div className="flex gap-3 mt-4">
+                <Button
+                  variant="primary"
+                  disabled={
+                    !gateEditable ||
+                    busy ||
+                    !current.runs.some(
+                      (run) =>
+                        ["advanced", "waiting"].includes(run.data.outcome) &&
+                        run.data.endedAt &&
+                        (["research", "release"].includes(current.data.type) ||
+                          run.data.commit),
+                    )
+                  }
+                  onClick={() => {
+                    setBusy(true);
+                    void request({
+                      command: "review-action",
+                      id: current.data.id,
+                      revision: current.revision,
+                      decision: "accepted",
+                      feedback: "",
+                    })
+                      .then(() => query.invalidateQueries())
+                      .then(() => toast.success("Action accepted"))
+                      .catch((e) => toast.error(e.message))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  Accept
+                </Button>
+                <Button
+                  disabled={!gateEditable || busy}
+                  onClick={() => {
+                    setReject(true);
+                    setEditRevision(current.revision);
+                  }}
+                >
+                  Reject
+                </Button>
+              </div>
+            </section>
+          )}
         <Dialog
           closeDisabled={busy}
           open={reject}
@@ -751,7 +798,12 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
                 variant="primary"
                 loading={busy}
               >
-                Send back to Implement
+                Send back to{" "}
+                {current.data.type === "research"
+                  ? "Discovery"
+                  : current.data.type === "release"
+                    ? "Plan"
+                    : "Implement"}
               </Button>
             </>
           }
@@ -766,7 +818,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
                 await request({
                   command: "review-action",
                   id: current.data.id,
-                  revision: current.revision,
+                  revision: editRevision,
                   decision: "rejected",
                   feedback,
                 });
@@ -806,6 +858,17 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
                   {run.data.agent} · {run.data.outcome}
                 </h3>
                 <SafeMarkdown body={run.body} />
+                {run.data.checks?.length ? (
+                  <ul aria-label="Checks run">
+                    {run.data.checks.map((check) => (
+                      <li key={check.name}>
+                        {check.passed ? "Passed" : "Failed"}: {check.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted">No checks recorded.</p>
+                )}
                 {run.data.commit && (
                   <p>
                     Commit: <code>{run.data.commit}</code>
@@ -819,6 +882,8 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         </section>
       </>
     );
+  if (view === "inbox")
+    return <ProjectInbox workspace={data} onSelect={setSelected} />;
   return (
     <>
       <PageHeader

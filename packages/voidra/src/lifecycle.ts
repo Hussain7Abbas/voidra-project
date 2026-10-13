@@ -249,6 +249,9 @@ export function transition(
           ...decision(),
           revision: current as string,
           decision: accepted ? "accepted" : "rejected",
+          ...(action.type === "release" && context.plan
+            ? { hashes: context.plan.hashes }
+            : {}),
         },
         stage: accepted
           ? action.type === "release"

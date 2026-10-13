@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { z } from "zod";
-import { VoidraError } from "./errors.ts";
+import { type Diagnostic, VoidraError } from "./errors.ts";
 import { createId } from "./ids.ts";
 import { hash, type Lifecycles } from "./lifecycle.ts";
 import {
@@ -232,6 +232,34 @@ async function acquire(
     }
   };
 }
+function blockingDiagnostics(
+  diagnostics: Diagnostic[],
+  changes: Operation["changes"],
+  rollback: boolean,
+): Diagnostic[] {
+  // A stale gate in an untouched action is pending human work, not corruption.
+  // Never permit work on that action to bypass its own approval.
+  const touched = new Set(
+    changes
+      .filter((c) => c.before !== c.after)
+      .map(
+        (c) =>
+          /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\//.exec(c.path)?.[1],
+      )
+      .filter(Boolean),
+  );
+  return diagnostics.filter((d) => {
+    const action =
+      /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+        d.file,
+      )?.[1];
+    return !(
+      action &&
+      ["stale-approval", "stale-review"].includes(d.code) &&
+      (rollback || !touched.has(action))
+    );
+  });
+}
 function validateOverlay(
   files: ProjectFiles,
   changes: Operation["changes"],
@@ -249,11 +277,12 @@ function validateOverlay(
     ...(options.lifecycles ? { lifecycles: options.lifecycles } : {}),
     ignoreOperation: id,
   });
-  if (result.diagnostics.length)
+  const problems = blockingDiagnostics(result.diagnostics, changes, rollback);
+  if (problems.length)
     fail(
       "invalid-overlay",
-      result.diagnostics[0]?.file ?? "",
-      `Intended project is invalid: ${result.diagnostics.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`,
+      problems[0]?.file ?? "",
+      `Intended project is invalid: ${problems.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`,
     );
 }
 async function assertVersion(
@@ -388,7 +417,10 @@ async function finish(
       ignoreOperation: operation.id,
     },
   );
-  if (final.diagnostics.length || checked.diagnostics.length)
+  if (
+    final.diagnostics.length ||
+    blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length
+  )
     fail(
       "post-validation",
       operation.id,

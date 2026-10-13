@@ -456,6 +456,35 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
       ],
       "additionalProperties": {}
     },
+    "planFeedback": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "feedback": {
+          "type": "string",
+          "minLength": 1
+        },
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "revision",
+        "feedback",
+        "by",
+        "at"
+      ],
+      "additionalProperties": {}
+    },
     "planApproval": {
       "type": "object",
       "properties": {
@@ -561,6 +590,29 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         },
         "feedback": {
           "type": "string"
+        },
+        "hashes": {
+          "type": "object",
+          "properties": {
+            "requirements.md": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "blueprint.md": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "acceptance.md": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "requirements.md",
+            "blueprint.md",
+            "acceptance.md"
+          ],
+          "additionalProperties": {}
         },
         "by": {
           "type": "string",

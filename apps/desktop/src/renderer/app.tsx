@@ -25,9 +25,14 @@ import type {
   Snapshot,
   ThemePreference,
 } from "../shared/bridge.ts";
+import { inboxItems } from "./inbox.ts";
 import { ProjectActions } from "./project-actions.tsx";
 import { ProjectBacklog } from "./project-backlog.tsx";
-import { ProjectOnboarding, ProjectProfile } from "./project-profile.tsx";
+import {
+  ProjectOnboarding,
+  ProjectProfile,
+  useWorkspace,
+} from "./project-profile.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -85,9 +90,11 @@ function Shell() {
   const [menu, setMenu] = useState(false);
   const [navigationEpoch, setNavigationEpoch] = useState(0);
   const [navigationTarget, setNavigationTarget] = useState<
-    "actions" | "run" | "profile" | "backlog"
+    "actions" | "run" | "profile" | "backlog" | "inbox"
   >("actions");
   const data = snapshot.data;
+  const workspace = useWorkspace(!!data?.project?.hasVoidra);
+  const waitingCount = workspace.data ? inboxItems(workspace.data).length : 0;
   const themePreference = data?.theme;
   useEffect(
     () =>
@@ -229,24 +236,31 @@ function Shell() {
               <li key={item.label}>
                 <button
                   type="button"
-                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                  aria-label={item.label}
+                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                   disabled={
                     data?.project?.hasVoidra
-                      ? !["Actions", "Run", "Profile", "Backlog"].includes(
-                          item.label,
-                        )
+                      ? ![
+                          "Actions",
+                          "Run",
+                          "Profile",
+                          "Backlog",
+                          "Waiting for you",
+                        ].includes(item.label)
                       : index !== 0
                   }
                   onClick={() => {
                     setNavigationEpoch((value) => value + 1);
                     setNavigationTarget(
-                      item.label === "Run"
-                        ? "run"
-                        : item.label === "Backlog"
-                          ? "backlog"
-                          : item.label === "Profile"
-                            ? "profile"
-                            : "actions",
+                      item.label === "Waiting for you"
+                        ? "inbox"
+                        : item.label === "Run"
+                          ? "run"
+                          : item.label === "Backlog"
+                            ? "backlog"
+                            : item.label === "Profile"
+                              ? "profile"
+                              : "actions",
                     );
                     setMenu(false);
                   }}
@@ -254,13 +268,15 @@ function Shell() {
                     (
                       data?.project?.hasVoidra
                         ? item.label ===
-                          (navigationTarget === "run"
-                            ? "Run"
-                            : navigationTarget === "profile"
-                              ? "Profile"
-                              : navigationTarget === "backlog"
-                                ? "Backlog"
-                                : "Actions")
+                          (navigationTarget === "inbox"
+                            ? "Waiting for you"
+                            : navigationTarget === "run"
+                              ? "Run"
+                              : navigationTarget === "profile"
+                                ? "Profile"
+                                : navigationTarget === "backlog"
+                                  ? "Backlog"
+                                  : "Actions")
                         : index === 0
                     )
                       ? "page"
@@ -269,6 +285,15 @@ function Shell() {
                 >
                   <item.icon size={18} strokeWidth={1.75} aria-hidden />
                   {item.label}
+                  {item.label === "Waiting for you" && (
+                    <span
+                      className="badge"
+                      role="status"
+                      aria-label={`${waitingCount} waiting items`}
+                    >
+                      {waitingCount}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -410,7 +435,7 @@ function Content({
   open: () => void;
   busy: boolean;
   navigationEpoch: number;
-  navigationTarget: "actions" | "run" | "profile" | "backlog";
+  navigationTarget: "actions" | "run" | "profile" | "backlog" | "inbox";
 }) {
   const project = data.project;
   if (project?.hasVoidra)

@@ -12,9 +12,10 @@ import { useToast } from "./ui/toast.tsx";
 
 type Question = TemplateView["blocks"][number]["questions"][number];
 type Value = string | string[] | null;
-function useWorkspace() {
+export function useWorkspace(enabled = true) {
   return useQuery({
     queryKey: ["workspace"],
+    enabled,
     queryFn: async () => {
       const result = await request({ command: "workspace" });
       if (result.kind !== "workspace")
@@ -404,13 +405,8 @@ export function ProjectProfile() {
     template?.blocks
       .find((b) => b.id === block)
       ?.questions.some((q) => q.id === id) ?? false;
-  const inferred = orderedProfiles.flatMap((p) =>
-      p.data.answers
-        .filter((a) => a.status === "inferred")
-        .map((a) => ({ profile: p, answer: a })),
-    ),
-    disabled =
-      data.readOnly || data.lock.state !== "none" || data.recoveries.length > 0;
+  const disabled =
+    data.readOnly || data.lock.state !== "none" || data.recoveries.length > 0;
   return (
     <>
       <PageHeader
@@ -428,54 +424,6 @@ export function ProjectProfile() {
           Resolve the planning file or run recovery notice before changing
           answers.
         </p>
-      )}
-      {inferred.length > 0 && (
-        <section
-          className="card action-detail"
-          aria-label="Confirm inferred answers"
-        >
-          <h2>Confirm {inferred.length} inferred answers</h2>
-          <p>Check the answer and its source before confirming it.</p>
-          <ul className="profile-inferences">
-            {inferred.map(({ profile, answer: a }) => (
-              <li key={`${profile.data.block}.${a.id}`}>
-                <h3>{a.question}</h3>
-                <p>
-                  {Array.isArray(a.answer)
-                    ? a.answer.join(", ")
-                    : String(a.answer ?? "No answer inferred yet")}
-                </p>
-                <p className="text-muted">
-                  Source: {a.source ?? "No source recorded"}
-                </p>
-                <Button
-                  disabled={
-                    disabled ||
-                    busy ||
-                    a.answer === null ||
-                    !knowsAnswer(profile.data.block, a.id)
-                  }
-                  onClick={() => {
-                    setBusy(true);
-                    void request({
-                      command: "edit-profile-answer",
-                      block: profile.data.block,
-                      id: a.id,
-                      value: a.answer,
-                      revision: profile.revision,
-                    })
-                      .then(() => query.invalidateQueries())
-                      .then(() => toast.success("Answer confirmed"))
-                      .catch((e) => toast.error(e.message))
-                      .finally(() => setBusy(false));
-                  }}
-                >
-                  Confirm {a.question}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
       {orderedProfiles.map((profile) => (
         <section

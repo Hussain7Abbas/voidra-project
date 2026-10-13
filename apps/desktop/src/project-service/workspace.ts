@@ -10,11 +10,14 @@ import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
 import {
   actionComplete,
+  answerQuestion,
   applyOperation,
+  approveAction,
   checkProject,
   createId,
   createIdea,
   createAction as createPlanningAction,
+  decideReview,
   detectCode,
   editAction,
   editIdea,
@@ -24,12 +27,15 @@ import {
   lifecycles,
   PACKAGE_VERSION,
   parseRecord,
+  planFiles,
   promoteIdea,
+  readPlan,
   readTemplates,
+  requestPlanChanges,
+  reviewRevision,
   schemas,
   serializeRecord,
   setHumanStep,
-  transition,
   updateProfileAnswer,
 } from "voidra";
 import {
@@ -39,7 +45,7 @@ import {
 } from "../shared/bridge.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 3;
+const INDEX_VERSION = 4;
 export class ProjectWorkspace {
   private database: Database.Database;
   private watcher: FSWatcher | null = null;
@@ -125,6 +131,40 @@ export class ProjectWorkspace {
     return db;
   }
   async handle(request: WorkspaceRequest): Promise<WorkspaceSnapshot> {
+    if (
+      ["answer-question", "approve-plan", "reject-plan"].includes(
+        request.command,
+      )
+    ) {
+      const current = await this.snapshot();
+      if (
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.diagnostics.some(
+          (d) => !["stale-approval", "stale-review"].includes(d.code),
+        )
+      )
+        throw new Error("Finish or recover pending work before deciding");
+      if (request.command === "answer-question")
+        await answerQuestion(this.root, {
+          action: request.id,
+          question: request.question,
+          revision: request.revision,
+          answer: request.answer,
+          by: "You",
+        });
+      if (request.command === "approve-plan")
+        await approveAction(this.root, request.id, "You", request.revision);
+      if (request.command === "reject-plan")
+        await requestPlanChanges(
+          this.root,
+          request.id,
+          request.revision,
+          request.feedback,
+          "You",
+        );
+      await this.publish();
+    }
     if (
       request.command === "edit-action" ||
       request.command === "set-human-step"
@@ -262,66 +302,17 @@ export class ProjectWorkspace {
     feedback: string,
   ): Promise<void> {
     const displayed = await this.snapshot();
-    if (displayed.readOnly || displayed.lock.state !== "none")
-      throw new Error("Finish or recover the run before deciding its review");
-    const view = displayed.actions.find((action) => action.data.id === id);
-    if (!view || view.revision !== revision)
-      throw new Error("Review revision changed; read the current result first");
-    const project = await checkProject(this.root),
-      doc = project.records.get(view.path)?.document;
-    if (!doc) throw new Error("Action not found");
-    const action = schemas.action.parse(doc.data);
-    if (action.type !== "docs")
-      throw new Error("This version reviews Docs/chore only");
-    const runs = [...project.records.values()].filter(
-      (record) => record.kind === "run" && record.document.data.action === id,
-    );
-    const currentRevision = hash(
-      JSON.stringify(
-        [view.path, ...runs.map((run) => run.document.file)]
-          .sort()
-          .map((path) => [path, hash(project.files.get(path) ?? "")]),
-      ),
-    );
-    if (currentRevision !== revision)
-      throw new Error("Review revision changed before writing");
     if (
-      !runs.some(
-        (run) =>
-          run.document.data.outcome === "advanced" &&
-          typeof run.document.data.commit === "string",
+      displayed.lock.state !== "none" ||
+      displayed.recoveries.length ||
+      displayed.diagnostics.some(
+        (d) => !["stale-approval", "stale-review"].includes(d.code),
       )
     )
-      throw new Error("A completed, committed run is required before review");
-    if (decision === "rejected" && !feedback.trim())
-      throw new Error("Explain the change needed before rejecting");
-    const next = transition(
-      action,
-      decision === "accepted" ? "accept-review" : "reject-review",
-      {
-        revision,
-        reviewRevision: revision,
-        by: "You",
-        at: new Date().toISOString(),
-      },
-    ).action;
-    if (next.reviewDecision && decision === "rejected")
-      next.reviewDecision.feedback = feedback;
-    await applyOperation(this.root, {
-      changes: [
-        {
-          path: view.path,
-          expectedHash: hash(doc.raw),
-          content: serializeRecord(doc, next).toString(),
-        },
-        ...runs.map((run) => ({
-          path: run.document.file,
-          expectedHash: hash(run.document.raw),
-          content: run.document.raw,
-        })),
-        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      ],
-    });
+      throw new Error(
+        "Finish or recover pending work before deciding its review",
+      );
+    await decideReview(this.root, id, revision, decision, feedback, "You");
     await this.publish();
   }
   async queueAction(id: string): Promise<void> {
@@ -335,7 +326,7 @@ export class ProjectWorkspace {
     if (
       action.doneBy !== "agent" ||
       !["ready", "draft", "failed"].includes(action.status) ||
-      ["review", "done", "released", "cancelled"].includes(action.stage ?? "")
+      ["done", "released", "cancelled"].includes(action.stage ?? "")
     )
       throw new Error("This action cannot be queued at its current gate");
     for (const dependency of action.blockedBy ?? []) {
@@ -372,7 +363,7 @@ export class ProjectWorkspace {
     await applyOperation(this.root, {
       changes: [
         { path, expectedHash: old ? hash(old) : null, content },
-        ...(action.blockedBy ?? []).map((id) => {
+        ...[...new Set(action.blockedBy ?? [])].map((id) => {
           const file = `.voidra/actions/${id}/action.md`,
             bytes = project.files.get(file);
           return {
@@ -597,6 +588,17 @@ export class ProjectWorkspace {
                 data,
                 body: document.body,
                 path,
+                questions: (() => {
+                  const qPath = `.voidra/actions/${data.id}/questions.md`,
+                    q = project.records.get(qPath)?.document;
+                  return q
+                    ? {
+                        path: qPath,
+                        revision: hash(q.raw),
+                        rounds: schemas.questions.parse(q.data).rounds,
+                      }
+                    : null;
+                })(),
                 plans: [...project.records]
                   .filter(
                     ([, r]) =>
@@ -636,14 +638,7 @@ export class ProjectWorkspace {
           .prepare("select value from runs where action = ? order by id")
           .all(action.data.id) as { value: string }[]
       ).map((run) => JSON.parse(run.value) as unknown);
-      const revision = hash(
-        JSON.stringify(
-          [action, ...runs]
-            .map((record) => (record as { path: string }).path)
-            .sort()
-            .map((path) => [path, hash(project.files.get(path) ?? "")]),
-        ),
-      );
+      const revision = reviewRevision(project, action.data.id);
       const data = schemas.action.parse(action.data);
       const blockers = (data.blockedBy ?? [])
         .map((id) => project.records.get(`.voidra/actions/${id}/action.md`))
@@ -656,6 +651,32 @@ export class ProjectWorkspace {
         runs,
         revision,
         editRevision: hash(project.files.get(action.path) ?? ""),
+        planRevision:
+          readPlan(project.files, data.id, project.records)?.revision ?? null,
+        changedPlans: (() => {
+          const approved =
+            data.planApproval?.hashes ?? data.reviewDecision?.hashes;
+          if (approved)
+            return planFiles.filter(
+              (file) =>
+                approved[file] !==
+                hash(
+                  project.files.get(`.voidra/actions/${data.id}/${file}`) ?? "",
+                ),
+            );
+          return data.type === "release" &&
+            data.reviewDecision?.decision === "accepted" &&
+            data.reviewDecision.revision !==
+              readPlan(project.files, data.id, project.records)?.revision
+            ? [...planFiles]
+            : [];
+        })(),
+        effectiveStage: project.diagnostics.some(
+          (d) => d.file === action.path && d.code === "stale-approval",
+        )
+          ? "plan"
+          : data.stage,
+
         timeline: data.doneBy === "agent" ? lifecycles[data.type].stages : [],
         blocked:
           blockers.some(

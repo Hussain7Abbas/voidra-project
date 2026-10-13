@@ -31,3 +31,5 @@ rounds:
 ---
 
 ```
+
+The app saves each answer with the displayed questions-file hash, preserving partial rounds. Completing a round returns the action to Ready for the agent, including at Plan or Review. An unresolved delegated choice must be resolved by the agent before a plan or review decision. A Plan action waiting on open questions can validly have no plan yet; it is waiting on questions rather than plan approval.

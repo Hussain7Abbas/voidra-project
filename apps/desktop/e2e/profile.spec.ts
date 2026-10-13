@@ -189,9 +189,11 @@ for (const value of ["light", "dark"])
       [resolve("../../tools/fake-agent/src/cli-entry.ts"), root, "init"],
       { cwd: resolve("../..") },
     );
-    await page.getByRole("button", { name: "Profile", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Waiting for you", exact: true })
+      .click();
     await expect(
-      page.getByRole("region", { name: "Confirm inferred answers" }),
+      page.getByRole("region", { name: "Inferred profile answers" }),
     ).toBeVisible();
     await axe();
     await page
@@ -215,6 +217,7 @@ for (const value of ["light", "dark"])
         }),
       ]),
     );
+    await page.getByRole("button", { name: "Profile", exact: true }).click();
     await page
       .getByRole("button", {
         name: "Edit What should this project make possible?",

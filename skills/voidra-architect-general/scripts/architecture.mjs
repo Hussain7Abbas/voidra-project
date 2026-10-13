@@ -27361,12 +27361,19 @@ var actionSchema = object2({
     before: external_exports.json(),
     after: external_exports.json()
   }).optional(),
+  planFeedback: object2({
+    revision: hashSchema,
+    feedback: text,
+    by: text,
+    at: date5
+  }).optional(),
   planApproval: approvalSchema.optional(),
   approvalHistory: external_exports.array(approvalSchema).optional(),
   reviewDecision: object2({
     revision: hashSchema,
     decision: external_exports.enum(["accepted", "rejected"]),
     feedback: external_exports.string().optional(),
+    hashes: approvalSchema.shape.hashes.optional(),
     by: text,
     at: date5
   }).optional(),
@@ -27960,7 +27967,7 @@ function inspectFiles(files, options = {}) {
           "requiredVoidra",
           "Aggregate completion without a parent plan requires voidra \u2265 0.2.0"
         );
-      if (a.stage === "plan" && a.status === "waiting" && !plan)
+      if (a.stage === "plan" && a.status === "waiting" && !open3 && !plan)
         add(
           "missing-plan",
           file2,
@@ -28290,6 +28297,19 @@ async function acquire(root, _options, recovery = false) {
     }
   };
 }
+function blockingDiagnostics(diagnostics, changes, rollback) {
+  const touched = new Set(
+    changes.filter((c) => c.before !== c.after).map(
+      (c) => /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\//.exec(c.path)?.[1]
+    ).filter(Boolean)
+  );
+  return diagnostics.filter((d) => {
+    const action = /^\.voidra\/actions\/(act-[0-9a-hjkmnp-tv-z]{6})\/action\.md$/.exec(
+      d.file
+    )?.[1];
+    return !(action && ["stale-approval", "stale-review"].includes(d.code) && (rollback || !touched.has(action)));
+  });
+}
 function validateOverlay(files, changes, id2, options, rollback = false) {
   const overlay = new Map(files);
   for (const change of changes) {
@@ -28301,11 +28321,12 @@ function validateOverlay(files, changes, id2, options, rollback = false) {
     ...options.lifecycles ? { lifecycles: options.lifecycles } : {},
     ignoreOperation: id2
   });
-  if (result2.diagnostics.length)
+  const problems = blockingDiagnostics(result2.diagnostics, changes, rollback);
+  if (problems.length)
     fail(
       "invalid-overlay",
-      result2.diagnostics[0]?.file ?? "",
-      `Intended project is invalid: ${result2.diagnostics.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`
+      problems[0]?.file ?? "",
+      `Intended project is invalid: ${problems.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`
     );
 }
 async function assertVersion(root, allowPrototype = false) {
@@ -28416,7 +28437,7 @@ async function finish(root, operation, options, rollback = false) {
       ignoreOperation: operation.id
     }
   );
-  if (final.diagnostics.length || checked.diagnostics.length)
+  if (final.diagnostics.length || blockingDiagnostics(checked.diagnostics, operation.changes, rollback).length)
     fail(
       "post-validation",
       operation.id,
@@ -28515,6 +28536,19 @@ async function applyOperation(root, input3, options = {}, migration = false) {
     await release();
   }
 }
+
+// packages/voidra/src/gates.ts
+var answerInput = external_exports.strictObject({
+  action: schemas.action.shape.id,
+  question: questionSchema.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  by: external_exports.string().min(1),
+  answer: external_exports.discriminatedUnion("kind", [
+    external_exports.strictObject({ kind: external_exports.literal("choice"), choice: external_exports.string().min(1) }),
+    external_exports.strictObject({ kind: external_exports.literal("text"), text: external_exports.string().min(1) }),
+    external_exports.strictObject({ kind: external_exports.literal("agent-decides") })
+  ])
+});
 
 // packages/voidra/src/planning.ts
 var title = external_exports.string().trim().min(1).max(160);

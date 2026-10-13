@@ -19,3 +19,5 @@ P16 adds the v2 design documents after the v1 core is built. No v2 directory or 
 - [General template](general-template.md): approved questions, architecture proposals, slices and gate/write boundaries.
 
 - [Backlog and actions](backlog-actions.md): editing, promotion, dependencies, aggregate completion and board views.
+
+- [Questions, gates and inbox](questions-gates-inbox.md): saved rounds, assumptions, exact revisions and Waiting for you.

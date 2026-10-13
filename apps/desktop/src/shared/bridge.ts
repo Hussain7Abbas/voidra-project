@@ -10,6 +10,49 @@ export const actionTypeSchema = z.enum([
 ]);
 export type ActionType = z.infer<typeof actionTypeSchema>;
 
+export const questionViewSchema = z.looseObject({
+  id: z.string(),
+  text: z.string(),
+  why: z.string(),
+  options: z.array(
+    z.object({
+      label: z.string(),
+      description: z.string(),
+      recommended: z.boolean(),
+    }),
+  ),
+  allowFreeText: z.boolean(),
+  answer: z
+    .discriminatedUnion("kind", [
+      z.object({
+        kind: z.literal("choice"),
+        choice: z.string(),
+        by: z.string(),
+        at: z.string(),
+      }),
+      z.object({
+        kind: z.literal("text"),
+        text: z.string(),
+        by: z.string(),
+        at: z.string(),
+      }),
+      z.object({
+        kind: z.literal("agent-decides"),
+        by: z.string(),
+        at: z.string(),
+      }),
+    ])
+    .optional(),
+  agentChoice: z
+    .object({
+      choice: z.string(),
+      reason: z.string(),
+      by: z.string(),
+      at: z.string(),
+    })
+    .optional(),
+});
+export type QuestionView = z.infer<typeof questionViewSchema>;
 const templateViewSchema = z.object({
   id: z.string(),
   version: z.string(),
@@ -115,6 +158,9 @@ export const workspaceSchema = z.strictObject({
           )
           .optional(),
         commits: z.array(z.string()).optional(),
+        planFeedback: z
+          .looseObject({ feedback: z.string(), by: z.string(), at: z.string() })
+          .optional(),
         reviewDecision: z
           .looseObject({
             decision: z.string(),
@@ -127,6 +173,24 @@ export const workspaceSchema = z.strictObject({
       revision: z.string(),
       editRevision: z.string(),
       timeline: z.array(z.string()),
+      planRevision: z.string().nullable().default(null),
+      changedPlans: z.array(z.string()).default([]),
+      effectiveStage: z.string().optional(),
+      questions: z
+        .object({
+          path: z.string(),
+          revision: z.string(),
+          rounds: z.array(
+            z.object({
+              round: z.number(),
+              askedAt: z.string(),
+              questions: z.array(questionViewSchema),
+            }),
+          ),
+        })
+        .nullable()
+        .default(null),
+
       blocked: z.boolean(),
       plans: z
         .array(
@@ -142,6 +206,10 @@ export const workspaceSchema = z.strictObject({
             outcome: z.string(),
             commit: z.string().optional(),
             endedAt: z.string().optional(),
+            toStage: z.string().optional(),
+            checks: z
+              .array(z.object({ name: z.string(), passed: z.boolean() }))
+              .optional(),
           }),
           body: z.string(),
           path: z.string(),
@@ -198,6 +266,32 @@ export const serviceStateSchema = z.enum([
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("workspace") }),
+  z.strictObject({
+    command: z.literal("answer-question"),
+    id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+    question: z.string().regex(/^q-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    answer: z.discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("choice"), choice: z.string().min(1) }),
+      z.strictObject({
+        kind: z.literal("text"),
+        text: z.string().trim().min(1).max(20000),
+      }),
+      z.strictObject({ kind: z.literal("agent-decides") }),
+    ]),
+  }),
+  z.strictObject({
+    command: z.literal("approve-plan"),
+    id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  z.strictObject({
+    command: z.literal("reject-plan"),
+    id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    feedback: z.string().trim().min(1).max(20000),
+  }),
+
   z.strictObject({ command: z.literal("create-voidra") }),
   z.strictObject({
     command: z.literal("edit-action"),
