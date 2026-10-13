@@ -1,22 +1,34 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectLock, listRunContexts } from "@voidra/run-engine";
+import {
+  inspectLock,
+  listRunContexts,
+  readGitIdentity,
+} from "@voidra/run-engine";
 import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
 import {
+  actionComplete,
   applyOperation,
   checkProject,
   createId,
+  createIdea,
+  createAction as createPlanningAction,
   detectCode,
+  editAction,
+  editIdea,
   FORMAT_VERSION,
   hash,
   initializeProject,
+  lifecycles,
   PACKAGE_VERSION,
   parseRecord,
+  promoteIdea,
   readTemplates,
   schemas,
   serializeRecord,
+  setHumanStep,
   transition,
   updateProfileAnswer,
 } from "voidra";
@@ -27,7 +39,7 @@ import {
 } from "../shared/bridge.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 2;
+const INDEX_VERSION = 3;
 export class ProjectWorkspace {
   private database: Database.Database;
   private watcher: FSWatcher | null = null;
@@ -97,7 +109,7 @@ export class ProjectWorkspace {
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
         db.exec(
-          "drop table if exists actions; drop table if exists runs; drop table if exists profiles;",
+          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas;",
         );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
@@ -108,11 +120,84 @@ export class ProjectWorkspace {
       db.pragma(`user_version = ${INDEX_VERSION}`);
     }
     db.exec(
-      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null);",
+      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null); create table if not exists ideas (id text primary key, value text not null);",
     );
     return db;
   }
   async handle(request: WorkspaceRequest): Promise<WorkspaceSnapshot> {
+    if (
+      request.command === "edit-action" ||
+      request.command === "set-human-step"
+    ) {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length
+      )
+        throw new Error(
+          "Finish or recover pending work before changing actions",
+        );
+      if (request.command === "edit-action")
+        await editAction(this.root, {
+          id: request.id,
+          revision: request.revision,
+          title: request.title,
+          description: request.description,
+          assignee: request.assignee,
+          parent: request.parent,
+          blockedBy: request.blockedBy,
+          cancel: request.cancel,
+        });
+      else
+        await setHumanStep(this.root, {
+          id: request.id,
+          revision: request.revision,
+          step: request.step,
+          done: request.done,
+        });
+      await this.publish();
+    }
+    if (
+      request.command === "create-idea" ||
+      request.command === "edit-idea" ||
+      request.command === "promote-idea"
+    ) {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length
+      )
+        throw new Error("Finish or recover pending work before editing ideas");
+      if (request.command === "create-idea")
+        await createIdea(this.root, {
+          title: request.title,
+          description: request.description,
+          status: request.status,
+          reason: request.reason,
+          by: "You",
+        });
+      else if (request.command === "promote-idea")
+        await promoteIdea(this.root, {
+          id: request.id,
+          revision: request.revision,
+          type: request.type,
+          title: request.title,
+          description: request.description,
+          by: "You",
+        });
+      else
+        await editIdea(this.root, {
+          id: request.id,
+          revision: request.revision,
+          title: request.title,
+          description: request.description,
+          status: request.status,
+          reason: request.reason,
+        });
+      await this.publish();
+    }
     if (request.command === "initialize-profile") {
       const catalog = await readTemplates(this.templatesDirectory),
         template = catalog.templates.find((t) => t.id === request.template);
@@ -167,7 +252,7 @@ export class ProjectWorkspace {
       );
     if (request.command === "queue-action") await this.queueAction(request.id);
     if (request.command === "create-action")
-      await this.createAction(request.title, request.description);
+      await this.createAction(request.title, request.description, request);
     return this.snapshot();
   }
   async reviewAction(
@@ -257,12 +342,18 @@ export class ProjectWorkspace {
       const data = project.records.get(
         `.voidra/actions/${dependency}/action.md`,
       )?.document.data;
-      if (
-        data?.status !== "complete" ||
-        !["done", "released"].includes(String(data.stage))
-      )
+      if (!data || !actionComplete(schemas.action.parse(data)))
         throw new Error("Finish the blocking actions before queueing");
     }
+    if (
+      [...project.records.values()].some(
+        (r) =>
+          r.kind === "action" &&
+          r.document.data.parent === id &&
+          !actionComplete(schemas.action.parse(r.document.data)),
+      )
+    )
+      throw new Error("Complete the child slices before queueing their parent");
     const path = ".voidra/local/pending-actions.md",
       old = project.files.get(path);
     const queue = old
@@ -281,6 +372,15 @@ export class ProjectWorkspace {
     await applyOperation(this.root, {
       changes: [
         { path, expectedHash: old ? hash(old) : null, content },
+        ...(action.blockedBy ?? []).map((id) => {
+          const file = `.voidra/actions/${id}/action.md`,
+            bytes = project.files.get(file);
+          return {
+            path: file,
+            expectedHash: bytes ? hash(bytes) : null,
+            content: bytes?.toString() ?? null,
+          };
+        }),
         {
           path: actionPath,
           expectedHash: hash(record.document.raw),
@@ -291,33 +391,26 @@ export class ProjectWorkspace {
     });
     await this.publish();
   }
-  async createAction(title: string, description: string): Promise<void> {
-    const project = await checkProject(this.root);
-    if (project.diagnostics.length)
-      throw new Error(
-        "Fix the planning-file problems before creating an action",
-      );
-    const ids = new Set(
-      [...project.records.values()].map((r) => String(r.document.data.id)),
-    );
-    const action = schemas.action.parse({
-      id: createId("act", ids),
+  async createAction(
+    title: string,
+    description: string,
+    options?: Extract<WorkspaceRequest, { command: "create-action" }>,
+  ): Promise<void> {
+    const current = await this.snapshot();
+    if (
+      current.readOnly ||
+      current.lock.state !== "none" ||
+      current.recoveries.length
+    )
+      throw new Error("Finish or recover pending work before creating actions");
+    await createPlanningAction(this.root, {
       title,
-      type: "docs",
-      stage: "implement",
-      status: "ready",
-      doneBy: "agent",
-      createdAt: new Date().toISOString(),
-      createdBy: "You",
-    });
-    const path = `.voidra/actions/${action.id}/action.md`;
-    const content = serializeRecord(
-      parseRecord(path, "---\n{}\n---\n"),
-      action,
       description,
-    ).toString();
-    await applyOperation(this.root, {
-      changes: [{ path, expectedHash: null, content }],
+      type: options?.type ?? "docs",
+      doneBy: options?.doneBy ?? "agent",
+      by: "You",
+      assignee: options?.assignee,
+      steps: options?.steps,
     });
     await this.publish();
   }
@@ -459,7 +552,7 @@ export class ProjectWorkspace {
     if (!pending)
       this.database.transaction(() => {
         this.database.exec(
-          "delete from actions; delete from runs; delete from profiles;",
+          "delete from actions; delete from runs; delete from profiles; delete from ideas;",
         );
         const addAction = this.database.prepare(
           "insert into actions values (?, ?)",
@@ -470,7 +563,25 @@ export class ProjectWorkspace {
         const addProfile = this.database.prepare(
           "insert into profiles values (?, ?)",
         );
+        const addIdea = this.database.prepare(
+          "insert into ideas values (?, ?)",
+        );
         for (const [path, { kind, document }] of project.records) {
+          if (
+            project.diagnostics.some(
+              (d) =>
+                d.file === path &&
+                ["identity", "duplicate-id"].includes(d.code),
+            )
+          )
+            continue;
+          if (kind === "idea") {
+            const data = schemas.idea.parse(document.data);
+            addIdea.run(
+              data.id,
+              JSON.stringify({ data, body: document.body, path }),
+            );
+          }
           if (kind === "profile") {
             const data = schemas.profile.parse(document.data);
             addProfile.run(
@@ -482,7 +593,23 @@ export class ProjectWorkspace {
             const data = schemas.action.parse(document.data);
             addAction.run(
               data.id,
-              JSON.stringify({ data, body: document.body, path }),
+              JSON.stringify({
+                data,
+                body: document.body,
+                path,
+                plans: [...project.records]
+                  .filter(
+                    ([, r]) =>
+                      ["requirements", "blueprint", "acceptance"].includes(
+                        r.kind,
+                      ) && r.document.data.action === data.id,
+                  )
+                  .map(([file, r]) => ({
+                    name: file.split("/").at(-1),
+                    path: file,
+                    body: r.document.body,
+                  })),
+              }),
             );
           }
           if (kind === "run") {
@@ -500,7 +627,10 @@ export class ProjectWorkspace {
         value: string;
       }[]
     ).map((row) => {
-      const action = JSON.parse(row.value) as { data: { id: string } };
+      const action = JSON.parse(row.value) as {
+        data: { id: string };
+        path: string;
+      };
       const runs = (
         this.database
           .prepare("select value from runs where action = ? order by id")
@@ -514,7 +644,27 @@ export class ProjectWorkspace {
             .map((path) => [path, hash(project.files.get(path) ?? "")]),
         ),
       );
-      return { ...action, runs, revision };
+      const data = schemas.action.parse(action.data);
+      const blockers = (data.blockedBy ?? [])
+        .map((id) => project.records.get(`.voidra/actions/${id}/action.md`))
+        .filter(Boolean);
+      const children = [...project.records.values()].filter(
+        (r) => r.kind === "action" && r.document.data.parent === data.id,
+      );
+      return {
+        ...action,
+        runs,
+        revision,
+        editRevision: hash(project.files.get(action.path) ?? ""),
+        timeline: data.doneBy === "agent" ? lifecycles[data.type].stages : [],
+        blocked:
+          blockers.some(
+            (r) => r && !actionComplete(schemas.action.parse(r.document.data)),
+          ) ||
+          children.some(
+            (r) => !actionComplete(schemas.action.parse(r.document.data)),
+          ),
+      };
     });
     return workspaceSchema.parse({
       name: project.metadata?.project.name ?? basename(this.root),
@@ -527,6 +677,15 @@ export class ProjectWorkspace {
         (d) => `${d.file} [${d.field}]: ${d.message}`,
       ),
       template: project.metadata?.template ?? null,
+      identity: await readGitIdentity(this.root),
+      ideas: (
+        this.database.prepare("select value from ideas order by id").all() as {
+          value: string;
+        }[]
+      ).map((row) => {
+        const idea = JSON.parse(row.value) as { path: string };
+        return { ...idea, revision: hash(project.files.get(idea.path) ?? "") };
+      }),
       profiles: (
         this.database
           .prepare("select value from profiles order by id")

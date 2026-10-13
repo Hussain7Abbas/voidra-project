@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   type Action,
+  actionComplete,
   applyOperation,
   checkProject,
   createId,
@@ -252,12 +253,18 @@ export async function startRun(
   for (const dependency of action.blockedBy ?? []) {
     const other = checked.records.get(`.voidra/actions/${dependency}/action.md`)
       ?.document.data;
-    if (
-      other?.status !== "complete" ||
-      !["done", "released"].includes(String(other.stage))
-    )
+    if (!other || !actionComplete(schemas.action.parse(other)))
       throw new Error("Queued action is blocked");
   }
+  if (
+    [...checked.records.values()].some(
+      (r) =>
+        r.kind === "action" &&
+        r.document.data.parent === actionId &&
+        !actionComplete(schemas.action.parse(r.document.data)),
+    )
+  )
+    throw new Error("Queued parent is blocked by unfinished child slices");
   const identity = await processIdentity(ownerPid);
   if (!identity) throw new Error("Run owner process is missing");
   if (
@@ -284,7 +291,7 @@ export async function startRun(
     startedAt: at,
     fromStage: action.stage,
     outcome: "running",
-    consumedRecords: [actionId, queuePath],
+    consumedRecords: [actionId, queuePath, ...(action.blockedBy ?? [])],
   });
   const actionRaw = serializeRecord(doc, {
       ...action,
@@ -326,6 +333,15 @@ export async function startRun(
   });
   await save(root, ctx, [
     { path: actionPath, expectedHash: hash(doc.raw), content: actionRaw },
+    ...(action.blockedBy ?? []).map((id) => {
+      const path = `.voidra/actions/${id}/action.md`,
+        bytes = checked.files.get(path);
+      return {
+        path,
+        expectedHash: bytes ? hash(bytes) : null,
+        content: bytes?.toString() ?? null,
+      };
+    }),
     { path: runPath, expectedHash: null, content: runRaw },
     {
       path: queuePath,

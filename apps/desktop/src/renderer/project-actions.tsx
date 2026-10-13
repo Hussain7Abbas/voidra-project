@@ -1,7 +1,10 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { type ActionType, actionTypeSchema } from "../shared/bridge.ts";
+import { filterActionViews, groupActionViews } from "./action-filters.ts";
+import { actionLabels } from "./action-labels.ts";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { Button } from "./ui/button.tsx";
@@ -27,6 +30,30 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
     [recoveryId, setRecoveryId] = useState("");
   const [reject, setReject] = useState(false),
     [feedback, setFeedback] = useState("");
+  const whoId = useId();
+  const [pendingStep, setPendingStep] = useState<{
+    action: string;
+    step: string;
+    done: boolean;
+  } | null>(null);
+  const [filters, setFilters] = useState({
+    type: "all",
+    status: "all",
+    doneBy: "all",
+    assignee: "all",
+  });
+  const [editMode, setEditMode] = useState<
+      "description" | "relationships" | null
+    >(null),
+    [editRevision, setEditRevision] = useState(""),
+    [editBody, setEditBody] = useState(""),
+    [editParent, setEditParent] = useState(""),
+    [editBlocked, setEditBlocked] = useState<string[]>([]),
+    [cancelOpen, setCancelOpen] = useState(false);
+  const [createType, setCreateType] = useState<ActionType>("feature"),
+    [doneBy, setDoneBy] = useState<"agent" | "you">("agent"),
+    [steps, setSteps] = useState(""),
+    [assignee, setAssignee] = useState("");
   const [create, setCreate] = useState(false),
     [title, setTitle] = useState(""),
     [description, setDescription] = useState(""),
@@ -41,6 +68,20 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
       />
     );
   const data = workspace.data;
+  const editable =
+    !data.readOnly && data.lock.state === "none" && !data.recoveries.length;
+  const filtered = filterActionViews(data.actions, filters);
+  const stageLabels: Record<string, string> = {
+    discovery: "Discovery",
+    plan: "Plan",
+    implement: "Implement",
+    verify: "Verify",
+    review: "Review",
+    done: "Done",
+    released: "Released",
+    cancelled: "Cancelled",
+    human: "Your tasks",
+  };
   const problems = data.diagnostics.length ? (
     <section className="service-notice" aria-label="Planning file problems">
       <h2>Planning files need attention</h2>
@@ -82,6 +123,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         ))}
       </section>
       <Dialog
+        closeDisabled={busy}
         open={recovery !== null}
         onClose={() => setRecovery(null)}
         title={recovery === "run" ? "Recover run" : "Recover interrupted write"}
@@ -212,25 +254,28 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         />
         {problems}
         {data.recoveries.length > 0 && recoveryPanel}
-        {current.data.type === "docs" && current.data.stage === "implement" && (
-          <Button
-            className="mb-6"
-            variant="primary"
-            disabled={
-              data.readOnly ||
-              data.lock.state !== "none" ||
-              !["ready", "draft", "failed"].includes(current.data.status)
-            }
-            onClick={() =>
-              void request({ command: "queue-action", id: current.data.id })
-                .then(() => query.invalidateQueries())
-                .then(() => toast.success("Action queued"))
-                .catch((e) => toast.error(e.message))
-            }
-          >
-            Queue for agent
-          </Button>
-        )}
+        {current.data.doneBy === "agent" &&
+          !["review", "done", "released", "cancelled"].includes(
+            current.data.stage ?? "",
+          ) && (
+            <Button
+              className="mb-6"
+              variant="primary"
+              disabled={
+                !editable ||
+                current.blocked ||
+                !["ready", "draft", "failed"].includes(current.data.status)
+              }
+              onClick={() =>
+                void request({ command: "queue-action", id: current.data.id })
+                  .then(() => query.invalidateQueries())
+                  .then(() => toast.success("Action queued"))
+                  .catch((e) => toast.error(e.message))
+              }
+            >
+              Queue for agent
+            </Button>
+          )}
         {current.data.reviewDecision?.feedback && (
           <section className="card action-detail">
             <h2>Review feedback</h2>
@@ -238,14 +283,414 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
           </section>
         )}
         <div className="action-meta" data-review-revision={current.revision}>
-          <span className="badge badge-accent">{current.data.stage}</span>
+          <span className="badge badge-accent">
+            {stageLabels[current.data.stage ?? "human"] ?? current.data.stage}
+          </span>
           <span className="badge">{current.data.status}</span>
           <code>{current.data.id}</code>
         </div>
         <section className="card action-detail" aria-label="Action description">
-          <h2>Description</h2>
+          <div className="flex justify-between gap-4">
+            <h2>Description</h2>
+            <Button
+              variant="ghost"
+              disabled={!editable}
+              onClick={() => {
+                setEditBody(current.body);
+                setEditRevision(current.editRevision);
+                setError("");
+                setEditMode("description");
+              }}
+            >
+              Edit description
+            </Button>
+          </div>
           <SafeMarkdown body={current.body} />
         </section>
+        {!!current.timeline.length && (
+          <section className="card action-detail">
+            <h2>Stage timeline</h2>
+            <ol className="flex flex-wrap gap-3">
+              {current.timeline.map((stage) => (
+                <li
+                  key={stage}
+                  aria-current={
+                    stage === current.data.stage ? "step" : undefined
+                  }
+                >
+                  <span
+                    className={
+                      stage === current.data.stage
+                        ? "badge badge-accent"
+                        : "badge"
+                    }
+                  >
+                    {stageLabels[stage] ?? stage}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+        {current.data.doneBy === "you" && (
+          <section className="card action-detail">
+            <h2>Your steps</h2>
+            <ul className="space-y-3">
+              {current.data.steps?.map((step) => (
+                <li key={step.id}>
+                  <label
+                    className="flex items-center gap-3"
+                    htmlFor={`step-${current.data.id}-${step.id}`}
+                  >
+                    <input
+                      id={`step-${current.data.id}-${step.id}`}
+                      type="checkbox"
+                      checked={
+                        pendingStep?.action === current.data.id &&
+                        pendingStep.step === step.id
+                          ? pendingStep.done
+                          : step.done
+                      }
+                      disabled={
+                        !editable ||
+                        busy ||
+                        ["cancelled", "released"].includes(
+                          current.data.stage ?? "",
+                        )
+                      }
+                      onChange={(e) => {
+                        setBusy(true);
+                        setPendingStep({
+                          action: current.data.id,
+                          step: step.id,
+                          done: e.target.checked,
+                        });
+                        void request({
+                          command: "set-human-step",
+                          id: current.data.id,
+                          revision: current.editRevision,
+                          step: step.id,
+                          done: e.target.checked,
+                        })
+                          .then(() => query.invalidateQueries())
+                          .catch((e) => toast.error(e.message))
+                          .finally(() => {
+                            setBusy(false);
+                            setPendingStep(null);
+                          });
+                      }}
+                    />
+                    {step.title}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <section className="card action-detail">
+          <div className="flex justify-between gap-4">
+            <h2>Dependencies and slices</h2>
+            <Button
+              variant="ghost"
+              disabled={!editable}
+              onClick={() => {
+                setEditParent(current.data.parent ?? "");
+                setEditBlocked(current.data.blockedBy ?? []);
+                setEditRevision(current.editRevision);
+                setError("");
+                setEditMode("relationships");
+              }}
+            >
+              Edit dependencies
+            </Button>
+          </div>
+          {current.data.assignee && <p>Assigned to {current.data.assignee}</p>}
+          {current.data.parent && (
+            <p>
+              Parent:{" "}
+              <Button
+                variant="ghost"
+                onClick={() => setSelected(current.data.parent ?? null)}
+              >
+                {data.actions.find((a) => a.data.id === current.data.parent)
+                  ?.data.title ?? current.data.parent}
+              </Button>
+            </p>
+          )}
+          {current.blocked && (
+            <p className="text-muted">
+              Blocked until dependencies and child slices are complete.
+            </p>
+          )}
+          <h3 className="font-semibold mt-4">Blocked by</h3>
+          {current.data.blockedBy?.length ? (
+            <ul>
+              {current.data.blockedBy.map((id) => (
+                <li key={id}>
+                  <Button variant="ghost" onClick={() => setSelected(id)}>
+                    {data.actions.find((a) => a.data.id === id)?.data.title ??
+                      id}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No blockers.</p>
+          )}
+          <h3 className="font-semibold mt-4">Child slices</h3>
+          <ul>
+            {data.actions
+              .filter((a) => a.data.parent === current.data.id)
+              .map((child) => (
+                <li key={child.data.id}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSelected(child.data.id)}
+                  >
+                    {child.data.title}
+                  </Button>
+                  <span className="badge ml-3">
+                    {stageLabels[child.data.stage ?? "human"] ??
+                      child.data.stage}{" "}
+                    · {child.data.status}
+                  </span>
+                </li>
+              ))}
+          </ul>
+          {current.data.completedBySlices && (
+            <p className="text-muted mt-3">Completed from its child slices.</p>
+          )}
+          {current.data.links?.length && (
+            <>
+              <h3 className="font-semibold mt-4">Links</h3>
+              <ul>
+                {current.data.links.map((link) => (
+                  <li key={link}>
+                    <code>{link}</code>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+        {current.plans.length > 0 && (
+          <section className="card action-detail">
+            <h2>Plan files</h2>
+            {current.plans.map((plan) => (
+              <article key={plan.path}>
+                <h3 className="font-semibold mt-4">{plan.name}</h3>
+                <SafeMarkdown body={plan.body} />
+              </article>
+            ))}
+          </section>
+        )}
+        {!["done", "released", "cancelled"].includes(
+          current.data.stage ?? "",
+        ) &&
+          current.data.status !== "complete" && (
+            <Button
+              variant="ghost"
+              disabled={!editable}
+              onClick={() => setCancelOpen(true)}
+            >
+              Cancel action
+            </Button>
+          )}
+        <Dialog
+          closeDisabled={busy}
+          open={cancelOpen}
+          title="Cancel this action?"
+          description="The action keeps its history and will be removed from your run queue."
+          onClose={() => {
+            if (!busy) setCancelOpen(false);
+          }}
+          footer={
+            <>
+              <Button disabled={busy} onClick={() => setCancelOpen(false)}>
+                Keep action
+              </Button>
+              <Button
+                variant="primary"
+                loading={busy}
+                onClick={() => {
+                  setBusy(true);
+                  void request({
+                    command: "edit-action",
+                    id: current.data.id,
+                    revision: current.editRevision,
+                    cancel: true,
+                  })
+                    .then(() => query.invalidateQueries())
+                    .then(() => setCancelOpen(false))
+                    .catch((e) => toast.error(e.message))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                Confirm cancellation
+              </Button>
+            </>
+          }
+        />
+        <Dialog
+          closeDisabled={busy}
+          open={editMode !== null}
+          title={
+            editMode === "description"
+              ? "Edit description"
+              : "Edit dependencies"
+          }
+          onClose={() => {
+            if (!busy) setEditMode(null);
+          }}
+          footer={
+            <>
+              <Button disabled={busy} onClick={() => setEditMode(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="action-editor"
+                variant="primary"
+                loading={busy}
+              >
+                Save changes
+              </Button>
+            </>
+          }
+        >
+          <form
+            id="action-editor"
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError("");
+              void request(
+                editMode === "description"
+                  ? {
+                      command: "edit-action",
+                      id: current.data.id,
+                      revision: editRevision,
+                      description: editBody,
+                    }
+                  : {
+                      command: "edit-action",
+                      id: current.data.id,
+                      revision: editRevision,
+                      parent: editParent || null,
+                      blockedBy: editBlocked,
+                    },
+              )
+                .then(() => query.invalidateQueries())
+                .then(() => setEditMode(null))
+                .catch((e) => setError(e.message))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {editMode === "description" ? (
+              <>
+                <Field label="Description">
+                  <textarea
+                    className="input"
+                    required
+                    rows={7}
+                    maxLength={20000}
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                  />
+                </Field>
+                <div className="idea-preview">
+                  <SafeMarkdown body={editBody} />
+                </div>
+              </>
+            ) : (
+              <>
+                <Field label="Parent action">
+                  <select
+                    className="input"
+                    value={editParent}
+                    onChange={(e) => setEditParent(e.target.value)}
+                  >
+                    <option value="">No parent</option>
+                    {data.actions
+                      .filter((a) => a.data.id !== current.data.id)
+                      .map((a) => (
+                        <option value={a.data.id} key={a.data.id}>
+                          {a.data.title}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <fieldset>
+                  <legend className="field-label">Blocked by</legend>
+                  <ul className="space-y-2">
+                    {data.actions
+                      .filter((a) => a.data.id !== current.data.id)
+                      .map((a) => (
+                        <li key={a.data.id}>
+                          <label htmlFor={`block-${a.data.id}`}>
+                            <input
+                              id={`block-${a.data.id}`}
+                              type="checkbox"
+                              checked={editBlocked.includes(a.data.id)}
+                              onChange={(e) =>
+                                setEditBlocked((ids) =>
+                                  e.target.checked
+                                    ? [...ids, a.data.id]
+                                    : ids.filter((id) => id !== a.data.id),
+                                )
+                              }
+                            />{" "}
+                            {a.data.title}
+                          </label>
+                        </li>
+                      ))}
+                  </ul>
+                </fieldset>
+              </>
+            )}
+            {error && (
+              <p role="alert" className="text-danger">
+                {error}
+              </p>
+            )}
+            {current.editRevision !== editRevision && (
+              <div className="service-notice">
+                <p>This action changed on disk. Reload before saving.</p>
+                <Button
+                  onClick={() => {
+                    setEditRevision(current.editRevision);
+                    setEditBody(current.body);
+                    setEditParent(current.data.parent ?? "");
+                    setEditBlocked(current.data.blockedBy ?? []);
+                    setError("");
+                  }}
+                >
+                  Reload action
+                </Button>
+                {editMode === "description" && (
+                  <Button
+                    onClick={() => {
+                      setBusy(true);
+                      void request({
+                        command: "edit-action",
+                        id: current.data.id,
+                        revision: current.editRevision,
+                        description: editBody,
+                      })
+                        .then(() => query.invalidateQueries())
+                        .then(() => setEditMode(null))
+                        .catch((e) => setError(e.message))
+                        .finally(() => setBusy(false));
+                    }}
+                  >
+                    Overwrite current description
+                  </Button>
+                )}
+              </div>
+            )}
+          </form>
+        </Dialog>
         {current.data.type === "docs" && current.data.stage === "review" && (
           <section className="card action-detail" aria-label="Review decision">
             <h2>Review this result</h2>
@@ -288,6 +733,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
           </section>
         )}
         <Dialog
+          closeDisabled={busy}
           open={reject}
           onClose={() => {
             if (!busy) setReject(false);
@@ -382,10 +828,13 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
           <Button
             variant="primary"
             icon={<Plus size={16} aria-hidden />}
-            disabled={data.readOnly || !data.hasVoidra}
-            onClick={() => setCreate(true)}
+            disabled={!editable || !data.hasVoidra}
+            onClick={() => {
+              setAssignee(data.identity.value ?? "");
+              setCreate(true);
+            }}
           >
-            Create Docs/chore action
+            New action
           </Button>
         }
       />
@@ -421,29 +870,173 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
         </section>
       )}
       {data.hasVoidra && (
-        <section className="card" aria-label="Actions list">
-          {data.actions.length ? (
-            <ul className="action-list">
-              {data.actions.map((action) => (
-                <li key={action.path}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setSelected(action.data.id)}
-                  >
-                    {action.data.title}
-                  </Button>
-                  <span className="badge ml-3">{action.data.stage}</span>
-                  <span className="text-muted ml-3">{action.data.status}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="p-6">
-              <h2>No actions yet</h2>
-              <p>Create a small change for your coding agent to work on.</p>
-            </div>
+        <>
+          <form
+            className="board-filters mb-6"
+            aria-label="Action filters"
+            onSubmit={(e) => e.preventDefault()}
+          >
+            <Field label="Type">
+              <select
+                className="input"
+                value={filters.type}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, type: e.target.value }))
+                }
+              >
+                <option value="all">All types</option>
+                {actionTypeSchema.options.map((t) => (
+                  <option key={t} value={t}>
+                    {actionLabels[t]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Status">
+              <select
+                className="input"
+                value={filters.status}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, status: e.target.value }))
+                }
+              >
+                <option value="all">All statuses</option>
+                {[
+                  "draft",
+                  "ready",
+                  "running",
+                  "waiting",
+                  "failed",
+                  "complete",
+                ].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Done by">
+              <select
+                className="input"
+                value={filters.doneBy}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, doneBy: e.target.value }))
+                }
+              >
+                <option value="all">Anyone</option>
+                <option value="agent">Agent</option>
+                <option value="you">You</option>
+              </select>
+            </Field>
+            <Field label="Assignee">
+              <select
+                className="input"
+                value={filters.assignee}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, assignee: e.target.value }))
+                }
+              >
+                <option value="all">All assignees</option>
+                <option value="unassigned">Unassigned</option>
+                {[
+                  ...new Set(
+                    data.actions.flatMap((a) =>
+                      a.data.assignee ? [a.data.assignee] : [],
+                    ),
+                  ),
+                ]
+                  .sort()
+                  .map((name) => (
+                    <option value={name} key={name}>
+                      {name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          </form>
+          {data.identity.notice && (
+            <p className="text-muted mb-4">{data.identity.notice}</p>
           )}
-        </section>
+          <p role="status" className="text-muted mb-4">
+            {filtered.length} matching{" "}
+            {filtered.length === 1 ? "action" : "actions"}
+          </p>
+          <section className="actions-board" aria-label="Actions board">
+            {Object.entries(stageLabels).map(([stage, label]) => {
+              const visible = filtered.filter(
+                (a) =>
+                  (a.data.doneBy === "you" && !a.data.stage
+                    ? "human"
+                    : a.data.stage) === stage,
+              );
+              if (!visible.length) return null;
+              return (
+                <section className="board-column" key={stage}>
+                  <h2 className="font-semibold mb-3">
+                    {label} <span className="text-muted">{visible.length}</span>
+                  </h2>
+                  <ul className="space-y-3">
+                    {groupActionViews(data.actions, visible).map((group) => (
+                      <li
+                        key={group.parent?.data.id ?? group.actions[0]?.data.id}
+                      >
+                        {group.actions.some((a) => a.data.parent) &&
+                          group.parent && (
+                            <div className="slice-group-header">
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  setSelected(group.parent?.data.id ?? null)
+                                }
+                              >
+                                Slices of {group.parent.data.title}
+                              </Button>
+                            </div>
+                          )}
+                        <ul className="space-y-3">
+                          {group.actions.map((action) => (
+                            <li className="card p-4" key={action.data.id}>
+                              <Button
+                                variant="ghost"
+                                onClick={() => setSelected(action.data.id)}
+                              >
+                                {action.data.title}
+                              </Button>
+                              <div className="flex gap-2 flex-wrap mt-2">
+                                <span className="badge">
+                                  {actionLabels[
+                                    action.data.type as ActionType
+                                  ] ?? action.data.type}
+                                </span>
+                                <span className="text-muted">
+                                  {action.data.status}
+                                </span>
+                                {action.blocked && (
+                                  <span className="badge">Blocked</span>
+                                )}
+                              </div>
+                              {action.data.assignee && (
+                                <p className="text-muted mt-2">
+                                  {action.data.assignee}
+                                </p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </section>
+          {!filtered.length && (
+            <section className="card p-6">
+              <h2>No actions in this view</h2>
+              <p>Create work or adjust the filters.</p>
+            </section>
+          )}
+        </>
       )}
       {data.diagnostics
         .filter((d) =>
@@ -462,12 +1055,13 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
           </Button>
         ))}
       <Dialog
+        closeDisabled={busy}
         open={create}
         onClose={() => {
           if (!busy) setCreate(false);
         }}
-        title="Create Docs/chore action"
-        description="Describe one small documentation or maintenance change."
+        title="Create action"
+        description="Describe one outcome and choose who will do the work."
         footer={
           <>
             <Button disabled={busy} onClick={() => setCreate(false)}>
@@ -492,7 +1086,21 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
             setBusy(true);
             setError("");
             try {
-              await request({ command: "create-action", title, description });
+              await request({
+                command: "create-action",
+                title,
+                description,
+                type: createType,
+                doneBy,
+                assignee: assignee.trim() || undefined,
+                steps:
+                  doneBy === "you"
+                    ? steps
+                        .split("\n")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : undefined,
+              });
               await query.invalidateQueries();
               setCreate(false);
               setTitle("");
@@ -505,6 +1113,63 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
             }
           }}
         >
+          <Field label="Action type">
+            <select
+              className="input"
+              name="type"
+              value={createType}
+              onChange={(e) => setCreateType(e.target.value as ActionType)}
+            >
+              {actionTypeSchema.options.map((t) => (
+                <option key={t} value={t}>
+                  {actionLabels[t]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <fieldset>
+            <legend className="field-label">Who does the work?</legend>
+            <div className="flex gap-4">
+              {(["agent", "you"] as const).map((who) => (
+                <label htmlFor={`${whoId}-${who}`} key={who}>
+                  <input
+                    id={`${whoId}-${who}`}
+                    type="radio"
+                    name="done-by"
+                    checked={doneBy === who}
+                    onChange={() => setDoneBy(who)}
+                  />{" "}
+                  {who === "agent" ? "Agent" : "You"}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {doneBy === "you" && (
+            <Field
+              label="Steps"
+              hint="One step per line. You will tick these off in the action."
+            >
+              <textarea
+                className="input"
+                name="steps"
+                required
+                rows={4}
+                value={steps}
+                onChange={(e) => setSteps(e.target.value)}
+              />
+            </Field>
+          )}
+          <Field
+            label="Assignee"
+            hint="Optional. Leave unassigned if anyone can take it."
+          >
+            <input
+              className="input"
+              name="assignee"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            />
+          </Field>
           <Field label="Title">
             <input
               className="input"

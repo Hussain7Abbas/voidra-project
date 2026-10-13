@@ -15,3 +15,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P04 — Onboarding and profile](p04.md): templates, both intake routes, confirmations, drafts and real-agent checks.
 
 - [P05 — General template](p05.md): delegated template approval, architecture/golden checks, real-agent outcomes and the theme follow-up.
+
+- [P06 — Backlog and actions](p06.md): typed editing, promotion, dependencies, checklists, board views and validator publication.

@@ -1,4 +1,14 @@
 import { z } from "zod";
+export const actionTypeSchema = z.enum([
+  "feature",
+  "bug",
+  "improvement",
+  "docs",
+  "profile-change",
+  "research",
+  "release",
+]);
+export type ActionType = z.infer<typeof actionTypeSchema>;
 
 const templateViewSchema = z.object({
   id: z.string(),
@@ -43,6 +53,12 @@ export const workspaceSchema = z.strictObject({
   templates: z.array(templateViewSchema),
   templateProblems: z.array(z.string()),
   template: z.object({ id: z.string(), version: z.string() }).nullable(),
+  identity: z.object({
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    value: z.string().nullable(),
+    notice: z.string().nullable(),
+  }),
   profiles: z.array(
     z.strictObject({
       path: z.string(),
@@ -65,6 +81,20 @@ export const workspaceSchema = z.strictObject({
       }),
     }),
   ),
+  ideas: z.array(
+    z.strictObject({
+      path: z.string(),
+      revision: z.string(),
+      body: z.string(),
+      data: z.looseObject({
+        id: z.string(),
+        title: z.string(),
+        status: z.string(),
+        reason: z.string().optional(),
+        promotedTo: z.string().optional(),
+      }),
+    }),
+  ),
   actions: z.array(
     z.strictObject({
       data: z.looseObject({
@@ -74,6 +104,16 @@ export const workspaceSchema = z.strictObject({
         stage: z.string().optional(),
         status: z.string(),
         doneBy: z.string(),
+        assignee: z.string().optional(),
+        parent: z.string().optional(),
+        blockedBy: z.array(z.string()).optional(),
+        links: z.array(z.string()).optional(),
+        completedBySlices: z.boolean().optional(),
+        steps: z
+          .array(
+            z.object({ id: z.string(), title: z.string(), done: z.boolean() }),
+          )
+          .optional(),
         commits: z.array(z.string()).optional(),
         reviewDecision: z
           .looseObject({
@@ -85,6 +125,14 @@ export const workspaceSchema = z.strictObject({
       body: z.string(),
       path: z.string(),
       revision: z.string(),
+      editRevision: z.string(),
+      timeline: z.array(z.string()),
+      blocked: z.boolean(),
+      plans: z
+        .array(
+          z.object({ name: z.string(), path: z.string(), body: z.string() }),
+        )
+        .default([]),
       runs: z.array(
         z.strictObject({
           data: z.looseObject({
@@ -152,6 +200,54 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("workspace") }),
   z.strictObject({ command: z.literal("create-voidra") }),
   z.strictObject({
+    command: z.literal("edit-action"),
+    id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    title: z.string().trim().min(1).max(160).optional(),
+    description: z.string().min(1).max(20000).optional(),
+    assignee: z.string().min(1).nullable().optional(),
+    parent: z
+      .string()
+      .regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)
+      .nullable()
+      .optional(),
+    blockedBy: z
+      .array(z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/))
+      .optional(),
+    cancel: z.boolean().optional(),
+  }),
+  z.strictObject({
+    command: z.literal("set-human-step"),
+    id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    step: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    done: z.boolean(),
+  }),
+  z.strictObject({
+    command: z.literal("promote-idea"),
+    id: z.string().regex(/^idea-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    type: actionTypeSchema,
+    title: z.string().trim().min(1).max(160),
+    description: z.string().min(1).max(20000),
+  }),
+  z.strictObject({
+    command: z.literal("create-idea"),
+    title: z.string().trim().min(1).max(160),
+    description: z.string().min(1).max(20000),
+    status: z.enum(["new", "needs-info", "ready", "rejected"]).optional(),
+    reason: z.string().max(20000).optional(),
+  }),
+  z.strictObject({
+    command: z.literal("edit-idea"),
+    id: z.string().regex(/^idea-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    title: z.string().trim().min(1).max(160),
+    description: z.string().min(1).max(20000),
+    status: z.enum(["new", "needs-info", "ready", "promoted", "rejected"]),
+    reason: z.string().max(20000).optional(),
+  }),
+  z.strictObject({
     command: z.literal("initialize-profile"),
     template: z.string().min(1),
     name: z.string().trim().min(1).max(160),
@@ -176,6 +272,10 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
     command: z.literal("create-action"),
     title: z.string().trim().min(1).max(160),
     description: z.string().min(1).max(20000),
+    type: actionTypeSchema.optional(),
+    doneBy: z.enum(["agent", "you"]).optional(),
+    assignee: z.string().min(1).optional(),
+    steps: z.array(z.string().trim().min(1)).optional(),
   }),
 ]);
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;

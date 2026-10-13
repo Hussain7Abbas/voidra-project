@@ -10,7 +10,7 @@ Add optional fields or new record files before removing anything. Readers ignore
 
 ## 2. Reader and writer versions
 
-`voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. Format 1 requires voidra 0.1.0; newer metadata supplies its own `requiredVoidra` minimum.
+`voidra.json` records the format version. The app, CLI and skills declare the versions they read and write. A newer unsupported format opens read-only with the required version displayed; the CLI reports it and the skills refuse writes. Ignoring unknown optional fields is permitted within a supported format version, not a reason to write an unsupported format. Format 1 starts at voidra 0.1.0; newer metadata supplies its own `requiredVoidra` minimum. P06's aggregate-without-parent-plan and human cancellation forms require 0.2.0. Their optional markers/end states extend the accepted record forms; old required fields and meanings remain. Existing plan-bearing parents keep exact approval and their own work keeps Review. Parent completion continues to mean all children completed, including human parents; invalid states are diagnosed rather than silently repaired.
 
 ## 3. Dated deprecations
 

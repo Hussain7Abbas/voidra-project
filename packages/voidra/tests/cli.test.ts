@@ -128,7 +128,7 @@ it("approves the displayed revision through the built CLI and public command API
   ]);
   expect(approved.exitCode, approved.stderr).toBe(0);
   expect((await runCli(["id", "q"])).exitCode).toBe(0);
-  expect((await runCli(["version"])).stdout).toBe("0.1.0\n");
+  expect((await runCli(["version"])).stdout).toBe("0.2.0\n");
   const child = spawnSync(
     process.execPath,
     [

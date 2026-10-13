@@ -116,9 +116,8 @@ test.beforeEach(async () => {
   await expect(
     page.getByText("Project profile created", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Create Docs/chore action", exact: true })
-    .click();
+  await page.getByRole("button", { name: "New action", exact: true }).click();
+  await page.getByLabel("Action type", { exact: true }).selectOption("docs");
   await page.getByLabel("Title", { exact: true }).fill("Document installation");
   await page
     .getByLabel("Description", { exact: true })
@@ -205,7 +204,7 @@ for (const theme of ["light", "dark"])
     await expect(
       page.getByText("Action accepted", { exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".action-meta")).toContainText("done");
+    await expect(page.locator(".action-meta")).toContainText("Done");
     await axe();
     expect((await checkProject(root)).diagnostics).toEqual([]);
     expect(
@@ -247,7 +246,7 @@ for (const failure of ["crash-mid-run", "crash-after-commit", "stale-lock"])
     await expect(
       page.getByRole("region", { name: "Run recovery" }),
     ).toContainText(/completed result|not finalized/);
-    await expect(page.locator(".action-meta")).toContainText("implement");
+    await expect(page.locator(".action-meta")).toContainText("Implement");
     await expect(
       page.getByRole("button", { name: "Accept", exact: true }),
     ).toHaveCount(0);

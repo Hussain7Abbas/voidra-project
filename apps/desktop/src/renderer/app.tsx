@@ -26,6 +26,7 @@ import type {
   ThemePreference,
 } from "../shared/bridge.ts";
 import { ProjectActions } from "./project-actions.tsx";
+import { ProjectBacklog } from "./project-backlog.tsx";
 import { ProjectOnboarding, ProjectProfile } from "./project-profile.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
@@ -84,7 +85,7 @@ function Shell() {
   const [menu, setMenu] = useState(false);
   const [navigationEpoch, setNavigationEpoch] = useState(0);
   const [navigationTarget, setNavigationTarget] = useState<
-    "actions" | "run" | "profile"
+    "actions" | "run" | "profile" | "backlog"
   >("actions");
   const data = snapshot.data;
   const themePreference = data?.theme;
@@ -228,10 +229,12 @@ function Shell() {
               <li key={item.label}>
                 <button
                   type="button"
-                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : "Actions") : index === 0) ? "active" : ""}`}
+                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                   disabled={
                     data?.project?.hasVoidra
-                      ? !["Actions", "Run", "Profile"].includes(item.label)
+                      ? !["Actions", "Run", "Profile", "Backlog"].includes(
+                          item.label,
+                        )
                       : index !== 0
                   }
                   onClick={() => {
@@ -239,9 +242,11 @@ function Shell() {
                     setNavigationTarget(
                       item.label === "Run"
                         ? "run"
-                        : item.label === "Profile"
-                          ? "profile"
-                          : "actions",
+                        : item.label === "Backlog"
+                          ? "backlog"
+                          : item.label === "Profile"
+                            ? "profile"
+                            : "actions",
                     );
                     setMenu(false);
                   }}
@@ -253,7 +258,9 @@ function Shell() {
                             ? "Run"
                             : navigationTarget === "profile"
                               ? "Profile"
-                              : "Actions")
+                              : navigationTarget === "backlog"
+                                ? "Backlog"
+                                : "Actions")
                         : index === 0
                     )
                       ? "page"
@@ -403,12 +410,14 @@ function Content({
   open: () => void;
   busy: boolean;
   navigationEpoch: number;
-  navigationTarget: "actions" | "run" | "profile";
+  navigationTarget: "actions" | "run" | "profile" | "backlog";
 }) {
   const project = data.project;
   if (project?.hasVoidra)
     return navigationTarget === "profile" ? (
       <ProjectProfile key={navigationEpoch} />
+    ) : navigationTarget === "backlog" ? (
+      <ProjectBacklog key={navigationEpoch} />
     ) : (
       <ProjectActions key={navigationEpoch} view={navigationTarget} />
     );

@@ -359,11 +359,15 @@ export function fixtureProjects(): Map<string, ProjectFiles> {
   old.set(
     ".voidra/voidra.json",
     buffer(
-      JSON.stringify({
-        ...samples.project,
-        format: 0,
-        requiredVoidra: "0.0.0",
-      }),
+      `${JSON.stringify(
+        {
+          ...samples.project,
+          format: 0,
+          requiredVoidra: "0.0.0",
+        },
+        null,
+        2,
+      )}\n`,
     ),
   );
   old.set(

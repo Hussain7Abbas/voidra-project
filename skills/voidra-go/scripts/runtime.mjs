@@ -22894,12 +22894,12 @@ function _check(fn, params) {
   return ch;
 }
 // @__NO_SIDE_EFFECTS__
-function describe(description) {
+function describe(description2) {
   const ch = new $ZodCheck({ check: "describe" });
   ch._zod.onattach = [
     (inst) => {
       const existing = globalRegistry.get(inst) ?? {};
-      globalRegistry.add(inst, { ...existing, description });
+      globalRegistry.add(inst, { ...existing, description: description2 });
     }
   ];
   ch._zod.check = () => {
@@ -24714,9 +24714,9 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
   readonly() {
     return readonly(this);
   },
-  describe(description) {
+  describe(description2) {
     const cl = this.clone();
-    globalRegistry.add(cl, { description });
+    globalRegistry.add(cl, { description: description2 });
     return cl;
   },
   meta(...args) {
@@ -27412,6 +27412,7 @@ var actionSchema = object2({
   blockedBy: external_exports.array(id("act")).optional(),
   links: external_exports.array(text).optional(),
   commits: external_exports.array(text).optional(),
+  completedBySlices: external_exports.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date5.optional(),
   updatedAt: date5.optional(),
@@ -27554,13 +27555,13 @@ function validateRecord(kind, record2) {
   if (kind === "action") {
     if (d.doneBy === "agent" && !d.stage)
       add("stage", "Agent actions require a stage");
-    if (d.doneBy === "you" && d.stage)
+    if (d.doneBy === "you" && d.stage && d.stage !== "cancelled")
       add("stage", "Human actions have no agent stage");
     if (d.doneBy === "you" && !d.steps)
       add("steps", "Human actions require steps");
     if (d.doneBy === "agent" && d.status === "complete" && !["done", "released", "cancelled"].includes(String(d.stage)))
       add("status", "Complete agent actions require a terminal stage");
-    if (d.doneBy === "you" && d.status === "complete" && schemas.action.parse(d).steps?.some((step) => !step.done))
+    if (d.doneBy === "you" && d.status === "complete" && d.stage !== "cancelled" && schemas.action.parse(d).steps?.some((step) => !step.done))
       add("steps", "Complete all human steps before completing the action");
     if (["done", "released", "cancelled"].includes(String(d.stage)) && d.status !== "complete")
       add("status", "Terminal stages require complete status");
@@ -27661,6 +27662,9 @@ function approvalCurrent(approval, plan) {
   return Boolean(
     approval && plan && planFiles.every((file2) => approval.hashes[file2] === plan.hashes[file2])
   );
+}
+function actionComplete(action) {
+  return action.status === "complete" && action.stage !== "cancelled" && (action.doneBy === "you" ? Boolean(action.steps?.every((step) => step.done)) : ["done", "released"].includes(action.stage ?? ""));
 }
 function transition(action, event, context, rules = lifecycles) {
   const fail2 = (message) => {
@@ -27771,7 +27775,7 @@ import { join } from "node:path";
 
 // packages/voidra/src/versions.ts
 var FORMAT_VERSION = 1;
-var PACKAGE_VERSION = "0.1.0";
+var PACKAGE_VERSION = "0.2.0";
 function upgradePrototype(files) {
   const upgraded = new Map(files);
   const raw = files.get(".voidra/voidra.json");
@@ -27916,6 +27920,8 @@ function inspectFiles(files, options = {}) {
   if (!metaRecord) return result2;
   const metadata = schemas.project.parse(metaRecord.document.data);
   result2.metadata = metadata;
+  const minimumParts = metadata.requiredVoidra.split("-")[0]?.split(".").map(Number) ?? [];
+  const extendedActions = (minimumParts[0] ?? 0) > 0 || (minimumParts[1] ?? 0) > 2 || (minimumParts[1] ?? 0) === 2 && ((minimumParts[2] ?? 0) > 0 || !metadata.requiredVoidra.includes("-"));
   if (metadata.format > FORMAT_VERSION || minimumNewer(metadata.requiredVoidra)) {
     add(
       "newer-format",
@@ -28104,6 +28110,19 @@ function inspectFiles(files, options = {}) {
       );
     if (a.doneBy === "agent" && rules[a.type].planGate) {
       const plan = readPlan(files, id2, records);
+      const children = Array.from(actions.values()).map((r) => r.action).filter((child) => child.parent === id2);
+      const aggregate = a.stage === "done" && a.completedBySlices === true && !a.commits?.length && children.length > 0 && children.every(actionComplete) && !planFiles.some((file3) => files.has(`.voidra/actions/${id2}/${file3}`)) && !Array.from(records.values()).some(
+        (r) => r.kind === "run" && r.document.data.action === id2 && ["implement", "verify"].includes(
+          String(r.document.data.fromStage)
+        ) && r.document.data.planningOnly !== true
+      );
+      if (aggregate && !extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Aggregate completion without a parent plan requires voidra \u2265 0.2.0"
+        );
       if (a.stage === "plan" && a.status === "waiting" && !plan)
         add(
           "missing-plan",
@@ -28113,7 +28132,7 @@ function inspectFiles(files, options = {}) {
         );
       if (["implement", "verify", "review", "done", "released"].includes(
         a.stage ?? ""
-      ) && !approvalCurrent(a.planApproval, plan))
+      ) && !aggregate && !approvalCurrent(a.planApproval, plan))
         add(
           "stale-approval",
           file2,
@@ -28142,8 +28161,15 @@ function inspectFiles(files, options = {}) {
         "commits",
         "Released action requires commit and tag evidence"
       );
-    if (a.status === "complete" && ["done", "released"].includes(a.stage ?? "") && Array.from(actions.values()).some(
-      ({ action: child }) => child.parent === id2 && !(child.status === "complete" && (child.doneBy === "you" || ["done", "released"].includes(child.stage ?? "")))
+    if (a.doneBy === "you" && a.stage === "cancelled" && !extendedActions)
+      add(
+        "minimum-reader",
+        metaPath,
+        "requiredVoidra",
+        "Human cancellation requires voidra \u2265 0.2.0"
+      );
+    if (a.status === "complete" && a.stage !== "cancelled" && (a.doneBy === "you" || ["done", "released"].includes(a.stage ?? "")) && Array.from(actions.values()).some(
+      ({ action: child }) => child.parent === id2 && !actionComplete(child)
     ))
       add(
         "parent-incomplete",
@@ -28653,6 +28679,56 @@ async function applyOperation(root, input2, options = {}, migration = false) {
   }
 }
 
+// packages/voidra/src/planning.ts
+var title = external_exports.string().trim().min(1).max(160);
+var description = external_exports.string().min(1).max(2e4);
+var ideaInput = external_exports.strictObject({
+  title,
+  description,
+  by: external_exports.string().min(1),
+  status: external_exports.enum(["new", "needs-info", "ready", "rejected"]).optional(),
+  reason: external_exports.string().optional()
+});
+var ideaEdit = ideaInput.omit({ by: true }).extend({
+  id: schemas.idea.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  status: schemas.idea.shape.status
+});
+var promotionInput = external_exports.strictObject({
+  id: schemas.idea.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  type: schemas.action.shape.type,
+  by: external_exports.string().min(1),
+  title: title.optional(),
+  description: description.optional(),
+  assignee: external_exports.string().min(1).optional()
+});
+var actionInput = external_exports.strictObject({
+  type: schemas.action.shape.type,
+  title,
+  description,
+  by: external_exports.string().min(1),
+  doneBy: external_exports.enum(["agent", "you"]).default("agent"),
+  assignee: external_exports.string().min(1).optional(),
+  steps: external_exports.array(external_exports.string().trim().min(1)).optional()
+});
+var actionEditInput = external_exports.strictObject({
+  id: schemas.action.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  title: title.optional(),
+  description: description.optional(),
+  assignee: external_exports.string().trim().min(1).nullable().optional(),
+  parent: schemas.action.shape.id.nullable().optional(),
+  blockedBy: external_exports.array(schemas.action.shape.id).optional(),
+  cancel: external_exports.boolean().optional()
+});
+var stepInput = external_exports.strictObject({
+  id: schemas.action.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  step: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  done: external_exports.boolean()
+});
+
 // packages/voidra/src/templates.ts
 var slug2 = external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 var text2 = external_exports.string().min(1);
@@ -28938,9 +29014,13 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     throw new Error("Queued action is at a gate or already running");
   for (const dependency of action.blockedBy ?? []) {
     const other = checked.records.get(`.voidra/actions/${dependency}/action.md`)?.document.data;
-    if (other?.status !== "complete" || !["done", "released"].includes(String(other.stage)))
+    if (!other || !actionComplete(schemas.action.parse(other)))
       throw new Error("Queued action is blocked");
   }
+  if ([...checked.records.values()].some(
+    (r) => r.kind === "action" && r.document.data.parent === actionId && !actionComplete(schemas.action.parse(r.document.data))
+  ))
+    throw new Error("Queued parent is blocked by unfinished child slices");
   const identity = await processIdentity(ownerPid2);
   if (!identity) throw new Error("Run owner process is missing");
   if (await git(root, ["rev-parse", "--is-inside-work-tree"]).catch(
@@ -28963,7 +29043,7 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     startedAt: at,
     fromStage: action.stage,
     outcome: "running",
-    consumedRecords: [actionId, queuePath]
+    consumedRecords: [actionId, queuePath, ...action.blockedBy ?? []]
   });
   const actionRaw = serializeRecord(doc, {
     ...action,
@@ -29004,6 +29084,14 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
   });
   await save(root, ctx, [
     { path: actionPath, expectedHash: hash2(doc.raw), content: actionRaw },
+    ...(action.blockedBy ?? []).map((id2) => {
+      const path = `.voidra/actions/${id2}/action.md`, bytes = checked.files.get(path);
+      return {
+        path,
+        expectedHash: bytes ? hash2(bytes) : null,
+        content: bytes?.toString() ?? null
+      };
+    }),
     { path: runPath, expectedHash: null, content: runRaw },
     {
       path: queuePath,

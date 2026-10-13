@@ -15,6 +15,7 @@ export function Dialog({
   children,
   footer,
   size = "md",
+  closeDisabled = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,6 +24,7 @@ export function Dialog({
   children?: ReactNode;
   footer?: ReactNode;
   size?: "sm" | "md" | "lg";
+  closeDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -47,13 +49,13 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      closedby="any"
+      closedby={closeDisabled ? "none" : "any"}
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (!closeDisabled) onClose();
       }}
       className={`m-auto w-[calc(100%-2rem)] ${width} rounded-card border border-line bg-surface p-0 text-ink shadow-[var(--shadow)] backdrop:bg-black/45 backdrop:backdrop-blur-[2px]`}
     >
@@ -76,6 +78,7 @@ export function Dialog({
               aria-label="Close"
               title="Close"
               onClick={onClose}
+              disabled={closeDisabled}
               icon={<X size={18} strokeWidth={1.75} aria-hidden />}
             />
           </header>

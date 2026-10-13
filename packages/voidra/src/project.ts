@@ -2,6 +2,7 @@ import { lstat, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type Diagnostic, VoidraError } from "./errors.ts";
 import {
+  actionComplete,
   approvalCurrent,
   type Lifecycles,
   lifecycles,
@@ -165,6 +166,13 @@ export function inspectFiles(
   if (!metaRecord) return result;
   const metadata = schemas.project.parse(metaRecord.document.data);
   result.metadata = metadata;
+  const minimumParts =
+    metadata.requiredVoidra.split("-")[0]?.split(".").map(Number) ?? [];
+  const extendedActions =
+    (minimumParts[0] ?? 0) > 0 ||
+    (minimumParts[1] ?? 0) > 2 ||
+    ((minimumParts[1] ?? 0) === 2 &&
+      ((minimumParts[2] ?? 0) > 0 || !metadata.requiredVoidra.includes("-")));
   if (
     metadata.format > FORMAT_VERSION ||
     minimumNewer(metadata.requiredVoidra)
@@ -379,6 +387,32 @@ export function inspectFiles(
       );
     if (a.doneBy === "agent" && rules[a.type].planGate) {
       const plan = readPlan(files, id, records);
+      const children = Array.from(actions.values())
+        .map((r) => r.action)
+        .filter((child) => child.parent === id);
+      const aggregate =
+        a.stage === "done" &&
+        a.completedBySlices === true &&
+        !a.commits?.length &&
+        children.length > 0 &&
+        children.every(actionComplete) &&
+        !planFiles.some((file) => files.has(`.voidra/actions/${id}/${file}`)) &&
+        !Array.from(records.values()).some(
+          (r) =>
+            r.kind === "run" &&
+            r.document.data.action === id &&
+            ["implement", "verify"].includes(
+              String(r.document.data.fromStage),
+            ) &&
+            r.document.data.planningOnly !== true,
+        );
+      if (aggregate && !extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Aggregate completion without a parent plan requires voidra ≥ 0.2.0",
+        );
       if (a.stage === "plan" && a.status === "waiting" && !plan)
         add(
           "missing-plan",
@@ -390,6 +424,7 @@ export function inspectFiles(
         ["implement", "verify", "review", "done", "released"].includes(
           a.stage ?? "",
         ) &&
+        !aggregate &&
         !approvalCurrent(a.planApproval, plan)
       )
         add(
@@ -432,17 +467,19 @@ export function inspectFiles(
         "commits",
         "Released action requires commit and tag evidence",
       );
+    if (a.doneBy === "you" && a.stage === "cancelled" && !extendedActions)
+      add(
+        "minimum-reader",
+        metaPath,
+        "requiredVoidra",
+        "Human cancellation requires voidra ≥ 0.2.0",
+      );
     if (
       a.status === "complete" &&
-      ["done", "released"].includes(a.stage ?? "") &&
+      a.stage !== "cancelled" &&
+      (a.doneBy === "you" || ["done", "released"].includes(a.stage ?? "")) &&
       Array.from(actions.values()).some(
-        ({ action: child }) =>
-          child.parent === id &&
-          !(
-            child.status === "complete" &&
-            (child.doneBy === "you" ||
-              ["done", "released"].includes(child.stage ?? ""))
-          ),
+        ({ action: child }) => child.parent === id && !actionComplete(child),
       )
     )
       add(

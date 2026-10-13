@@ -125,6 +125,15 @@ export function approvalCurrent(
       planFiles.every((file) => approval.hashes[file] === plan.hashes[file]),
   );
 }
+export function actionComplete(action: Action): boolean {
+  return (
+    action.status === "complete" &&
+    action.stage !== "cancelled" &&
+    (action.doneBy === "you"
+      ? Boolean(action.steps?.every((step) => step.done))
+      : ["done", "released"].includes(action.stage ?? ""))
+  );
+}
 export type LifecycleEvent =
   | "advance"
   | "approve-plan"

@@ -35,16 +35,15 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
         () =>
           page
             .getByRole("button", {
-              name: "Create Docs/chore action",
+              name: "New action",
               exact: true,
             })
             .count(),
         { timeout: 5000 },
       )
       .toBe(1);
-    await page
-      .getByRole("button", { name: "Create Docs/chore action", exact: true })
-      .click();
+    await page.getByRole("button", { name: "New action", exact: true }).click();
+    await page.getByLabel("Action type", { exact: true }).selectOption("docs");
     await page.getByLabel("Title", { exact: true }).fill('Fix docs: "install"');
     await page
       .getByLabel("Description", { exact: true })

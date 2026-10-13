@@ -1,7 +1,10 @@
 {
   "format": 99,
   "requiredVoidra": "9.0.0",
-  "project": { "id": "prj-000000", "name": "Example" },
+  "project": {
+    "id": "prj-000000",
+    "name": "Example"
+  },
   "template": null,
   "createdWith": "voidra/0.1.0"
 }

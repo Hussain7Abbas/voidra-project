@@ -84,6 +84,7 @@ export const actionSchema = object({
   blockedBy: z.array(id("act")).optional(),
   links: z.array(text).optional(),
   commits: z.array(text).optional(),
+  completedBySlices: z.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date.optional(),
   updatedAt: date.optional(),
@@ -240,7 +241,7 @@ export function validateRecord(
   if (kind === "action") {
     if (d.doneBy === "agent" && !d.stage)
       add("stage", "Agent actions require a stage");
-    if (d.doneBy === "you" && d.stage)
+    if (d.doneBy === "you" && d.stage && d.stage !== "cancelled")
       add("stage", "Human actions have no agent stage");
     if (d.doneBy === "you" && !d.steps)
       add("steps", "Human actions require steps");
@@ -253,6 +254,7 @@ export function validateRecord(
     if (
       d.doneBy === "you" &&
       d.status === "complete" &&
+      d.stage !== "cancelled" &&
       schemas.action.parse(d).steps?.some((step) => !step.done)
     )
       add("steps", "Complete all human steps before completing the action");

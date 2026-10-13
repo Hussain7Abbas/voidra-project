@@ -43,7 +43,9 @@ Answering questions and the gates (P07), commits (P09) and undo (P10).
 
 - Every change goes through the `voidra` package's engine, so the app can never write a stage that is invalid for an action's type.
 - Editing a file that has changed on disk since it was opened asks you to reload or overwrite.
-- An ADR picks the Markdown rendering and sanitising library.
+- Reuse the P03 sanitized Markdown renderer. The vision's ADR bar applies; a reversible library choice alone does not merit an ADR.
+- Aggregate parents with no plan files or implementation work complete from accepted child outcomes; their child gates remain mandatory. A parent with its own plan must retain current approval, and one with its own work retains its Review gate.
+- Publish the compatible `voidra` 0.2.0 library/validator update before later real-agent checks need its new aggregate behavior. Format remains 1; affected/new metadata advertises the minimum reader version.
 
 ## Stories
 
@@ -56,6 +58,7 @@ Answering questions and the gates (P07), commits (P09) and undo (P10).
 | P06-05 | Actions done by you | 3 | P06-04 | Ticking every step finishes the action and unblocks the agent actions waiting on it. |
 | P06-06 | Board and filters | 5 | P06-03 | Every filter works. Slices are grouped and blocked actions are marked. The board stays smooth with the `busy-project` fixture. |
 | P06-07 | Action page | 5 | P06-03 | Every section listed above renders. Editing the description handles changes on disk. |
+| P06-09 | Validator compatibility publication | 3 | P06-04 | New/aggregate planning records advertise voidra 0.2.0. The built and published validators agree; older clients give an update notice. Publication follows local checks and green CI. |
 | P06-08 | Assignee from git | 2 | P06-03 | Reads `user.name` and `user.email` from the project's git config. Shows a clear notice when they aren't set. |
 
 ## Tests

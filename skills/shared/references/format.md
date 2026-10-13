@@ -413,6 +413,9 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         "minLength": 1
       }
     },
+    "completedBySlices": {
+      "type": "boolean"
+    },
     "createdBy": {
       "type": "string",
       "minLength": 1

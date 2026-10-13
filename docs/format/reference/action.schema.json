@@ -82,6 +82,9 @@
         "minLength": 1
       }
     },
+    "completedBySlices": {
+      "type": "boolean"
+    },
     "createdBy": {
       "type": "string",
       "minLength": 1

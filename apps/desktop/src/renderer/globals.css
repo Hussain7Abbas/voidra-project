@@ -824,3 +824,25 @@ html[data-theme-changing] *::backdrop {
 .input:user-invalid {
   border-color: var(--error);
 }
+
+.board-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: 1rem;
+}
+.actions-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  align-items: start;
+  gap: 1.25rem;
+}
+.board-column {
+  min-width: 0;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 28rem;
+}
+.slice-group-header {
+  border-inline-start: 2px solid var(--border);
+  margin-block-end: 0.5rem;
+  padding-inline-start: 0.25rem;
+}
