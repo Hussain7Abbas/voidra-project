@@ -162,6 +162,8 @@ export async function scanDeprecations(
         entry.isFile() &&
         relativePath !== "skills/voidra-go/scripts/runtime.mjs" &&
         relativePath !== "skills/voidra-init/scripts/init.mjs" &&
+        relativePath !==
+          "skills/voidra-architect-general/scripts/architecture.mjs" &&
         sourceExtensions.has(extname(entry.name)) &&
         !/\.(?:test|spec)\.[^.]+$/.test(entry.name) &&
         !/\.d\.(?:ts|mts|cts)$/.test(entry.name)

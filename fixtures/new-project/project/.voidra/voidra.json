@@ -5,6 +5,10 @@
     "id": "prj-000000",
     "name": "Example"
   },
-  "template": null,
-  "createdWith": "voidra/0.1.0"
+  "template": {
+    "id": "general",
+    "version": "1.0.0"
+  },
+  "createdWith": "voidra/0.1.0",
+  "lifecycleOverrides": {}
 }

@@ -10,6 +10,7 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
   const temp = await mkdtemp(join(tmpdir(), "voidra-action-")),
     root = join(temp, "project");
   await cp(resolve("fixtures/new-project/project"), root, { recursive: true });
+  const originalGuide = await readFile(join(root, ".voidra/README.md"), "utf8");
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (p): p is [string, string] =>
@@ -68,7 +69,7 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
     });
     expect(record?.document.body).toBe("## Goal\nDocument how to install.\n");
     const guide = await readFile(join(root, ".voidra/README.md"), "utf8");
-    expect(guide).toBe("# Voidra\n\nPlanning fixture.\n");
+    expect(guide).toBe(originalGuide);
     const bad = await page.evaluate(() =>
       window.voidra.invoke({
         command: "create-action",

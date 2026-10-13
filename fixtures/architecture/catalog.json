@@ -1,0 +1,22 @@
+[
+  {
+    "name": "discovery",
+    "project": "fixtures/architecture/discovery/project",
+    "gate": "questions"
+  },
+  {
+    "name": "seams-adr",
+    "project": "fixtures/architecture/seams-adr/project",
+    "gate": "plan"
+  },
+  {
+    "name": "slices",
+    "project": "fixtures/architecture/slices/project",
+    "gate": "slices"
+  },
+  {
+    "name": "bootstrap",
+    "project": "fixtures/architecture/bootstrap/project",
+    "gate": "plan"
+  }
+]

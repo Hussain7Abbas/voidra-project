@@ -1,9 +1,15 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { lifecycles, planFiles, planRevision } from "../src/lifecycle.ts";
-import { checkProject, type ProjectFiles } from "../src/project.ts";
+import {
+  checkProject,
+  type ProjectFiles,
+  readProjectFiles,
+} from "../src/project.ts";
 import { type Action, schemas } from "../src/schemas.ts";
+import { initializeProject, loadTemplate } from "../src/templates.ts";
 import { bodies, markdown, samples, time } from "../tests/samples.ts";
 
 const buffer = (raw: string): Buffer => Buffer.from(raw);
@@ -302,11 +308,15 @@ export function fixtureProjects(): Map<string, ProjectFiles> {
   newer.set(
     ".voidra/voidra.json",
     buffer(
-      JSON.stringify({
-        ...samples.project,
-        format: 99,
-        requiredVoidra: "9.0.0",
-      }),
+      JSON.stringify(
+        {
+          ...samples.project,
+          format: 99,
+          requiredVoidra: "9.0.0",
+        },
+        null,
+        2,
+      ) + "\n",
     ),
   );
   all.set("newer-format", newer);
@@ -393,7 +403,10 @@ export async function writeFixtures(root: string): Promise<void> {
   for (const [name, files] of fixtureProjects()) {
     const project = `fixtures/${name}/project`;
     await rm(resolve(root, project), { recursive: true, force: true });
-    await writeProject(resolve(root, project), files);
+    await writeProject(
+      resolve(root, project),
+      name === "new-project" ? await generalFiles(root) : files,
+    );
     const result = await checkProject(resolve(root, project));
     const expected = `fixtures/${name}/expected.json`;
     await writeFile(
@@ -413,6 +426,37 @@ export async function writeFixtures(root: string): Promise<void> {
     resolve(root, "fixtures/catalog.json"),
     `${JSON.stringify(catalog, null, 2)}\n`,
   );
+}
+/** Actual approved-template initialization, normalized only for reproducible fixture IDs/time. */
+export async function generalFiles(repository: string): Promise<ProjectFiles> {
+  const root = await mkdtemp(resolve(tmpdir(), "voidra-general-fixture-"));
+  try {
+    const template = await loadTemplate(
+      resolve(repository, "templates/general/template.yaml"),
+    );
+    const result = await initializeProject(root, template, {
+      name: "Example",
+      answers: {
+        "problem.goal": {
+          value: "Save and reopen private project notes offline.",
+        },
+      },
+      by: "Fixture author",
+    });
+    const project = await checkProject(root);
+    const files: ProjectFiles = new Map();
+    for (const [path, bytes] of (await readProjectFiles(root)).files) {
+      const normalize = (text: string) =>
+        text
+          .replaceAll(project.metadata?.project.id as string, "prj-000000")
+          .replaceAll(result.bootstrap as string, "act-000000")
+          .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, time);
+      files.set(normalize(path), Buffer.from(normalize(bytes.toString())));
+    }
+    return files;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 if (
   process.argv[1] &&

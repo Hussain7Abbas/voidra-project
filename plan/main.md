@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P04 are Done; P05 is In progress awaiting its template review. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P04 are Done; P05 is In progress with delegated template approval. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -20,7 +20,7 @@ You never paste anything. Open Claude Code or Codex in this folder and say **"ru
 5. do every step itself, including all GitHub work with `gh` and the real-agent checks, run headlessly with low-cost models;
 6. write the evidence file, update this table, commit and push, then tell you what's next.
 
-You are asked only for decisions, for the approvals a phase names (the understanding check, the template review, the app icon and the v2 documents) and for anything that needs your accounts. The only manual tasks left for you are a VoiceOver pass before release (P17) and possibly one npm website step (P15).
+You are asked only for decisions, for decisions and named approvals unless expressly delegated and for anything that needs your accounts. The only manual tasks left for you are a VoiceOver pass before release (P17) and possibly one npm website step (P15).
 
 ## Phase index
 
@@ -86,7 +86,9 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | D20 | Incorporate all nine review findings into the existing phases, with observable acceptance criteria and tests. This is a plan correction, not permission to start an implementation phase or a claim that checks have run. | You, 2026-10-12 (question 1a) |
 | D21 | Any content change to requirements, blueprint or acceptance criteria invalidates plan approval, including formatting-only edits. Record and compare exact file-content hashes; require approval again. | You, 2026-10-12 (question 2a) |
 | D22 | `voidra-plan` may update the repository-root `GLOSSARY.md` during Discovery as well as `.voidra/`. It changes no source code or other repository files and makes no commits or tags. | You, 2026-10-12 (question 3b) |
-| D23 | Continue through all remaining phases non-stop. Report understanding/progress in commentary without repeating generic phase approvals; retain explicitly named product review gates and account actions requiring the user. | You, 2026-10-13 |
+| D23 | Continue through all remaining phases non-stop. Report understanding/progress in commentary without repeating generic phase approvals; retain explicitly named product review gates unless separately delegated, and account actions requiring the user. | You, 2026-10-13 |
+
+| D24 | Continue non-stop until P17 is completed; resolve questions and named design/document reviews using the approved vision. Record delegated decisions as agent decisions, not personal user reviews. Account access and physical checks still require actual evidence. | You, 2026-10-13 |
 
 ### Open
 

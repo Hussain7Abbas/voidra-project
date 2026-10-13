@@ -1,13 +1,13 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 is complete and M1 proves the Docs/chore tracer bullet; P04 is complete with onboarding and the project profile; P05 drafts the general template for its named product review.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 is complete and M1 proves the Docs/chore tracer bullet; P04 is complete with onboarding and the project profile; P05 completes the general template and architecture skill under the delegated review recorded in D24.
 
 ## Structure and shared rules
 
 - `apps/desktop/`: secure Electron shell, static Next renderer, bridge, utility services and native/e2e/package tests; follow its [local instructions](apps/desktop/AGENTS.md).
 - `packages/voidra/`: shared format, lifecycles, CLI, safe writes, fixtures and schema generation; follow its [local instructions](packages/voidra/AGENTS.md).
 - `fixtures/`: committed validation catalog; large output is generated into temporary folders.
-- `templates/`: bundled, validated profile questions; follow its [local instructions](templates/AGENTS.md). The final general content needs the named P05 approval.
+- `templates/`: bundled, validated profile questions; follow its [local instructions](templates/AGENTS.md). The general 1.0.0 template has delegated P05 approval; see its review evidence.
 - `skills/`: executable skills and self-contained generated references; follow its [local instructions](skills/AGENTS.md).
 - `tools/run-engine/`: standalone run ownership, durable Git recovery, skill linking and artifact generation. Follow its [local instructions](tools/run-engine/AGENTS.md).
 - `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.
@@ -58,7 +58,7 @@ When the user asks to run the next phase, to continue, or to run a specific phas
 
 1. **Pick the phase.** "Next" means the phase marked **In progress** in `plan/main.md`; otherwise the first **Not started** phase whose needs are all **Done**. If no phase can start, say why and stop.
 2. **Read** this file, `VISION.md`, `plan/main.md`, `plan/AGENTS.md`, the phase file, and the evidence files (`docs/verification/`) of the phases it needs.
-3. **Check your understanding.** Reply with the stories you will implement, the files you expect to create or change, the testing seams you will test at, any risks or contradictions, and your questions. Then stop and wait for the user's go-ahead, unless the user has explicitly authorized continuing through all phases. Under that authorization, report each phase's understanding in commentary and continue; still stop for the named product approvals and account actions that require the user.
+3. **Check your understanding.** Reply with the stories you will implement, the files you expect to create or change, the testing seams you will test at, any risks or contradictions, and your questions. Then stop and wait for the user's go-ahead, unless the user has explicitly authorized continuing through all phases. Under that authorization, report each phase's understanding in commentary and continue; resolve named product approvals when the user expressly delegates them (D24), recording the rationale. Stop only for required account access or checks that cannot be performed by the agent.
 4. **Implement.** Set the phase to **In progress** in `plan/main.md`. Work story by story, writing tests at the agreed seams first. Once P00 has created the Makefile, run `make check` after each story.
 5. **Do every step yourself.** That includes all GitHub work with the `gh` CLI and the real-agent checks described below. Ask the user only for decisions, for the approvals the phase names, and for anything that needs their accounts. Never ask the user to copy or paste anything.
 6. **Finish.** When every exit criterion is met:

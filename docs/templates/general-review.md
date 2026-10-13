@@ -1,8 +1,10 @@
-# General template — review draft 1
+# General template — approved draft 1
 
 [Documentation index](../intro.md) · [Template source](../../templates/general/template.yaml) · [P05](../../plan/phase-05-general-template.md)
 
-**Status:** awaiting your review, 2026-10-13. Version 1.0.0 is proposed, not approved for shipment.
+**Status:** approved on 2026-10-13 by the implementing agent under the user's explicit delegated decision instruction (D24). This records delegated approval, not personal user review.
+
+Approved template SHA-256: `b3932094b81e712543bba1c77ca35ab8397445c59c3ebc639852b53ca8504851`. The seventeen questions cover the vision's profile blocks, preserve optional unknowns and leave architecture choices to action plans. No lifecycle override weakens the required gates.
 
 These are the questions Voidra will ask when someone sets up a project. You do not need to answer them now; review whether the list is useful. There are nine blocks and seventeen questions. Only the project goal is required at intake. The other answers can stay open and be resolved during Discovery. Existing-code intake infers answers with sources for you to confirm.
 

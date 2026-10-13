@@ -8,6 +8,7 @@ const files: { path: string; bytes: Buffer }[] = [];
 for (const [skill, entry, script] of [
   ["voidra-go", "cli-entry.ts", "runtime.mjs"],
   ["voidra-init", "init-cli.ts", "init.mjs"],
+  ["voidra-architect-general", "architecture-cli.ts", "architecture.mjs"],
 ]) {
   const output = resolve(root, `skills/${skill}/scripts/${script}`);
   const result = await build({

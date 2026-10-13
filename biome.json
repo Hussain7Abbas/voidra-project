@@ -10,7 +10,8 @@
       "**",
       "!**/pnpm-lock.yaml",
       "!skills/voidra-go/scripts/runtime.mjs",
-      "!skills/voidra-init/scripts/init.mjs"
+      "!skills/voidra-init/scripts/init.mjs",
+      "!skills/voidra-architect-general/scripts/architecture.mjs"
     ]
   },
   "formatter": {

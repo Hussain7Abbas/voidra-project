@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "requiredVoidra": "0.1.0",
+  "project": {
+    "id": "prj-000000",
+    "name": "Example"
+  },
+  "template": {
+    "id": "general",
+    "version": "1.0.0"
+  },
+  "createdWith": "voidra/0.1.0",
+  "lifecycleOverrides": {}
+}

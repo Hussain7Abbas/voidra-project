@@ -17,7 +17,7 @@ The general software template — its profile blocks, its questions and its arch
 - **Draft** `templates/general/template.yaml`. Each block gets its questions, a question type, help text and an example answer.
 - **Your review gate.**
   - Write `docs/templates/general-review.md`, showing every block and question in plain language with the reasoning for each.
-  - You approve it or ask for changes, and this repeats until you approve.
+  - You approve it or ask for changes, or expressly delegate the decision. D24 delegates this review to the implementing agent using the vision; record that distinction and the approved revision.
   - The approval date is recorded in the evidence file.
 - **The architecture skill**, `skills/voidra-architect-general/`. It covers:
   - running Discovery question rounds from the profile;
@@ -42,7 +42,7 @@ More templates and template sharing (v2).
 | ID | Story | Points | Needs | Acceptance |
 | --- | --- | --- | --- | --- |
 | P05-01 | Research and draft | 5 | — | The draft template validates. The review document lists every block and question with its reason. |
-| P05-02 | Your review | 3 | P05-01 | You approve it. Each round of changes is recorded. |
+| P05-02 | Your review | 3 | P05-01 | Approval is recorded, including delegated approval under D24. Each round of changes is recorded. |
 | P05-03 | Architecture skill | 8 | P05-01 | The skill covers every point in scope. `SKILL.md` stays short, with the details in references. The skill passes lint. |
 | P05-04 | Golden examples | 3 | P05-03 | Examples for a Discovery round, a plan with seams and an ADR proposal, a slice split and a Bootstrap plan all pass `voidra check`. |
 | P05-05 | Versioning | 2 | P05-02 | `template.yaml` declares version 1.0.0 and its format. A mismatch is reported clearly. |

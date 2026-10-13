@@ -15,3 +15,5 @@ P16 adds the v2 design documents after the v1 core is built. No v2 directory or 
 - [Runs and review](runs.md): standalone helpers, ownership, checkpoints and human gates.
 
 - [Onboarding and profile](onboarding.md): bundled templates, both intake routes, inference confirmation and Profile change drafts.
+
+- [General template](general-template.md): approved questions, architecture proposals, slices and gate/write boundaries.
