@@ -1,0 +1,22 @@
+[
+  {
+    "name": "qualifying-date",
+    "project": "fixtures/knowledge/qualifying-date/project",
+    "adr": "docs/adr/2026-10-14-local-notes.md"
+  },
+  {
+    "name": "existing-naming",
+    "project": "fixtures/knowledge/existing-naming/project",
+    "adr": "docs/adr/0002-local-notes.md"
+  },
+  {
+    "name": "non-qualifying",
+    "project": "fixtures/knowledge/non-qualifying/project",
+    "adr": null
+  },
+  {
+    "name": "settled-glossary",
+    "project": "fixtures/knowledge/settled-glossary/project",
+    "adr": null
+  }
+]

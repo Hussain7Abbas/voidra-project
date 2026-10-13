@@ -28,6 +28,7 @@ export default defineConfig({
         "apps/desktop/src/**/*.{ts,tsx}",
         "apps/desktop/dist/**/*.cjs",
         ".cache/undo-native-*/scenario.cjs",
+        ".cache/knowledge-native-*/scenario.cjs",
       ],
       exclude: ["**/*.d.ts", "**/*.test.ts"],
       thresholds: coveragePolicy,

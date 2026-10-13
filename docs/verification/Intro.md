@@ -25,3 +25,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P09 — Runs, commits and teams](p09.md): ordered queues, safe planning commits, team refresh, conflicts, performance and dogfooding; M2 reached.
 
 - [P10: Undo and redo](p10.md) — persistent history, exact replay, consumed-record protection, native menus and passing full CI.
+
+- [P11: Decisions and documents](p11.md) — decision search, assumption revisits, read-only glossary/docs and ADR examples; final checks in progress.

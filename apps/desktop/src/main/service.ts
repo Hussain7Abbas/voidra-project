@@ -5,6 +5,9 @@ import { type UtilityProcess, utilityProcess } from "electron";
 import { z } from "zod";
 import {
   type BridgeEvent,
+  type KnowledgeData,
+  type KnowledgeRequest,
+  knowledgeDataSchema,
   type ProjectInfo,
   projectSchema,
   type WorkspaceRequest,
@@ -13,6 +16,11 @@ import {
 } from "../shared/bridge.ts";
 
 const responseSchema = z.union([
+  z.strictObject({
+    requestId: z.string(),
+    ok: z.literal(true),
+    data: knowledgeDataSchema,
+  }),
   z.strictObject({
     requestId: z.string(),
     ok: z.literal(true),
@@ -37,7 +45,9 @@ export class ProjectService {
   private pending = new Map<
     string,
     {
-      resolve: (project: ProjectInfo | WorkspaceSnapshot) => void;
+      resolve: (
+        project: ProjectInfo | WorkspaceSnapshot | KnowledgeData,
+      ) => void;
       reject: (error: Error) => void;
       timer: ReturnType<typeof setTimeout>;
     }
@@ -86,7 +96,11 @@ export class ProjectService {
       if (result.ok) {
         this.state = "ready";
         pending.resolve(
-          "project" in result ? result.project : result.workspace,
+          "project" in result
+            ? result.project
+            : "data" in result
+              ? result.data
+              : result.workspace,
         );
       } else pending.reject(new Error(result.message));
     });
@@ -122,9 +136,12 @@ export class ProjectService {
   ): Promise<WorkspaceSnapshot> {
     return this.call(request) as Promise<WorkspaceSnapshot>;
   }
+  query(request: KnowledgeRequest): Promise<KnowledgeData> {
+    return this.call(request) as Promise<KnowledgeData>;
+  }
   private call(
-    input: { command: "status" } | WorkspaceRequest,
-  ): Promise<ProjectInfo | WorkspaceSnapshot> {
+    input: { command: "status" } | WorkspaceRequest | KnowledgeRequest,
+  ): Promise<ProjectInfo | WorkspaceSnapshot | KnowledgeData> {
     const child = this.child;
     if (!child)
       return Promise.reject(new Error("Project service is unavailable"));

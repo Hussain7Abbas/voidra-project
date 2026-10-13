@@ -3,13 +3,13 @@
 > **Status:** implementation started on 2026-10-12. P00–P10 are Done; P11 is In progress. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
-## Session hand-off — 2026-10-13
+## Session hand-off — 2026-10-14
 
 Continue P11, then through P17 under D24. P00–P10 are Done; P11 is In progress; P12–P17 remain Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
 
 P09 reached M2 and passes quality, 44 desktop workflows, packaging and packaged startup. P10's corrected implementation `5965420` passes [CI](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38457428517): all quality/coverage/freshness checks, the complete desktop/accessibility suite, packaging and packaged SQLite startup. [P10 evidence](../docs/verification/p10.md) records exact replay, durable consumption, overwrite confirmations, routing coverage, onboarding undo/reinitialization and native menu behavior. Local focused checks pass fourteen helper tests and five desktop scenarios.
 
-- P11 understanding has been reported. Its working tree starts shared planning-decision collection and guarded assumption revisits in `packages/voidra/src/knowledge.ts`, plus first failing tests. The plan index is projection-only; source records remain authoritative. Finish the pure helpers, then SQLite FTS, bounded project-doc reads, the UI, links and ADR/glossary examples. New mutations must go through P10's classified writer boundary.
+- P11 is implemented in the working tree: shared decision collection/assumption revisits, SQLite FTS5, bounded document reads, both screens, profile/plan docs links and ADR/glossary goldens. All 322 quality tests, coverage/freshness checks and both focused UI themes pass; full desktop/package/CI closure remains pending. New mutations use P10’s classified writer boundary.
 - Keep runtime inputs stable during checks. Native fixture bundles use inline maps and an explicit ignored coverage-input glob; production gates remain unchanged. Their scripts are retained until reporting, then cleared by the next engine test. Idle-sleep prevention cannot prevent lid-close sleep: macOS logs confirm long interruptions that invalidate local timing checks. CI provided uninterrupted whole-suite evidence. Hosted macOS runner capacity failures are distinct from code failures.
 - This repository's profile remains nine blocks/17 inferred answers from validated Codex default intake. `idea-0g353s` tracks open-time variance; `act-jxg00v` tracks the non-Git Bootstrap/repository-root follow-up. Neither is claimed implemented. Root offline CLI links workspace 0.2.0; public npm remains 0.1.0 until P15 under D25. Real-agent fixtures must install a genuine freshly packed matching candidate.
 - Preserve exact approval hashes, durable consumption/ownership, selected Git recovery and private-file exclusions. Check the remaining standalone non-Git Bootstrap/subfolder boundary before release (P17 follow-up).
@@ -51,7 +51,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p08.md) |
 | P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p09.md) |
 | P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | Done (2026-10-13) | [Evidence](../docs/verification/p10.md) |
-| P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | In progress | — |
+| P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | In progress | [P11](../docs/verification/p11.md) |
 | P12 | [Releases and `voidra-sync`](phase-12-releases-and-sync.md) | Releases from done actions; catching up with outside work | P09 | M3 | Not started | — |
 | P13 | [AI in the app](phase-13-ai-in-the-app.md) | Optional OpenRouter features | P04, P06, P12 | M3 | Not started | — |
 | P14 | [Skills distribution](phase-14-skills-distribution.md) | App installs and updates skills; releases sync `voidra-skills` | P08, P12 | M3 | Not started | — |

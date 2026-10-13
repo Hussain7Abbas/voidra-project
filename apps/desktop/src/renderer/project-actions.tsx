@@ -19,8 +19,10 @@ import { Spinner } from "./ui/spinner.tsx";
 import { useToast } from "./ui/toast.tsx";
 export function ProjectActions({
   view,
+  initialAction = null,
 }: {
   view: "actions" | "run" | "inbox";
+  initialAction?: string | null;
 }) {
   const query = useQueryClient(),
     toast = useToast();
@@ -33,7 +35,7 @@ export function ProjectActions({
       return result.workspace;
     },
   });
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialAction);
   const [recovery, setRecovery] = useState<"run" | "operation" | null>(null),
     [recoveryId, setRecoveryId] = useState("");
   const [reject, setReject] = useState(false),
@@ -379,7 +381,10 @@ export function ProjectActions({
               Edit description
             </Button>
           </div>
-          <SafeMarkdown body={current.body} />
+          <SafeMarkdown
+            body={current.body}
+            source={`.voidra/actions/${current.data.id}/action.md`}
+          />
         </section>
         {!!current.timeline.length && (
           <section className="card action-detail">
@@ -561,7 +566,7 @@ export function ProjectActions({
             {current.plans.map((plan) => (
               <article key={plan.path}>
                 <h3 className="font-semibold mt-4">{plan.name}</h3>
-                <SafeMarkdown body={plan.body} />
+                <SafeMarkdown body={plan.body} source={plan.path} />
               </article>
             ))}
           </section>

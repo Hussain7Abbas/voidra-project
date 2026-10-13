@@ -25,6 +25,9 @@ The ESM `voidra` package exports typed helpers from `index.js` and declarations 
 | `requestPlanChanges(root, id, revision, feedback, by, options?)` | Refuse unseen plan bytes, preserve feedback and return to Plan/Ready. |
 | `reviewRevision(project, id)` / `decideReview(root, id, revision, decision, feedback, by, options?)` | Hash all presented action-directory files, require a completed review result, and apply the type-specific decision with expected-hash guards. Release acceptance authorizes later agent finalization. |
 | `runCli(args, cwd?)` | The same API operations with stable exit codes/output, used by the built executable. |
+| `collectPlanningDecisions(project)` / `revisitAssumption(root, input)` | Source-linked questions, approved plans and assumed profile answers; stale/pending states stay explicit. Revisit carries `{id, revision, by}`, creates a draft Profile change or linked ready Research action, guards source/metadata/locks and preserves the original answer. |
+| `readProjectDocument(root, path)` / `projectDocumentPath(root, path)` | Read or resolve only root `GLOSSARY.md` and `docs/**/*.md`, refusing symlink components/traversal. Reads reject invalid UTF-8 and files above 256 KiB. |
+| `parseAdr(path, bytes)` / `listProjectAdrs(root)` | Plain Markdown or optional frontmatter, title/date/actor/action extraction without requiring a naming convention; return entries plus unreadable-file problems. |
 
 `WriteOptions` supports `allowGlossary` (only root GLOSSARY.md), a complete validated lifecycle override and a test `checkpoint(point, path)`. Production clients do not supply checkpoint callbacks. The writer reserves its own lock and journals; symlink components, absolute paths, traversal and code files fail. The private writer lock records a PID and nonce; explicit recovery removes it only after the process has exited. This is separate from the agent's `run.lock`.
 

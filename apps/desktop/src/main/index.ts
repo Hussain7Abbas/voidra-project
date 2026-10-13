@@ -13,9 +13,11 @@ import {
   session,
   shell,
 } from "electron";
+import { projectDocumentPath } from "voidra";
 import {
   type BridgeEvent,
   type BridgeResponse,
+  isKnowledgeRequest,
   isWorkspaceRequest,
   type ProjectInfo,
   requestSchema,
@@ -288,6 +290,17 @@ async function start(): Promise<void> {
               serviceState: service?.state ?? null,
             },
           };
+        } else if (isKnowledgeRequest(request)) {
+          const service = services.get(window.id);
+          if (!service) throw new Error("Open a project first");
+          response = { ok: true, data: await service.query(request) };
+        } else if (request.command === "open-document-editor") {
+          const service = services.get(window.id);
+          if (!service) throw new Error("Open a project first");
+          const path = await projectDocumentPath(service.root, request.path),
+            problem = await shell.openPath(path);
+          if (problem) throw new Error(problem);
+          response = { ok: true, data: { kind: "changed" } };
         } else if (isWorkspaceRequest(request)) {
           const service = services.get(window.id);
           if (!service) throw new Error("Open a project first");

@@ -1,0 +1,13 @@
+# Decisions, assumptions and repository documents
+
+[Architecture index](Intro.md) · [Format API](../format/api.md) · [Agent procedures](../agents.md)
+
+The project utility builds a SQLite FTS5 decision index from answered questions, approved plans, assumed profile answers and Markdown ADRs under `docs/adr/`. Each result retains its source path, record anchor, action, displayed revision, actor and date when recorded. An unresolved delegated choice remains visibly pending; a stale plan approval never indexes the changed plan as approved. There is no separate assumptions file or copy of an ADR inside `.voidra/`.
+
+Search treats user words as literal FTS terms, ranks title matches above body matches, and supports kind, action, date and paginated results. ADR date comes from optional frontmatter or the date filename; existing naming needs neither renaming nor invented authors/dates. Unreadable, oversized or invalid ADRs appear as document problems. The rebuildable index uses schema version 5; rebuilding it preserves the separate local undo tables. Prepared operations retain the previous complete knowledge snapshot.
+
+Revisiting carries the exact source hash into a grouped planning write. A profile assumption creates a draft Profile change; an agent-decided question creates a ready Research action linked to the original question and action. The new action points to the original answer rather than copying or rewriting it. Active runs, unfinished recovery and changed source bytes block creation. The desktop command is classified as an app edit and participates in persistent undo.
+
+The Glossary screen renders and searches `GLOSSARY.md` read-only. A missing file explains that a Docs action can create it. Profile blocks/answers and plan bodies render repository Markdown links; supported links target `docs/**/*.md` or root `GLOSSARY.md`, with relative resolution against the source file. Documents open in a rendered dialog with an editor action. Missing pages report the broken link. External navigation, arbitrary files, private planning files and symlink paths are not exposed through this boundary. Reads are UTF-8 and bounded to 256 KiB per document.
+
+Both architecture planning and Go implementation require all three ADR criteria: hard to reverse, surprising without context and a real trade-off. Planning proposes the decision; implementation writes an approved ADR, preserving repository naming or using date and title. Settled glossary definitions change through the action and preserve existing meanings. The generated `fixtures/knowledge/` catalog covers qualifying/non-qualifying decisions, both naming styles and a settled term. These are deterministic examples, not evidence of authenticated agent execution.

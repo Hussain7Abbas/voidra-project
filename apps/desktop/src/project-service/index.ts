@@ -2,12 +2,21 @@ import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import Database from "better-sqlite3";
 import { z } from "zod";
-import { projectSchema, workspaceRequestSchema } from "../shared/bridge.ts";
+import {
+  isKnowledgeRequest,
+  knowledgeRequestSchema,
+  projectSchema,
+  workspaceRequestSchema,
+} from "../shared/bridge.ts";
 import { ProjectWorkspace } from "./workspace.ts";
 
 const request = z.discriminatedUnion("command", [
   z.strictObject({ requestId: z.string(), command: z.literal("status") }),
   z.strictObject({ requestId: z.string(), command: z.literal("shutdown") }),
+  ...knowledgeRequestSchema.options.map((schema) =>
+    schema.extend({ requestId: z.string() }),
+  ),
+
   ...workspaceRequestSchema.options.map((schema) =>
     schema.extend({ requestId: z.string() }),
   ),
@@ -47,6 +56,14 @@ parent.on("message", async (event: { data: unknown }) => {
     } catch {}
     if (parsed.data.command !== "status") {
       const { requestId, ...input } = parsed.data;
+      if (isKnowledgeRequest(input)) {
+        parent.postMessage({
+          requestId,
+          ok: true,
+          data: await workspace.query(input),
+        });
+        return;
+      }
       parent.postMessage({
         requestId,
         ok: true,

@@ -28683,6 +28683,9 @@ async function applyOperation(root, input3, options = {}, migration = false) {
   }
 }
 
+// packages/voidra/src/documents.ts
+var MAX_DOCUMENT_BYTES = 256 * 1024;
+
 // packages/voidra/src/gates.ts
 var answerInput = external_exports.strictObject({
   action: schemas.action.shape.id,
@@ -28694,6 +28697,13 @@ var answerInput = external_exports.strictObject({
     external_exports.strictObject({ kind: external_exports.literal("text"), text: external_exports.string().min(1) }),
     external_exports.strictObject({ kind: external_exports.literal("agent-decides") })
   ])
+});
+
+// packages/voidra/src/knowledge.ts
+var revisitInput = external_exports.strictObject({
+  id: external_exports.string().min(1),
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  by: external_exports.string().min(1)
 });
 
 // packages/voidra/src/planning.ts

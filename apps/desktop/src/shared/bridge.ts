@@ -87,6 +87,66 @@ const templateViewSchema = z.object({
   ),
 });
 export type TemplateView = z.infer<typeof templateViewSchema>;
+export const knowledgeSearchSchema = z.strictObject({
+  q: z.string().max(500).default(""),
+  kind: z.enum(["all", "question", "plan", "adr", "assumption"]).default("all"),
+  action: z
+    .string()
+    .regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)
+    .optional(),
+  from: z.iso.date().optional(),
+  through: z.iso.date().optional(),
+  limit: z.number().int().min(1).max(100).default(50),
+  offset: z.number().int().nonnegative().default(0),
+});
+export type KnowledgeSearch = z.input<typeof knowledgeSearchSchema>;
+export const knowledgeEntrySchema = z.strictObject({
+  id: z.string(),
+  kind: z.enum(["question", "profile", "plan", "adr"]),
+  assumed: z.boolean(),
+  title: z.string(),
+  text: z.string(),
+  path: z.string(),
+  anchor: z.string().nullable(),
+  action: z.string().nullable(),
+  at: z.string().nullable(),
+  by: z.string().nullable(),
+  revision: z.string().regex(/^[a-f0-9]{64}$/),
+  state: z.enum(["recorded", "pending", "stale"]),
+});
+export const knowledgeDataSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("decisions"),
+    items: z.array(knowledgeEntrySchema),
+    total: z.number().int().nonnegative(),
+    problems: z.array(
+      z.strictObject({ path: z.string(), message: z.string() }),
+    ),
+  }),
+  z.strictObject({
+    kind: z.literal("document"),
+    document: z.strictObject({
+      path: z.string(),
+      title: z.string(),
+      body: z.string(),
+      revision: z.string().regex(/^[a-f0-9]{64}$/),
+    }),
+  }),
+]);
+export type KnowledgeData = z.infer<typeof knowledgeDataSchema>;
+export type KnowledgeEntry = z.infer<typeof knowledgeEntrySchema>;
+export const knowledgeRequestSchema = z.discriminatedUnion("command", [
+  knowledgeSearchSchema.extend({ command: z.literal("search-decisions") }),
+  z.strictObject({
+    command: z.literal("read-document"),
+    path: z.string().min(1).max(4096),
+  }),
+]);
+export type KnowledgeRequest = z.infer<typeof knowledgeRequestSchema>;
+export const isKnowledgeRequest = (value: {
+  command: string;
+}): value is KnowledgeRequest =>
+  knowledgeRequestSchema.safeParse(value).success;
 const historyEntrySchema = z.strictObject({
   label: z.string().nullable(),
   revision: z.string().nullable(),
@@ -333,6 +393,11 @@ export const serviceStateSchema = z.enum([
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({
+    command: z.literal("revisit-assumption"),
+    id: z.string().min(1).max(1024),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  z.strictObject({
     command: z.literal("undo"),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
     overwriteRevision: z
@@ -493,6 +558,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
 /** Exhaustive classification: a new project command must declare its edit label. */
 export const workspaceEdits = {
+  "revisit-assumption": "Revisit assumption",
   workspace: null,
   "commit-planning": null,
   "recover-planning": null,
@@ -516,6 +582,11 @@ export const workspaceEdits = {
   "create-action": "Create action",
 } satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  ...knowledgeRequestSchema.options,
+  z.strictObject({
+    command: z.literal("open-document-editor"),
+    path: z.string().min(1).max(4096),
+  }),
   z.strictObject({
     command: z.literal("text-edit-focus"),
     editing: z.boolean(),
@@ -589,6 +660,7 @@ export const responseSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion("kind", [
+      ...knowledgeDataSchema.options,
       snapshotSchema,
       z.strictObject({
         kind: z.literal("workspace"),

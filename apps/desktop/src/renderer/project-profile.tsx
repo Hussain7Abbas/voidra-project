@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import type { TemplateView } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
+import { SafeMarkdown } from "./markdown.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -431,6 +432,9 @@ export function ProjectProfile() {
           key={profile.path}
         >
           <h2>{profile.data.title}</h2>
+          {profile.body && (
+            <SafeMarkdown body={profile.body} source={profile.path} />
+          )}
           {profile.data.answers.map((a) => (
             <article key={a.id} className="profile-answer">
               <div className="profile-answer-heading">
@@ -440,16 +444,18 @@ export function ProjectProfile() {
               {Array.isArray(a.answer) ? (
                 <ul>
                   {a.answer.map((v) => (
-                    <li key={JSON.stringify(v)}>{String(v)}</li>
+                    <li key={JSON.stringify(v)}>
+                      <SafeMarkdown body={String(v)} source={profile.path} />
+                    </li>
                   ))}
                 </ul>
+              ) : typeof a.answer === "string" ? (
+                <SafeMarkdown body={a.answer} source={profile.path} />
               ) : (
                 <p className="answer-text">
-                  {typeof a.answer === "string"
-                    ? a.answer
-                    : a.answer === null
-                      ? "No answer yet"
-                      : JSON.stringify(a.answer)}
+                  {a.answer === null
+                    ? "No answer yet"
+                    : JSON.stringify(a.answer)}
                 </p>
               )}
               {a.source && <p className="text-muted">Source: {a.source}</p>}

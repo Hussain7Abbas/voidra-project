@@ -9,4 +9,6 @@ Extends [root instructions](../AGENTS.md). Skills are project-local agent instru
 - Lint metadata, length and relative resources with `make lint`, and check artifact freshness with `make gen-check`. Real agent checks run locally using the root procedure, never in CI.
 - `make skills-link` preserves conflicting contents and links only real skill folders into `.claude/skills` and `.agents/skills` under the selected project.
 
+- ADR proposals and implementation require all three criteria: hard to reverse, surprising without context and a real trade-off. Preserve existing ADR naming or use date and title. Planning never writes accepted ADRs; approved implementation may write them. Add only settled glossary terms and preserve existing meanings. Knowledge goldens are deterministic examples and do not count as real-agent evidence.
+
 Keep the sibling CLAUDE.md containing only `@AGENTS.md` and a trailing newline.

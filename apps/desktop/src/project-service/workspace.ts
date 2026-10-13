@@ -21,6 +21,7 @@ import {
   approveAction,
   blockingPlanningDiagnostics,
   checkProject,
+  collectPlanningDecisions,
   createId,
   createIdea,
   createAction as createPlanningAction,
@@ -32,33 +33,42 @@ import {
   hash,
   initializeProject,
   lifecycles,
+  listProjectAdrs,
   PACKAGE_VERSION,
   planFiles,
   projectLifecycles,
   promoteIdea,
   queueDecision,
   readPlan,
+  readProjectDocument,
   readTemplates,
   replaceActionQueue,
   requestPlanChanges,
   reviewRevision,
+  revisitAssumption,
   schemas,
   setHumanStep,
   updateProfileAnswer,
 } from "voidra";
 import {
+  type KnowledgeData,
+  type KnowledgeRequest,
   type WorkspaceRequest,
   type WorkspaceSnapshot,
   workspaceEdits,
   workspaceSchema,
 } from "../shared/bridge.ts";
+import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 4;
+const INDEX_VERSION = 5;
 export class ProjectWorkspace {
   private database: Database.Database;
   private history: UndoHistory;
+  private knowledge: KnowledgeIndex;
+  private knowledgeReady = false;
+  private knowledgeProblems: { path: string; message: string }[] = [];
   private watcher: FSWatcher | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private delivered = "";
@@ -83,6 +93,7 @@ export class ProjectWorkspace {
     this.databasePath = databasePath;
     this.database = this.open();
     this.history = new UndoHistory(this.root, this.database);
+    this.knowledge = new KnowledgeIndex(this.database);
   }
   async start(): Promise<void> {
     this.watcher = watch(
@@ -91,6 +102,8 @@ export class ProjectWorkspace {
         join(this.root, ".git/HEAD"),
         join(this.root, ".git/refs"),
         join(this.root, ".git/index"),
+        join(this.root, "docs"),
+        join(this.root, "GLOSSARY.md"),
       ],
       {
         ignoreInitial: true,
@@ -135,7 +148,7 @@ export class ProjectWorkspace {
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
         db.exec(
-          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas;",
+          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists decision_index; drop table if exists decisions_fts;",
         );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
@@ -165,9 +178,41 @@ export class ProjectWorkspace {
       ? this.history.perform(label, () => this.applyRequest(request))
       : this.applyRequest(request);
   }
+  async query(request: KnowledgeRequest): Promise<KnowledgeData> {
+    if (request.command === "read-document")
+      return {
+        kind: "document",
+        document: await readProjectDocument(this.root, request.path),
+      };
+    if (!this.knowledgeReady) await this.snapshot();
+    const { command: _command, ...criteria } = request;
+    return {
+      kind: "decisions",
+      ...this.knowledge.search(criteria),
+      problems: this.knowledgeProblems,
+    };
+  }
   private async applyRequest(
     request: WorkspaceRequest,
   ): Promise<WorkspaceSnapshot> {
+    if (request.command === "revisit-assumption") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw new Error(
+          "Finish or recover pending work before revisiting an assumption",
+        );
+      await revisitAssumption(this.root, {
+        id: request.id,
+        revision: request.revision,
+        by: "You",
+      });
+      await this.publish();
+    }
     if (request.command === "commit-planning") {
       const result = await commitPlanning(this.root, {
         id: request.id,
@@ -501,6 +546,8 @@ export class ProjectWorkspace {
       this.database.close();
       this.database = this.open();
       this.history = new UndoHistory(this.root, this.database);
+      this.knowledge = new KnowledgeIndex(this.database);
+      this.knowledgeReady = false;
     }
     const project = await checkProject(this.root);
     const hasVoidra = [...project.files.keys()].some(
@@ -609,6 +656,28 @@ export class ProjectWorkspace {
       [...project.records.values()].some(
         (r) => r.kind === "operation" && r.document.data.state === "prepared",
       );
+    if (!pending) {
+      const adrs = await listProjectAdrs(this.root);
+      this.knowledge.replace([
+        ...collectPlanningDecisions(project),
+        ...adrs.entries.map((adr) => ({
+          id: `adr:${adr.path}`,
+          kind: "adr" as const,
+          assumed: false,
+          title: adr.title,
+          text: adr.body,
+          path: adr.path,
+          anchor: null,
+          action: adr.action,
+          at: adr.at,
+          by: adr.by,
+          revision: adr.revision,
+          state: "recorded" as const,
+        })),
+      ]);
+      this.knowledgeProblems = adrs.problems;
+      this.knowledgeReady = true;
+    }
     if (!pending)
       this.database.transaction(() => {
         this.database.exec(
