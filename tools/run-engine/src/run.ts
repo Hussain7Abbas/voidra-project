@@ -299,14 +299,6 @@ export async function startRun(
     doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
-  if (!action.assignee) {
-    const runner = await readGitIdentity(root);
-    if (!runner.value)
-      throw new Error(
-        "Configure Git name and email before starting unassigned work",
-      );
-    action.assignee = runner.value;
-  }
   const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
   if (!decision.allowed)
     throw new Error(decision.reason ?? "Queued action cannot run");
@@ -320,6 +312,14 @@ export async function startRun(
     throw new Error(
       "The project must be a local Git repository before running",
     );
+  if (!action.assignee) {
+    const runner = await readGitIdentity(root);
+    if (!runner.value)
+      throw new Error(
+        "Configure Git name and email before starting unassigned work",
+      );
+    action.assignee = runner.value;
+  }
   const rules = projectLifecycles(checked.metadata),
     plan = readPlan(checked.files, action.id, checked.records);
   const stale =
