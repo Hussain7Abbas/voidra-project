@@ -236,6 +236,9 @@ test("undoes a saved question answer through the native Edit menu", async () => 
         }
       })
       .toBe(hash(before));
+    await expect(
+      page.getByRole("button", { name: "Redo Answer question", exact: true }),
+    ).toBeEnabled();
     expect((await checkProject(root)).diagnostics).toEqual([]);
   } finally {
     await app.close();
