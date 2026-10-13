@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { approvalCurrent, hash, planFiles, transition } from "./lifecycle.ts";
+import {
+  approvalCurrent,
+  hash,
+  planFiles,
+  projectLifecycles,
+  transition,
+} from "./lifecycle.ts";
 import { checkProject, type ProjectInspection, readPlan } from "./project.ts";
 import { serializeRecord } from "./records.ts";
 import { questionSchema, schemas } from "./schemas.ts";
@@ -22,7 +28,11 @@ export async function answerQuestion(
 ): Promise<void> {
   const input = answerInput.parse(raw),
     project = await checkProject(root);
-  if (project.diagnostics.length)
+  if (
+    project.diagnostics.some(
+      (d) => !["stale-approval", "stale-review"].includes(d.code),
+    )
+  )
     throw new Error("Fix planning-file problems before answering");
   if (project.files.has(".voidra/local/run.lock"))
     throw new Error("Finish or recover the run before answering");
@@ -39,7 +49,10 @@ export async function answerQuestion(
       .find((q) => q.id === input.question),
     action = schemas.action.parse(actionDoc.data);
   if (!question) throw new Error("Question not found");
-  if (["done", "released", "cancelled"].includes(action.stage ?? ""))
+  if (
+    action.status === "complete" ||
+    ["done", "released", "cancelled"].includes(action.stage ?? "")
+  )
     throw new Error(
       "Finished answers are part of history; create a new action",
     );
@@ -107,7 +120,10 @@ export async function requestPlanChanges(
   options: WriteOptions = {},
 ): Promise<void> {
   if (!feedback.trim()) throw new Error("Explain the changes needed");
-  const project = await checkProject(root);
+  const project = await checkProject(
+    root,
+    options.lifecycles ? { lifecycles: options.lifecycles } : {},
+  );
   decisionProject(project);
   const plan = readPlan(project.files, id, project.records);
   if (!plan || plan.revision !== revision)
@@ -140,8 +156,18 @@ export async function requestPlanChanges(
   if (action.stage !== "plan" && approvalCurrent(action.planApproval, plan))
     throw new Error("No plan approval gate at this stage");
   if (action.stage !== "plan")
-    action = transition(action, "advance", { plan }).action;
-  action = transition(action, "reject-plan", { plan }).action;
+    action = transition(
+      action,
+      "advance",
+      { plan },
+      options.lifecycles ?? projectLifecycles(project.metadata),
+    ).action;
+  action = transition(
+    action,
+    "reject-plan",
+    { plan },
+    options.lifecycles ?? projectLifecycles(project.metadata),
+  ).action;
   const next = {
     ...action,
     planFeedback: {
@@ -185,7 +211,10 @@ export async function decideReview(
   by: string,
   options: WriteOptions = {},
 ): Promise<void> {
-  const project = await checkProject(root);
+  const project = await checkProject(
+    root,
+    options.lifecycles ? { lifecycles: options.lifecycles } : {},
+  );
   decisionProject(project);
   if (reviewRevision(project, id) !== revision)
     throw new Error("Review revision changed; reload before deciding");
@@ -250,6 +279,7 @@ export async function decideReview(
       by,
       at: new Date().toISOString(),
     },
+    options.lifecycles ?? projectLifecycles(project.metadata),
   ).action;
   if (next.reviewDecision && decision === "rejected")
     next.reviewDecision.feedback = feedback.trim();

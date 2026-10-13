@@ -58,6 +58,12 @@ it("persists consumption before work, owns one lock, commits once and finishes a
     ).toBe(commit);
     await finalizeResult(root, ctx.ownerToken);
     expect((await checkProject(root)).diagnostics).toEqual([]);
+    const clone = join(root, "fresh-clone");
+    execFileSync("git", ["clone", "--quiet", root, clone]);
+    expect((await checkProject(clone)).diagnostics).toEqual([]);
+    expect(
+      (await checkProject(clone)).files.has(".voidra/local/pending-actions.md"),
+    ).toBe(false);
     const action = schemas.action.parse(
       parseRecord(
         ".voidra/actions/act-000000/action.md",
@@ -83,7 +89,7 @@ it("persists consumption before work, owns one lock, commits once and finishes a
   }
 });
 it("records unsupported work and failures without a commit or advancing the action", async () => {
-  const root = await fixture("feature");
+  const root = await fixture("release");
   try {
     const result = await startRun(root, "claude-code", process.pid);
     expect(result?.phase).toBe("unsupported");

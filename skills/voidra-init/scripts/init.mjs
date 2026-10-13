@@ -27301,6 +27301,14 @@ var stages = [
   "released",
   "cancelled"
 ];
+var lifecycleOverridesSchema = external_exports.partialRecord(
+  external_exports.enum(types),
+  object2({
+    stages: external_exports.array(external_exports.enum(stages)),
+    planGate: external_exports.boolean(),
+    rejectTo: external_exports.enum(stages)
+  })
+);
 var hashesSchema = object2({
   "requirements.md": hashSchema,
   "blueprint.md": hashSchema,
@@ -27386,7 +27394,8 @@ var schemas = {
     requiredVoidra: version2,
     project: object2({ id: id("prj"), name: text }),
     template: object2({ id: slug, version: version2 }).nullable(),
-    createdWith: text
+    createdWith: text,
+    lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
     block: slug,
@@ -27443,7 +27452,13 @@ var schemas = {
       "interrupted"
     ]),
     commit: text.optional(),
-    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional()
+    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional(),
+    paths: external_exports.array(text).optional(),
+    planningOnly: external_exports.boolean().optional(),
+    reviews: object2({
+      standards: object2({ passed: external_exports.boolean(), summary: text }),
+      plan: object2({ passed: external_exports.boolean(), summary: text })
+    }).optional()
   }),
   release: object2({
     version: version2,
@@ -27588,6 +27603,28 @@ function validateLifecycles(rules) {
       errors.push(`${type}: finish at done`);
   }
   return errors;
+}
+function projectLifecycles(metadata) {
+  const parsed = lifecycleOverridesSchema.safeParse(
+    metadata?.lifecycleOverrides ?? {}
+  );
+  if (!parsed.success)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      "Invalid lifecycle overrides",
+      "lifecycleOverrides"
+    );
+  const rules = { ...lifecycles, ...parsed.data };
+  const errors = validateLifecycles(rules);
+  if (errors.length)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      errors.join("; "),
+      "lifecycleOverrides"
+    );
+  return rules;
 }
 var planFiles = [
   "requirements.md",
@@ -27817,7 +27854,22 @@ function inspectFiles(files, options = {}) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
   }
-  const rules = options.lifecycles ?? lifecycles;
+  let rules;
+  try {
+    const declared = projectLifecycles(metadata);
+    rules = options.lifecycles ?? declared;
+  } catch (error62) {
+    if (error62 instanceof VoidraError) diagnostics.push(error62.diagnostic());
+    else throw error62;
+    return result2;
+  }
+  if (metadata.lifecycleOverrides && Object.keys(metadata.lifecycleOverrides).length && !extendedActions)
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Lifecycle overrides require voidra \u2265 0.2.0"
+    );
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result2;
@@ -28647,14 +28699,7 @@ var templateSchema = external_exports.looseObject({
       questions: external_exports.array(templateQuestionSchema).min(1)
     })
   ).min(1),
-  lifecycleOverrides: external_exports.partialRecord(
-    external_exports.enum(types),
-    external_exports.looseObject({
-      stages: external_exports.array(external_exports.enum(stages)),
-      planGate: external_exports.boolean(),
-      rejectTo: external_exports.enum(stages)
-    })
-  ).optional()
+  lifecycleOverrides: lifecycleOverridesSchema.optional()
 });
 function validateTemplate(input4, file2 = "template.yaml") {
   const parsed = templateSchema.safeParse(input4);

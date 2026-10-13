@@ -6,6 +6,7 @@ import {
   createId,
   hash,
   parseRecord,
+  projectLifecycles,
   questionSchema,
   safePath,
   schemas,
@@ -13,7 +14,7 @@ import {
   type WriteManifest,
 } from "voidra";
 import { z } from "zod";
-import { listRunContexts } from "./run.ts";
+import { inspectOwnedRun, listRunContexts } from "./run.ts";
 
 const text = z.string().min(1);
 const base = {
@@ -23,19 +24,17 @@ const base = {
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
   glossary: text.optional(),
+  summary: text.optional(),
 };
-const inputSchema = z.discriminatedUnion("kind", [
+export const architectureProposalSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     ...base,
     kind: z.literal("questions"),
     questions: z
       .array(
-        questionSchema.pick({
-          text: true,
-          why: true,
-          options: true,
-          dependsOn: true,
-        }),
+        questionSchema
+          .pick({ text: true, why: true, options: true, dependsOn: true })
+          .strict(),
       )
       .min(1),
   }),
@@ -52,17 +51,34 @@ const inputSchema = z.discriminatedUnion("kind", [
     slices: z.array(z.strictObject({ title: text, description: text })).min(2),
   }),
 ]);
-export type ArchitectureProposal = z.infer<typeof inputSchema>;
+export type ArchitectureProposal = z.infer<typeof architectureProposalSchema>;
 
 /** Direct architecture proposals stop at gates. No code, instruction or Git effects. */
 export async function proposeArchitecture(
   root: string,
   raw: unknown,
-): Promise<{ gate: "questions" | "plan" | "slices"; children?: string[] }> {
-  const input = inputSchema.parse(raw),
+  ownerToken?: string,
+  prepareOnly = false,
+): Promise<{
+  gate: "questions" | "plan" | "slices";
+  children?: string[];
+  hashes: Record<string, string | null>;
+  changes?: WriteManifest["changes"];
+}> {
+  const input = architectureProposalSchema.parse(raw),
     path = `.voidra/actions/${input.action}/action.md`;
+  const owner = ownerToken ? await inspectOwnedRun(root, ownerToken) : null;
+  if (
+    owner &&
+    (owner.ctx.action !== input.action || owner.ctx.phase !== "started")
+  )
+    throw new Error("Proposal does not belong to this active run");
   const check = await checkProject(root);
-  if (check.diagnostics.length)
+  if (
+    check.diagnostics.some(
+      (d) => !["stale-approval", "stale-review"].includes(d.code),
+    )
+  )
     throw new Error(
       "Project is invalid or read-only; inspect diagnostics first",
     );
@@ -70,10 +86,13 @@ export async function proposeArchitecture(
     [...check.records.values()].some(
       (r) =>
         (r.kind === "operation" && r.document.data.state === "prepared") ||
-        (r.kind === "run" && r.document.data.outcome === "running"),
+        (r.kind === "run" &&
+          r.document.data.outcome === "running" &&
+          r.document.data.id !== owner?.ctx.run),
     ) ||
     (await listRunContexts(root)).some(
       (ctx) =>
+        ctx.run !== owner?.ctx.run &&
         !["failed", "unsupported", "interrupted"].includes(ctx.phase) &&
         !(ctx.phase === "finalized" && ctx.indexReconciled),
     )
@@ -86,15 +105,23 @@ export async function proposeArchitecture(
     action = schemas.action.parse(record.data);
   if (
     action.doneBy !== "agent" ||
-    !["discovery", "plan"].includes(action.stage ?? "")
+    (!owner && !["discovery", "plan"].includes(action.stage ?? ""))
   )
     throw new Error(
       "Architecture proposals require an agent action in Discovery or Plan",
     );
+  if (owner && hash(bytes) !== owner.ctx.actionHash)
+    throw new Error("Action changed outside the run");
+  if (input.glossary && action.stage !== "discovery")
+    throw new Error("Settled glossary terms are written during Discovery");
   if (input.revision && input.revision !== hash(bytes))
     throw new Error("Action revision changed; reread before proposing");
   const changes: WriteManifest["changes"] = [
-    { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+    {
+      path: ".voidra/local/run.lock",
+      expectedHash: owner ? hash(owner.lockRaw) : null,
+      content: owner?.lockRaw ?? null,
+    },
   ];
   async function put(
     file: string,
@@ -178,6 +205,11 @@ export async function proposeArchitecture(
         { action: input.action },
         input[file],
       );
+    const rule = projectLifecycles(check.metadata)[action.type];
+    if (!rule.planGate)
+      throw new Error(
+        "This action uses its result gate rather than a plan approval",
+      );
     action.stage = "plan";
     action.status = "waiting";
     if (action.planApproval)
@@ -187,15 +219,22 @@ export async function proposeArchitecture(
       ];
     delete action.planApproval;
   } else {
-    const children = input.slices.map(() => createId("act"));
+    const existing = new Set(
+      [...check.records.values()].map((r) => String(r.document.data.id)),
+    );
+    const children = input.slices.map(() => {
+      const id = createId("act", existing);
+      existing.add(id);
+      return id;
+    });
     for (const [index, slice] of input.slices.entries())
       await put(
         `.voidra/actions/${children[index]}/action.md`,
         {
           id: children[index],
-          type: "feature",
+          type: action.type,
           title: slice.title,
-          stage: "discovery",
+          stage: projectLifecycles(check.metadata)[action.type].stages[0],
           status: "ready",
           doneBy: "agent",
           parent: action.id,
@@ -212,8 +251,18 @@ export async function proposeArchitecture(
       expectedHash: hash(bytes),
       content: serializeRecord(record, action).toString(),
     });
-    await applyOperation(root, { changes });
-    return { gate: "slices", children };
+    if (!prepareOnly) await applyOperation(root, { changes });
+    return {
+      gate: "slices",
+      children,
+      ...(prepareOnly ? { changes } : {}),
+      hashes: Object.fromEntries(
+        changes.map((c) => [
+          c.path,
+          c.content === null ? null : hash(c.content),
+        ]),
+      ),
+    };
   }
   changes.push({
     path,
@@ -226,14 +275,25 @@ export async function proposeArchitecture(
         if (error.code !== "ENOENT") throw error;
         return null;
       });
+    if (old && !input.glossary.startsWith(old.toString()))
+      throw new Error(
+        "Settled glossary additions must preserve existing terms",
+      );
     changes.push({
       path: "GLOSSARY.md",
       expectedHash: old === null ? null : hash(old),
       content: input.glossary,
     });
   }
-  await applyOperation(root, { changes }, { allowGlossary: true });
-  return { gate: input.kind };
+  if (!prepareOnly)
+    await applyOperation(root, { changes }, { allowGlossary: true });
+  return {
+    gate: input.kind,
+    ...(prepareOnly ? { changes } : {}),
+    hashes: Object.fromEntries(
+      changes.map((c) => [c.path, c.content === null ? null : hash(c.content)]),
+    ),
+  };
 }
 
 export async function runArchitecture(

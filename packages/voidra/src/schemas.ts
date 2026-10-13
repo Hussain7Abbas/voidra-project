@@ -33,6 +33,14 @@ export const stages = [
   "released",
   "cancelled",
 ] as const;
+export const lifecycleOverridesSchema = z.partialRecord(
+  z.enum(types),
+  object({
+    stages: z.array(z.enum(stages)),
+    planGate: z.boolean(),
+    rejectTo: z.enum(stages),
+  }),
+);
 export const hashesSchema = object({
   "requirements.md": hashSchema,
   "blueprint.md": hashSchema,
@@ -121,6 +129,7 @@ export const schemas = {
     project: object({ id: id("prj"), name: text }),
     template: object({ id: slug, version }).nullable(),
     createdWith: text,
+    lifecycleOverrides: z.json().optional(),
   }),
   profile: object({
     block: slug,
@@ -178,6 +187,12 @@ export const schemas = {
     ]),
     commit: text.optional(),
     checks: z.array(object({ name: text, passed: z.boolean() })).optional(),
+    paths: z.array(text).optional(),
+    planningOnly: z.boolean().optional(),
+    reviews: object({
+      standards: object({ passed: z.boolean(), summary: text }),
+      plan: object({ passed: z.boolean(), summary: text }),
+    }).optional(),
   }),
   release: object({
     version,

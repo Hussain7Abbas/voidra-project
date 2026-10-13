@@ -28,6 +28,7 @@ import {
   PACKAGE_VERSION,
   parseRecord,
   planFiles,
+  projectLifecycles,
   promoteIdea,
   readPlan,
   readTemplates,
@@ -290,7 +291,8 @@ export class ProjectWorkspace {
         request.revision,
         request.feedback,
       );
-    if (request.command === "queue-action") await this.queueAction(request.id);
+    if (request.command === "queue-action")
+      await this.queueAction(request.id, request.revision);
     if (request.command === "create-action")
       await this.createAction(request.title, request.description, request);
     return this.snapshot();
@@ -315,10 +317,18 @@ export class ProjectWorkspace {
     await decideReview(this.root, id, revision, decision, feedback, "You");
     await this.publish();
   }
-  async queueAction(id: string): Promise<void> {
+  async queueAction(id: string, revision?: string): Promise<void> {
     const project = await checkProject(this.root);
-    if (project.diagnostics.length)
-      throw new Error("Fix the planning-file problems before queueing");
+    if (
+      project.diagnostics.some(
+        (d) =>
+          !["stale-approval", "stale-review"].includes(d.code) ||
+          d.file.startsWith(`.voidra/actions/${id}/`),
+      )
+    )
+      throw new Error(
+        "Fix this action’s planning-file problems before queueing",
+      );
     const actionPath = `.voidra/actions/${id}/action.md`,
       record = project.records.get(actionPath);
     if (record?.kind !== "action") throw new Error("Action not found");
@@ -329,6 +339,12 @@ export class ProjectWorkspace {
       ["done", "released", "cancelled"].includes(action.stage ?? "")
     )
       throw new Error("This action cannot be queued at its current gate");
+    const activate =
+      action.type === "profile-change" && action.status === "draft";
+    if (activate && (!revision || revision !== hash(record.document.raw)))
+      throw new Error(
+        "Review the current Profile change draft before activating it",
+      );
     for (const dependency of action.blockedBy ?? []) {
       const data = project.records.get(
         `.voidra/actions/${dependency}/action.md`,
@@ -375,7 +391,14 @@ export class ProjectWorkspace {
         {
           path: actionPath,
           expectedHash: hash(record.document.raw),
-          content: record.document.raw,
+          content: activate
+            ? serializeRecord(record.document, {
+                ...action,
+                status: "ready",
+                activatedBy: "You",
+                activatedAt: new Date().toISOString(),
+              }).toString()
+            : record.document.raw,
         },
         { path: ".voidra/local/run.lock", expectedHash: null, content: null },
       ],
@@ -677,7 +700,12 @@ export class ProjectWorkspace {
           ? "plan"
           : data.stage,
 
-        timeline: data.doneBy === "agent" ? lifecycles[data.type].stages : [],
+        timeline:
+          data.doneBy === "agent"
+            ? (project.diagnostics.some((d) => d.code === "lifecycle")
+                ? lifecycles
+                : projectLifecycles(project.metadata))[data.type].stages
+            : [],
         blocked:
           blockers.some(
             (r) => r && !actionComplete(schemas.action.parse(r.document.data)),
@@ -690,7 +718,11 @@ export class ProjectWorkspace {
     return workspaceSchema.parse({
       name: project.metadata?.project.name ?? basename(this.root),
       hasVoidra,
-      readOnly: hasVoidra && project.diagnostics.length > 0,
+      readOnly:
+        hasVoidra &&
+        project.diagnostics.some(
+          (d) => !["stale-approval", "stale-review"].includes(d.code),
+        ),
       hasCode: code.hasCode,
       codeEvidence: code.evidence,
       templates: catalog.templates,

@@ -288,13 +288,20 @@ export function ProjectActions({
                 !["ready", "draft", "failed"].includes(current.data.status)
               }
               onClick={() =>
-                void request({ command: "queue-action", id: current.data.id })
+                void request({
+                  command: "queue-action",
+                  id: current.data.id,
+                  revision: current.editRevision,
+                })
                   .then(() => query.invalidateQueries())
                   .then(() => toast.success("Action queued"))
                   .catch((e) => toast.error(e.message))
               }
             >
-              Queue for agent
+              {current.data.type === "profile-change" &&
+              current.data.status === "draft"
+                ? "Activate and queue draft"
+                : "Queue for agent"}
             </Button>
           )}
         {current.data.reviewDecision?.feedback && (

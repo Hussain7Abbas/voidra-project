@@ -1,0 +1,34 @@
+[
+  {
+    "name": "feature-discovery",
+    "project": "fixtures/lifecycles/feature-discovery/project"
+  },
+  {
+    "name": "bug-diagnosis",
+    "project": "fixtures/lifecycles/bug-diagnosis/project"
+  },
+  {
+    "name": "improvement-expand-contract",
+    "project": "fixtures/lifecycles/improvement-expand-contract/project"
+  },
+  {
+    "name": "profile-impact",
+    "project": "fixtures/lifecycles/profile-impact/project"
+  },
+  {
+    "name": "slices",
+    "project": "fixtures/lifecycles/slices/project"
+  },
+  {
+    "name": "research",
+    "project": "fixtures/lifecycles/research/project"
+  },
+  {
+    "name": "human-blocker",
+    "project": "fixtures/lifecycles/human-blocker/project"
+  },
+  {
+    "name": "verification",
+    "project": "fixtures/lifecycles/verification/project"
+  }
+]

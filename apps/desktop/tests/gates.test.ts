@@ -49,6 +49,48 @@ it("answers, changes plans, checks exact revisions and reviews all types through
         throw new Error("Missing workspace");
       return response.data.workspace;
     }
+    const draftId = await createAction(root, {
+      type: "profile-change",
+      title: "Profile scope",
+      description: "Inspect changed scope",
+      by: "You",
+    });
+    const draftPath = `.voidra/actions/${draftId}/action.md`;
+    const { hash, serializeRecord } = await import("voidra");
+    const draftDoc = (await checkProject(root)).records.get(
+      draftPath,
+    )?.document;
+    if (!draftDoc) throw new Error("Missing draft");
+    await writeFile(
+      join(root, draftPath),
+      serializeRecord(draftDoc, { ...draftDoc.data, status: "draft" }),
+    );
+    const draft = (await snapshot()).actions.find((a) => a.data.id === draftId);
+    if (!draft) throw new Error("Missing draft snapshot");
+    expect((await invoke({ command: "queue-action", id: draftId })).ok).toBe(
+      false,
+    );
+    expect(
+      (
+        await invoke({
+          command: "queue-action",
+          id: draftId,
+          revision: "0".repeat(64),
+        })
+      ).ok,
+    ).toBe(false);
+    expect(
+      (
+        await invoke({
+          command: "queue-action",
+          id: draftId,
+          revision: hash((await checkProject(root)).files.get(draftPath) ?? ""),
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (await checkProject(root)).records.get(draftPath)?.document.data,
+    ).toMatchObject({ status: "ready", activatedBy: "You" });
     const first = (await snapshot()).actions.find(
         (a) => a.data.id === id,
       )?.questions,

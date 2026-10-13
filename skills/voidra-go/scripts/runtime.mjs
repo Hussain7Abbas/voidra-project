@@ -1007,14 +1007,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text4, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text5, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text4;
+        return text5;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text4.length <= endStep)
-        return text4;
+      if (text5.length <= endStep)
+        return text5;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1031,14 +1031,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text4, i, indent.length);
+        i = consumeMoreIndentedLines(text5, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text4[i += 1]; ) {
+      for (let ch; ch = text5[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text4[i + 1]) {
+          switch (text5[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -1055,12 +1055,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text4, i, indent.length);
+            i = consumeMoreIndentedLines(text5, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text4[i + 1];
+            const next = text5[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -1072,12 +1072,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text4[i += 1];
+                ch = text5[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text4;
+                return text5;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1092,39 +1092,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text4;
+        return text5;
       if (onFold)
         onFold();
-      let res = text4.slice(0, folds[0]);
+      let res = text5.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text4.length;
+        const end2 = folds[i2 + 1] || text5.length;
         if (fold === 0)
           res = `
-${indent}${text4.slice(0, end2)}`;
+${indent}${text5.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text4[fold]}\\`;
+            res += `${text5[fold]}\\`;
           res += `
-${indent}${text4.slice(fold + 1, end2)}`;
+${indent}${text5.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text4, i, indent) {
+    function consumeMoreIndentedLines(text5, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text4[start];
+      let ch = text5[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text4[++i];
+          ch = text5[++i];
         } else {
           do {
-            ch = text4[++i];
+            ch = text5[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text4[start];
+          ch = text5[start];
         }
       }
       return end;
@@ -7371,13 +7371,37 @@ var require_dist = __commonJS({
 });
 
 // tools/run-engine/src/runtime.ts
-import { readFile as readFile4 } from "node:fs/promises";
+import { readFile as readFile6 } from "node:fs/promises";
 import { resolve as resolve2 } from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 
-// tools/run-engine/src/process.ts
-import { execFile } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+// packages/voidra/src/errors.ts
+var VoidraError = class extends Error {
+  code;
+  file;
+  field;
+  line;
+  constructor(code, file2, message, field = "$", line = 1) {
+    super(message);
+    this.name = "VoidraError";
+    this.code = code;
+    this.file = file2;
+    this.field = field;
+    this.line = line;
+  }
+  diagnostic() {
+    return {
+      code: this.code,
+      file: this.file,
+      field: this.field,
+      line: this.line,
+      message: this.message
+    };
+  }
+};
+
+// packages/voidra/src/lifecycle.ts
+import { createHash } from "node:crypto";
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -12611,14 +12635,14 @@ var memo = {
     var _a3;
     (_a3 = inst._zod).deferred ?? (_a3.deferred = []);
     inst._zod.deferred.push(() => {
-      const base = inst._zod.parse;
+      const base2 = inst._zod.parse;
       const wrapped = (payload, ctx) => {
         if (ctx.direction !== "backward" && isBackEdge(ctx, payload.value))
           throw new $ZodCyclicError();
-        return base(payload, ctx);
+        return base2(payload, ctx);
       };
       inst._zod.parse = wrapped;
-      if (inst._zod.run === base)
+      if (inst._zod.run === base2)
         inst._zod.run = wrapped;
     });
   },
@@ -12630,15 +12654,15 @@ var memo = {
     let lastBucket;
     (_a3 = inst._zod).deferred ?? (_a3.deferred = []);
     inst._zod.deferred.push(() => {
-      const base = inst._zod.parse;
+      const base2 = inst._zod.parse;
       const wrapped = (payload, ctx) => {
         if (isRecursiveInst === void 0) {
           const walked = isRecursive(inst, /* @__PURE__ */ new Set(), false);
           if (walked === NONE) {
-            inst._zod.parse = base;
+            inst._zod.parse = base2;
             if (inst._zod.run === wrapped)
-              inst._zod.run = base;
-            return base(payload, ctx);
+              inst._zod.run = base2;
+            return base2(payload, ctx);
           }
           if (walked === PROVEN || rechecked)
             isRecursiveInst = true;
@@ -12647,7 +12671,7 @@ var memo = {
         }
         const input2 = payload.value;
         if (!isRef(input2))
-          return base(payload, ctx);
+          return base2(payload, ctx);
         let state = ctx[STATE];
         if (!state) {
           state = { buckets: /* @__PURE__ */ new WeakMap(), backEdges: void 0 };
@@ -12676,7 +12700,7 @@ var memo = {
         }
         handoff = bucket;
         const depth = open.length;
-        const result2 = base(payload, ctx);
+        const result2 = base2(payload, ctx);
         handoff = void 0;
         const entry = open.length > depth ? open.pop() : void 0;
         if (result2 instanceof Promise) {
@@ -12691,7 +12715,7 @@ var memo = {
         return result2;
       };
       inst._zod.parse = wrapped;
-      if (inst._zod.run === base)
+      if (inst._zod.run === base2)
         inst._zod.run = wrapped;
     });
   }
@@ -16729,8 +16753,8 @@ function ko_default() {
 }
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/locales/lt.js
-var capitalizeFirstCharacter = (text4) => {
-  return text4.charAt(0).toUpperCase() + text4.slice(1);
+var capitalizeFirstCharacter = (text5) => {
+  return text5.charAt(0).toUpperCase() + text5.slice(1);
 };
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
@@ -27096,90 +27120,6 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// tools/run-engine/src/process.ts
-var execute = promisify(execFile);
-var processSchema2 = external_exports.strictObject({
-  pid: external_exports.number().int().positive(),
-  parentPid: external_exports.number().int().nonnegative(),
-  identity: external_exports.string().min(1),
-  command: external_exports.string()
-});
-async function processInfo(pid) {
-  if (process.platform === "darwin") {
-    const binary = typeof __voidraProcessHelper !== "undefined" ? __voidraProcessHelper : fileURLToPath(
-      new URL(
-        "../../../skills/voidra-go/scripts/process-info",
-        import.meta.url
-      )
-    );
-    const result2 = await execute(binary, [String(pid)], { encoding: "utf8" });
-    const data = JSON.parse(result2.stdout);
-    return data === null ? null : processSchema2.parse(data);
-  }
-  try {
-    const result2 = await execute(
-      "ps",
-      ["-p", String(pid), "-o", "ppid=,lstart=,comm="],
-      {
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          NODE_ENV: process.env.NODE_ENV ?? "production",
-          TZ: "UTC",
-          LC_ALL: "C"
-        }
-      }
-    );
-    const match = /^\s*(\d+)\s+(.{24})\s+(.+)\s*$/.exec(result2.stdout);
-    if (!match) return null;
-    return {
-      pid,
-      parentPid: Number(match[1]),
-      identity: match[2]?.trim() ?? "",
-      command: match[3]?.trim().split("/").at(-1) ?? ""
-    };
-  } catch (error62) {
-    if (error62.code === 1) return null;
-    throw error62;
-  }
-}
-
-// tools/run-engine/src/run.ts
-import { execFile as execFile2 } from "node:child_process";
-import { randomUUID as randomUUID2 } from "node:crypto";
-import { lstat as lstat3, readdir as readdir2, readFile as readFile3, realpath as realpath2, rm } from "node:fs/promises";
-import { hostname as hostname4 } from "node:os";
-import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve } from "node:path";
-import { promisify as promisify2 } from "node:util";
-
-// packages/voidra/src/errors.ts
-var VoidraError = class extends Error {
-  code;
-  file;
-  field;
-  line;
-  constructor(code, file2, message, field = "$", line = 1) {
-    super(message);
-    this.name = "VoidraError";
-    this.code = code;
-    this.file = file2;
-    this.field = field;
-    this.line = line;
-  }
-  diagnostic() {
-    return {
-      code: this.code,
-      file: this.file,
-      field: this.field,
-      line: this.line,
-      message: this.message
-    };
-  }
-};
-
-// packages/voidra/src/lifecycle.ts
-import { createHash } from "node:crypto";
-
 // packages/voidra/src/records.ts
 var import_yaml = __toESM(require_dist(), 1);
 import { isDeepStrictEqual } from "node:util";
@@ -27210,7 +27150,7 @@ function parseRecord(file2, input2) {
   const bom = raw.startsWith("\uFEFF") ? "\uFEFF" : "";
   const source = raw.slice(bom.length);
   const eol = source.includes("\r\n") ? "\r\n" : "\n";
-  const base = {
+  const base2 = {
     file: file2,
     raw,
     eol,
@@ -27264,7 +27204,7 @@ function parseRecord(file2, input2) {
     } catch {
       throw new VoidraError("yaml", file2, "YAML alias limit exceeded");
     }
-    Object.assign(base, {
+    Object.assign(base2, {
       opening,
       header,
       closing: end[0],
@@ -27281,7 +27221,7 @@ function parseRecord(file2, input2) {
       file2,
       "Record values must be JSON-compatible"
     );
-  return { ...base, data };
+  return { ...base2, data };
 }
 function fieldLine(record2, path) {
   if (!record2.yaml || !record2.lines) return 1;
@@ -27361,6 +27301,14 @@ var stages = [
   "released",
   "cancelled"
 ];
+var lifecycleOverridesSchema = external_exports.partialRecord(
+  external_exports.enum(types),
+  object2({
+    stages: external_exports.array(external_exports.enum(stages)),
+    planGate: external_exports.boolean(),
+    rejectTo: external_exports.enum(stages)
+  })
+);
 var hashesSchema = object2({
   "requirements.md": hashSchema,
   "blueprint.md": hashSchema,
@@ -27446,7 +27394,8 @@ var schemas = {
     requiredVoidra: version2,
     project: object2({ id: id("prj"), name: text }),
     template: object2({ id: slug, version: version2 }).nullable(),
-    createdWith: text
+    createdWith: text,
+    lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
     block: slug,
@@ -27503,7 +27452,13 @@ var schemas = {
       "interrupted"
     ]),
     commit: text.optional(),
-    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional()
+    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional(),
+    paths: external_exports.array(text).optional(),
+    planningOnly: external_exports.boolean().optional(),
+    reviews: object2({
+      standards: object2({ passed: external_exports.boolean(), summary: text }),
+      plan: object2({ passed: external_exports.boolean(), summary: text })
+    }).optional()
   }),
   release: object2({
     version: version2,
@@ -27648,6 +27603,28 @@ function validateLifecycles(rules) {
       errors.push(`${type}: finish at done`);
   }
   return errors;
+}
+function projectLifecycles(metadata) {
+  const parsed = lifecycleOverridesSchema.safeParse(
+    metadata?.lifecycleOverrides ?? {}
+  );
+  if (!parsed.success)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      "Invalid lifecycle overrides",
+      "lifecycleOverrides"
+    );
+  const rules = { ...lifecycles, ...parsed.data };
+  const errors = validateLifecycles(rules);
+  if (errors.length)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      errors.join("; "),
+      "lifecycleOverrides"
+    );
+  return rules;
 }
 var planFiles = [
   "requirements.md",
@@ -27980,7 +27957,22 @@ function inspectFiles(files, options = {}) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
   }
-  const rules = options.lifecycles ?? lifecycles;
+  let rules;
+  try {
+    const declared = projectLifecycles(metadata);
+    rules = options.lifecycles ?? declared;
+  } catch (error62) {
+    if (error62 instanceof VoidraError) diagnostics.push(error62.diagnostic());
+    else throw error62;
+    return result2;
+  }
+  if (metadata.lifecycleOverrides && Object.keys(metadata.lifecycleOverrides).length && !extendedActions)
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Lifecycle overrides require voidra \u2265 0.2.0"
+    );
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result2;
@@ -28765,6 +28757,16 @@ var stepInput = external_exports.strictObject({
 });
 
 // packages/voidra/src/templates.ts
+import {
+  lstat as lstat3,
+  mkdir as mkdir2,
+  mkdtemp,
+  readdir as readdir2,
+  readFile as readFile3,
+  rename as rename2,
+  rm,
+  writeFile
+} from "node:fs/promises";
 var slug2 = external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 var text2 = external_exports.string().min(1);
 var templateQuestionSchema = external_exports.looseObject({
@@ -28799,15 +28801,386 @@ var templateSchema = external_exports.looseObject({
       questions: external_exports.array(templateQuestionSchema).min(1)
     })
   ).min(1),
-  lifecycleOverrides: external_exports.partialRecord(
-    external_exports.enum(types),
-    external_exports.looseObject({
-      stages: external_exports.array(external_exports.enum(stages)),
-      planGate: external_exports.boolean(),
-      rejectTo: external_exports.enum(stages)
-    })
-  ).optional()
+  lifecycleOverrides: lifecycleOverridesSchema.optional()
 });
+function validateTemplate(input2, file2 = "template.yaml") {
+  const parsed = templateSchema.safeParse(input2);
+  if (!parsed.success) {
+    const issue2 = parsed.error.issues[0];
+    throw new VoidraError(
+      "template",
+      file2,
+      `${issue2?.path.map(String).join(".") || "$"}: ${issue2?.message ?? "Invalid template"}`,
+      issue2?.path.map(String).join(".") ?? "$"
+    );
+  }
+  const template = parsed.data;
+  const fail2 = (message) => {
+    throw new VoidraError("template", file2, message);
+  };
+  if (template.format !== FORMAT_VERSION)
+    fail2(
+      `Template requires format ${template.format}; supported format is ${FORMAT_VERSION}`
+    );
+  if (new Set(template.blocks.map((b) => b.id)).size !== template.blocks.length)
+    fail2("Duplicate profile block ID");
+  for (const block of template.blocks) {
+    if (new Set(block.questions.map((q) => q.id)).size !== block.questions.length)
+      fail2(`Duplicate question ID in ${block.id}`);
+    for (const question of block.questions) {
+      if (["single-choice", "multiple-choice"].includes(question.type) && !question.options?.length)
+        fail2(`${block.id}.${question.id}: choices require options`);
+      if (question.options && new Set(question.options.map((o) => o.value)).size !== question.options.length)
+        fail2(`${block.id}.${question.id}: duplicate option`);
+      if (question.example !== void 0)
+        validateTemplateAnswer(question, question.example);
+    }
+  }
+  const errors = validateLifecycles({
+    ...lifecycles,
+    ...template.lifecycleOverrides
+  });
+  if (errors.length) fail2(errors.join("; "));
+  return template;
+}
+async function loadTemplate(file2) {
+  const source = new TextDecoder("utf-8", { fatal: true }).decode(await readFile3(file2)).replace(/^\uFEFF/, "").replace(/^---\r?\n/, "").replace(/\r?\n(?:---|\.\.\.)\s*$/, "");
+  const doc = parseRecord(file2, `---
+${source}
+---
+`);
+  if (doc.body.trim())
+    throw new VoidraError(
+      "template",
+      file2,
+      "Unexpected content after YAML document"
+    );
+  try {
+    return validateTemplate(doc.data, file2);
+  } catch (error62) {
+    if (error62 instanceof VoidraError) {
+      const field = error62.field;
+      throw new VoidraError(
+        error62.code,
+        file2,
+        error62.message,
+        field,
+        Math.max(1, fieldLine(doc, field.split(".")) - 1)
+      );
+    }
+    throw error62;
+  }
+}
+function validateTemplateAnswer(question, value) {
+  if (value === null) return null;
+  const list = ["list", "multiple-choice"].includes(question.type);
+  if (list ? !Array.isArray(value) || value.some((v) => typeof v !== "string" || !v.trim()) : typeof value !== "string" || !value.trim())
+    throw new Error(
+      `${question.id}: expected ${list ? "a list of text values" : "text"}`
+    );
+  const allowed = question.options?.map((o) => o.value);
+  if (allowed && !question.allowFreeText && (list ? value.some((v) => !allowed.includes(v)) : !allowed.includes(value)))
+    throw new Error(`${question.id}: choose a listed option`);
+  if (list && new Set(value).size !== value.length)
+    throw new Error(`${question.id}: duplicate answer`);
+  return value;
+}
+
+// tools/run-engine/src/process.ts
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+var execute = promisify(execFile);
+var processSchema2 = external_exports.strictObject({
+  pid: external_exports.number().int().positive(),
+  parentPid: external_exports.number().int().nonnegative(),
+  identity: external_exports.string().min(1),
+  command: external_exports.string()
+});
+async function processInfo(pid) {
+  if (process.platform === "darwin") {
+    const binary = typeof __voidraProcessHelper !== "undefined" ? __voidraProcessHelper : fileURLToPath(
+      new URL(
+        "../../../skills/voidra-go/scripts/process-info",
+        import.meta.url
+      )
+    );
+    const result2 = await execute(binary, [String(pid)], { encoding: "utf8" });
+    const data = JSON.parse(result2.stdout);
+    return data === null ? null : processSchema2.parse(data);
+  }
+  try {
+    const result2 = await execute(
+      "ps",
+      ["-p", String(pid), "-o", "ppid=,lstart=,comm="],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          NODE_ENV: process.env.NODE_ENV ?? "production",
+          TZ: "UTC",
+          LC_ALL: "C"
+        }
+      }
+    );
+    const match = /^\s*(\d+)\s+(.{24})\s+(.+)\s*$/.exec(result2.stdout);
+    if (!match) return null;
+    return {
+      pid,
+      parentPid: Number(match[1]),
+      identity: match[2]?.trim() ?? "",
+      command: match[3]?.trim().split("/").at(-1) ?? ""
+    };
+  } catch (error62) {
+    if (error62.code === 1) return null;
+    throw error62;
+  }
+}
+
+// tools/run-engine/src/run.ts
+import { execFile as execFile2 } from "node:child_process";
+import { randomUUID as randomUUID2 } from "node:crypto";
+import {
+  lstat as lstat4,
+  readdir as readdir3,
+  readFile as readFile5,
+  readlink,
+  realpath as realpath2,
+  rm as rm2
+} from "node:fs/promises";
+import { hostname as hostname4 } from "node:os";
+import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve } from "node:path";
+import { promisify as promisify2 } from "node:util";
+
+// tools/run-engine/src/architecture.ts
+import { readFile as readFile4 } from "node:fs/promises";
+var text3 = external_exports.string().min(1);
+var base = {
+  action: schemas.action.shape.id,
+  revision: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(),
+  glossary: text3.optional(),
+  summary: text3.optional()
+};
+var architectureProposalSchema = external_exports.discriminatedUnion("kind", [
+  external_exports.strictObject({
+    ...base,
+    kind: external_exports.literal("questions"),
+    questions: external_exports.array(
+      questionSchema.pick({ text: true, why: true, options: true, dependsOn: true }).strict()
+    ).min(1)
+  }),
+  external_exports.strictObject({
+    ...base,
+    kind: external_exports.literal("plan"),
+    requirements: text3,
+    blueprint: text3,
+    acceptance: text3
+  }),
+  external_exports.strictObject({
+    ...base,
+    kind: external_exports.literal("slices"),
+    slices: external_exports.array(external_exports.strictObject({ title: text3, description: text3 })).min(2)
+  })
+]);
+async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
+  const input2 = architectureProposalSchema.parse(raw), path = `.voidra/actions/${input2.action}/action.md`;
+  const owner = ownerToken ? await inspectOwnedRun(root, ownerToken) : null;
+  if (owner && (owner.ctx.action !== input2.action || owner.ctx.phase !== "started"))
+    throw new Error("Proposal does not belong to this active run");
+  const check2 = await checkProject(root);
+  if (check2.diagnostics.some(
+    (d) => !["stale-approval", "stale-review"].includes(d.code)
+  ))
+    throw new Error(
+      "Project is invalid or read-only; inspect diagnostics first"
+    );
+  if ([...check2.records.values()].some(
+    (r) => r.kind === "operation" && r.document.data.state === "prepared" || r.kind === "run" && r.document.data.outcome === "running" && r.document.data.id !== owner?.ctx.run
+  ) || (await listRunContexts(root)).some(
+    (ctx) => ctx.run !== owner?.ctx.run && !["failed", "unsupported", "interrupted"].includes(ctx.phase) && !(ctx.phase === "finalized" && ctx.indexReconciled)
+  ))
+    throw new Error(
+      "Recover unfinished operations or runs before architecture proposals"
+    );
+  const bytes = await readFile4(await safePath(root, path)), record2 = parseRecord(path, bytes), action = schemas.action.parse(record2.data);
+  if (action.doneBy !== "agent" || !owner && !["discovery", "plan"].includes(action.stage ?? ""))
+    throw new Error(
+      "Architecture proposals require an agent action in Discovery or Plan"
+    );
+  if (owner && hash2(bytes) !== owner.ctx.actionHash)
+    throw new Error("Action changed outside the run");
+  if (input2.glossary && action.stage !== "discovery")
+    throw new Error("Settled glossary terms are written during Discovery");
+  if (input2.revision && input2.revision !== hash2(bytes))
+    throw new Error("Action revision changed; reread before proposing");
+  const changes = [
+    {
+      path: ".voidra/local/run.lock",
+      expectedHash: owner ? hash2(owner.lockRaw) : null,
+      content: owner?.lockRaw ?? null
+    }
+  ];
+  async function put(file2, data, body = "") {
+    const full = await safePath(root, file2), old = await readFile4(full).catch((error62) => {
+      if (error62.code !== "ENOENT") throw error62;
+      return null;
+    });
+    changes.push({
+      path: file2,
+      expectedHash: old === null ? null : hash2(old),
+      content: serializeRecord(
+        parseRecord(file2, old ?? "---\n{}\n---\n"),
+        data,
+        body
+      ).toString()
+    });
+  }
+  const qPath = `.voidra/actions/${input2.action}/questions.md`, qBytes = await readFile4(await safePath(root, qPath)).catch(
+    (error62) => {
+      if (error62.code !== "ENOENT") throw error62;
+      return null;
+    }
+  );
+  const questions = qBytes ? schemas.questions.parse(parseRecord(qPath, qBytes).data) : { action: input2.action, rounds: [] };
+  changes.push({
+    path: qPath,
+    expectedHash: qBytes === null ? null : hash2(qBytes),
+    content: qBytes === null ? null : qBytes.toString()
+  });
+  const previous = questions.rounds.flatMap((round) => round.questions);
+  if (previous.some(
+    (q) => !q.answer || q.answer.kind === "agent-decides" && !q.agentChoice
+  ))
+    throw new Error(
+      "Answer open questions and resolve delegated choices before continuing"
+    );
+  if (input2.kind === "questions") {
+    const answered = new Set(previous.map((q) => q.id));
+    for (const q of input2.questions) {
+      if (q.options.filter((option) => option.recommended).length !== 1)
+        throw new Error("Each question needs exactly one recommended option");
+      for (const dep of q.dependsOn ?? [])
+        if (!answered.has(dep))
+          throw new Error(
+            `Prerequisite ${dep} is not answered in an earlier round`
+          );
+    }
+    changes.pop();
+    await put(qPath, {
+      ...questions,
+      rounds: [
+        ...questions.rounds,
+        {
+          round: Math.max(0, ...questions.rounds.map((r) => r.round)) + 1,
+          askedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          questions: input2.questions.map((q) => ({
+            ...q,
+            id: createId("q"),
+            allowFreeText: true
+          }))
+        }
+      ]
+    });
+    const questionChange = changes.at(-1);
+    if (questionChange)
+      questionChange.expectedHash = qBytes === null ? null : hash2(qBytes);
+    action.status = "waiting";
+  } else if (input2.kind === "plan") {
+    for (const file2 of ["requirements", "blueprint", "acceptance"])
+      await put(
+        `.voidra/actions/${input2.action}/${file2}.md`,
+        { action: input2.action },
+        input2[file2]
+      );
+    const rule = projectLifecycles(check2.metadata)[action.type];
+    if (!rule.planGate)
+      throw new Error(
+        "This action uses its result gate rather than a plan approval"
+      );
+    action.stage = "plan";
+    action.status = "waiting";
+    if (action.planApproval)
+      action.approvalHistory = [
+        ...action.approvalHistory ?? [],
+        action.planApproval
+      ];
+    delete action.planApproval;
+  } else {
+    const existing = new Set(
+      [...check2.records.values()].map((r) => String(r.document.data.id))
+    );
+    const children = input2.slices.map(() => {
+      const id2 = createId("act", existing);
+      existing.add(id2);
+      return id2;
+    });
+    for (const [index, slice] of input2.slices.entries())
+      await put(
+        `.voidra/actions/${children[index]}/action.md`,
+        {
+          id: children[index],
+          type: action.type,
+          title: slice.title,
+          stage: projectLifecycles(check2.metadata)[action.type].stages[0],
+          status: "ready",
+          doneBy: "agent",
+          parent: action.id,
+          blockedBy: index ? [children[index - 1]] : [],
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+          createdBy: "Architecture agent"
+        },
+        slice.description
+      );
+    action.blockedBy = [.../* @__PURE__ */ new Set([...action.blockedBy ?? [], ...children])];
+    action.status = "ready";
+    changes.push({
+      path,
+      expectedHash: hash2(bytes),
+      content: serializeRecord(record2, action).toString()
+    });
+    if (!prepareOnly) await applyOperation(root, { changes });
+    return {
+      gate: "slices",
+      children,
+      ...prepareOnly ? { changes } : {},
+      hashes: Object.fromEntries(
+        changes.map((c) => [
+          c.path,
+          c.content === null ? null : hash2(c.content)
+        ])
+      )
+    };
+  }
+  changes.push({
+    path,
+    expectedHash: hash2(bytes),
+    content: serializeRecord(record2, action).toString()
+  });
+  if (input2.glossary) {
+    const full = await safePath(root, "GLOSSARY.md", true), old = await readFile4(full).catch((error62) => {
+      if (error62.code !== "ENOENT") throw error62;
+      return null;
+    });
+    if (old && !input2.glossary.startsWith(old.toString()))
+      throw new Error(
+        "Settled glossary additions must preserve existing terms"
+      );
+    changes.push({
+      path: "GLOSSARY.md",
+      expectedHash: old === null ? null : hash2(old),
+      content: input2.glossary
+    });
+  }
+  if (!prepareOnly)
+    await applyOperation(root, { changes }, { allowGlossary: true });
+  return {
+    gate: input2.kind,
+    ...prepareOnly ? { changes } : {},
+    hashes: Object.fromEntries(
+      changes.map((c) => [c.path, c.content === null ? null : hash2(c.content)])
+    )
+  };
+}
 
 // tools/run-engine/src/lock.ts
 import { hostname as hostname3 } from "node:os";
@@ -28825,10 +29198,10 @@ async function inspectLock(input2, now = Date.now()) {
       recoverable: false,
       message: "The run lock is invalid. Inspect its file before changing it."
     };
-  const lock = parsed.data, base = { action: lock.action, run: lock.run };
+  const lock = parsed.data, base2 = { action: lock.action, run: lock.run };
   if (lock.host !== hostname3())
     return {
-      ...base,
+      ...base2,
       state: "stale",
       recoverable: false,
       message: "The lock belongs to another computer; its owner cannot be verified here."
@@ -28838,7 +29211,7 @@ async function inspectLock(input2, now = Date.now()) {
     identity = await processIdentity(lock.pid);
   } catch {
     return {
-      ...base,
+      ...base2,
       state: "stale",
       recoverable: false,
       message: "The lock owner could not be verified; recovery is blocked."
@@ -28846,27 +29219,27 @@ async function inspectLock(input2, now = Date.now()) {
   }
   if (identity?.startsWith("macos:") && !lock.processStartedAt.startsWith("macos:"))
     return {
-      ...base,
+      ...base2,
       state: "stale",
       recoverable: false,
       message: "The live process has a legacy start identity that cannot be verified safely."
     };
   if (identity !== lock.processStartedAt)
     return {
-      ...base,
+      ...base2,
       state: "interrupted",
       recoverable: true,
       message: "The run ended without a completed result. Its owner has stopped."
     };
   if (now - Date.parse(lock.heartbeatAt) >= HEARTBEAT_STALE_MS)
     return {
-      ...base,
+      ...base2,
       state: "stale",
       recoverable: false,
       message: "The agent may have stopped, but its owner is still alive. Recovery cannot clear this lock."
     };
   return {
-    ...base,
+    ...base2,
     state: "running",
     recoverable: false,
     message: "Agent running"
@@ -28899,6 +29272,13 @@ var checkpointSchema = external_exports.looseObject({
     "interrupted"
   ]),
   baseCommit: external_exports.string().nullable(),
+  mode: external_exports.enum(["go", "plan"]).optional(),
+  sourceSnapshot: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
+  inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
+  priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
+  baseTags: external_exports.string().optional(),
+  planRevision: external_exports.string().optional(),
+  startingChanges: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   paths: external_exports.array(external_exports.string()),
   fileHashes: external_exports.record(external_exports.string(), external_exports.string().nullable()),
   commit: external_exports.string().optional(),
@@ -28908,6 +29288,13 @@ var checkpointSchema = external_exports.looseObject({
 });
 var reportSchema = external_exports.strictObject({
   summary: external_exports.string().min(1),
+  reviews: external_exports.strictObject({
+    standards: external_exports.strictObject({
+      passed: external_exports.boolean(),
+      summary: external_exports.string().min(1)
+    }),
+    plan: external_exports.strictObject({ passed: external_exports.boolean(), summary: external_exports.string().min(1) })
+  }).optional(),
   paths: external_exports.array(external_exports.string()),
   checks: external_exports.array(
     external_exports.strictObject({ name: external_exports.string().min(1), passed: external_exports.boolean() })
@@ -28919,7 +29306,7 @@ async function assertUnlinked(root, path) {
   for (const part of path.split("/")) {
     current2 = join3(current2, part);
     try {
-      if ((await lstat3(current2)).isSymbolicLink())
+      if ((await lstat4(current2)).isSymbolicLink())
         throw new Error("Private run path contains a symlink");
     } catch (error62) {
       if (error62.code === "ENOENT") return;
@@ -28927,10 +29314,10 @@ async function assertUnlinked(root, path) {
     }
   }
 }
-var text3 = async (root, path) => {
+var text4 = async (root, path) => {
   await assertUnlinked(root, path);
   try {
-    return await readFile3(join3(root, path), "utf8");
+    return await readFile5(join3(root, path), "utf8");
   } catch (error62) {
     if (error62.code === "ENOENT") return null;
     throw error62;
@@ -28959,7 +29346,7 @@ async function head(root) {
 async function runContext(root, run) {
   if (!/^run-[0-9a-hjkmnp-tv-z]{6}$/.test(run))
     throw new Error("Invalid run ID");
-  const value = await text3(root, checkpointPath(run));
+  const value = await text4(root, checkpointPath(run));
   if (value === null) throw new Error("Run checkpoint not found");
   const ctx = checkpointSchema.parse(JSON.parse(value));
   if (ctx.run !== run || ctx.actionPath !== `.voidra/actions/${ctx.action}/action.md` || !ctx.runPath.startsWith(`.voidra/actions/${ctx.action}/runs/`) || !ctx.runPath.endsWith(`-${ctx.agent}-${ctx.run}.md`))
@@ -28972,7 +29359,7 @@ async function runContext(root, run) {
   return ctx;
 }
 async function owned(root, token) {
-  const lockRaw = await text3(root, ".voidra/local/run.lock");
+  const lockRaw = await text4(root, ".voidra/local/run.lock");
   if (!lockRaw) throw new Error("Run owner lock was lost");
   const lock = schemas.lock.parse(JSON.parse(lockRaw));
   if (lock.ownerToken !== token)
@@ -28983,10 +29370,10 @@ async function owned(root, token) {
   if (ctx.ownerToken !== token) throw new Error("Run checkpoint owner differs");
   return { ctx, lock, lockRaw };
 }
-async function save(root, ctx, changes = []) {
-  const path = checkpointPath(ctx.run), old = await text3(root, path);
+async function save(root, ctx, changes = [], allowGlossary = false) {
+  const path = checkpointPath(ctx.run), old = await text4(root, path);
   if (!changes.some((change) => change.path === ".voidra/local/run.lock")) {
-    const lockRaw = await text3(root, ".voidra/local/run.lock");
+    const lockRaw = await text4(root, ".voidra/local/run.lock");
     if (lockRaw === null || schemas.lock.parse(JSON.parse(lockRaw)).ownerToken !== ctx.ownerToken)
       throw new Error("Run owner token changed before writing");
     changes = [
@@ -28998,23 +29385,29 @@ async function save(root, ctx, changes = []) {
       }
     ];
   }
-  await applyOperation(root, {
-    changes: [
-      ...changes,
-      {
-        path,
-        expectedHash: old === null ? null : hash2(old),
-        content: `${JSON.stringify(checkpointSchema.parse(ctx), null, 2)}
+  await applyOperation(
+    root,
+    {
+      changes: [
+        ...changes,
+        {
+          path,
+          expectedHash: old === null ? null : hash2(old),
+          content: `${JSON.stringify(checkpointSchema.parse(ctx), null, 2)}
 `
-      }
-    ]
-  });
+        }
+      ]
+    },
+    { allowGlossary }
+  );
 }
 async function current(root, ctx) {
   const checked = await checkProject(root);
-  if (checked.diagnostics.length)
+  if (checked.diagnostics.some(
+    (d) => !["stale-approval", "stale-review"].includes(d.code)
+  ))
     throw new Error("Planning files are invalid or need recovery");
-  const actionRaw = await text3(root, ctx.actionPath), runRaw = await text3(root, ctx.runPath);
+  const actionRaw = await text4(root, ctx.actionPath), runRaw = await text4(root, ctx.runPath);
   if (!actionRaw || !runRaw || hash2(actionRaw) !== ctx.actionHash || hash2(runRaw) !== ctx.runHash)
     throw new Error(
       "Action or run changed outside this owner; recovery conflict"
@@ -29025,9 +29418,16 @@ async function current(root, ctx) {
     runRaw
   };
 }
-async function startRun(root, agent, ownerPid2 = process.pid) {
+async function inspectOwnedRun(root, token) {
+  const result2 = await owned(root, token);
+  await current(root, result2.ctx);
+  return result2;
+}
+async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
   const checked = await checkProject(root);
-  if (checked.diagnostics.length)
+  if (checked.diagnostics.some(
+    (d) => !["stale-approval", "stale-review"].includes(d.code)
+  ))
     throw new Error(
       "Fix planning validation/recovery problems before starting"
     );
@@ -29045,7 +29445,7 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
   const action = schemas.action.parse(doc.data);
   if (action.type === "profile-change" && action.status === "draft")
     throw new Error("Review the Profile change draft before queueing it");
-  if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["review", "done", "released", "cancelled"].includes(action.stage ?? ""))
+  if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["done", "released", "cancelled"].includes(action.stage ?? ""))
     throw new Error("Queued action is at a gate or already running");
   for (const dependency of action.blockedBy ?? []) {
     const other = checked.records.get(`.voidra/actions/${dependency}/action.md`)?.document.data;
@@ -29064,6 +29464,32 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     throw new Error(
       "The project must be a local Git repository before running"
     );
+  const rules = projectLifecycles(checked.metadata), plan = readPlan(checked.files, action.id, checked.records);
+  const stale = rules[action.type].planGate && ["implement", "verify", "review"].includes(action.stage ?? "") && (!action.planApproval || !plan || Object.entries(plan.hashes).some(
+    ([name, value]) => action.planApproval?.hashes[name] !== value
+  ));
+  const boundary = mode === "plan" && !["discovery", "plan"].includes(action.stage ?? "");
+  if (action.stage === "review" && action.type !== "release" && !checked.records.get(`.voidra/actions/${action.id}/questions.md`))
+    throw new Error("Review needs a human decision");
+  let startedAction = { ...action, status: "running" };
+  if (stale) startedAction = { ...action, stage: "plan", status: "waiting" };
+  else if (boundary) startedAction = action;
+  else if (action.stage === "review" && action.type !== "release")
+    startedAction = {
+      ...action,
+      stage: rules[action.type].rejectTo,
+      status: "running",
+      resumedAfterQuestions: true
+    };
+  const sourceSnapshot = await snapshotSources(root);
+  const previous = await listRunContexts(root), priorWork = {};
+  for (const ctx2 of previous.filter(
+    (c) => c.action === action.id && c.phase === "finalized" && c.indexReconciled
+  ))
+    for (const [path, value] of Object.entries(ctx2.fileHashes)) {
+      if (!path.startsWith(".voidra/") && sourceSnapshot[path] === value && ctx2.sourceSnapshot?.[path] !== value && (!Object.hasOwn(ctx2.startingChanges ?? {}, path) || ctx2.priorWork?.[path] === ctx2.sourceSnapshot?.[path]))
+        priorWork[path] = value;
+    }
   const run = createId(
     "run",
     new Set(
@@ -29077,13 +29503,32 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     agent,
     startedAt: at,
     fromStage: action.stage,
-    outcome: "running",
-    consumedRecords: [actionId, queuePath, ...action.blockedBy ?? []]
+    outcome: stale || boundary ? "waiting" : "running",
+    ...stale || boundary ? { endedAt: at, toStage: startedAction.stage, planningOnly: true } : {},
+    consumedRecords: [
+      .../* @__PURE__ */ new Set([
+        actionId,
+        actionPath,
+        ".voidra/voidra.json",
+        ...action.blockedBy ?? [],
+        ...[...checked.records.values()].filter(
+          (r) => r.kind === "profile" || r.kind === "idea" || r.document.file.startsWith(`.voidra/actions/${actionId}/`) && [
+            "questions",
+            "requirements",
+            "blueprint",
+            "acceptance"
+          ].includes(r.kind)
+        ).flatMap((r) => [
+          r.document.file,
+          ...r.kind === "questions" ? schemas.questions.parse(r.document.data).rounds.flatMap((round) => round.questions.map((q) => q.id)) : []
+        ]),
+        ...(action.links ?? []).filter(
+          (link) => /^(act|idea|q)-[0-9a-hjkmnp-tv-z]{6}$/.test(link)
+        )
+      ])
+    ]
   });
-  const actionRaw = serializeRecord(doc, {
-    ...action,
-    status: "running"
-  }).toString(), runRaw = serializeRecord(
+  const actionRaw = serializeRecord(doc, startedAction).toString(), runRaw = serializeRecord(
     parseRecord(runPath, "---\n{}\n---\n"),
     runData,
     "Run started; consumed records are persisted before work.\n"
@@ -29101,8 +29546,36 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     actionPath,
     actionHash: hash2(actionRaw),
     runHash: hash2(runRaw),
-    phase: "started",
+    phase: stale || boundary ? "finalized" : "started",
+    ...stale || boundary ? { indexReconciled: true } : {},
+    mode,
+    sourceSnapshot,
+    priorWork,
+    inputHashes: Object.fromEntries(
+      [...checked.files].filter(
+        ([path]) => path === ".voidra/voidra.json" || path.startsWith(".voidra/profile/") || path.startsWith(".voidra/backlog/") || path.startsWith(`.voidra/actions/${action.id}/`) && ![actionPath].includes(path) && !path.includes("/runs/")
+      ).map(([path, bytes]) => [path, hash2(bytes)])
+    ),
+    baseTags: await git(root, [
+      "for-each-ref",
+      "--format=%(refname):%(objectname)",
+      "refs/tags"
+    ]),
+    ...plan ? { planRevision: plan.revision } : {},
     baseCommit: await head(root),
+    startingChanges: Object.fromEntries(
+      await Promise.all(
+        [
+          ...new Set(
+            (await Promise.all([
+              git(root, ["diff", "--name-only", "-z"]),
+              git(root, ["diff", "--cached", "--name-only", "-z"]),
+              git(root, ["ls-files", "--others", "--exclude-standard", "-z"])
+            ])).flatMap((list) => list.split("\0").filter(Boolean))
+          )
+        ].filter((path) => !path.startsWith(".voidra/")).map(async (path) => [path, await fileHash(root, path)])
+      )
+    ),
     paths: [],
     fileHashes: {}
   };
@@ -29119,7 +29592,7 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
   });
   await save(root, ctx, [
     { path: actionPath, expectedHash: hash2(doc.raw), content: actionRaw },
-    ...(action.blockedBy ?? []).map((id2) => {
+    ...[...new Set(action.blockedBy ?? [])].map((id2) => {
       const path = `.voidra/actions/${id2}/action.md`, bytes = checked.files.get(path);
       return {
         path,
@@ -29140,10 +29613,11 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
     {
       path: ".voidra/local/run.lock",
       expectedHash: null,
-      content: JSON.stringify(lock)
+      content: stale || boundary ? null : JSON.stringify(lock)
     }
   ]);
-  if (action.type !== "docs" || action.stage !== "implement") {
+  if (stale || boundary) return runContext(root, run);
+  if (action.type === "release") {
     await endWithoutCommit(
       root,
       ownerToken,
@@ -29178,7 +29652,7 @@ async function safeGitPath(root, path) {
     throw new Error("Commit path escapes project");
   while (parent !== absoluteRoot) {
     try {
-      const info = await lstat3(parent);
+      const info = await lstat4(parent);
       if (info.isSymbolicLink())
         throw new Error("Commit paths cannot be symlinks");
     } catch (error62) {
@@ -29196,10 +29670,21 @@ async function prepareResult(root, token, input2) {
     throw new Error("Run result is already prepared");
   if (report.checks.some((check2) => !check2.passed))
     throw new Error("Failed checks cannot advance to Review");
+  await guardRun(root, token, report.paths);
   const { action, actionRaw, runRaw } = await current(root, ctx);
-  const next = transition(action, "advance", {}).action;
+  const project = await checkProject(root), plan = readPlan(project.files, action.id, project.records);
+  if (ctx.mode === "plan" || ["research", "release"].includes(action.type))
+    throw new Error("This run cannot prepare an implementation commit");
+  if (action.type !== "docs" && !report.reviews)
+    throw new Error("Both standards and plan review are required");
+  if (report.reviews && (!report.reviews.standards.passed || !report.reviews.plan.passed))
+    throw new Error("Fix both review parts before preparing");
+  const rules = projectLifecycles(project.metadata);
+  let next = action;
+  for (let i = 0; i < 8 && next.stage !== "review"; i++)
+    next = transition(next, "advance", plan ? { plan } : {}, rules).action;
   if (next.stage !== "review")
-    throw new Error("This runtime only prepares Docs/chore Review");
+    throw new Error("The run has not reached its result gate");
   for (const path of report.paths) {
     await safeGitPath(root, path);
     if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`))
@@ -29212,19 +29697,39 @@ async function prepareResult(root, token, input2) {
       outcome: "advanced",
       endedAt: (/* @__PURE__ */ new Date()).toISOString(),
       toStage: "review",
-      checks: report.checks
+      checks: report.checks,
+      paths: report.paths,
+      ...report.reviews ? { reviews: report.reviews } : {}
     },
-    `${report.summary}
-`
+    `## Summary
+${report.summary}
+
+## Changed files
+${report.paths.map((path) => `- ${path}`).join("\n") || "None."}
+${report.reviews ? `
+## Reviews
+Standards: ${report.reviews.standards.summary}
+
+Plan: ${report.reviews.plan.summary}
+` : ""}`
   ).toString();
   const preparedAction = serializeRecord(
     parseRecord(ctx.actionPath, actionRaw),
     next
   ).toString();
-  const paths = [.../* @__PURE__ */ new Set([...report.paths, ctx.actionPath, ctx.runPath])];
+  const paths = [
+    .../* @__PURE__ */ new Set([
+      ...report.paths,
+      ...[...project.files.keys()].filter(
+        (path) => path.startsWith(`.voidra/actions/${ctx.action}/`)
+      ),
+      ctx.actionPath,
+      ctx.runPath
+    ])
+  ];
   const fileHashes = {};
   for (const path of paths) {
-    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text3(root, path);
+    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text4(root, path);
     fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : await fileHash(root, path);
   }
   await save(
@@ -29262,7 +29767,9 @@ async function findCommit(root, ctx) {
 }
 async function fileHash(root, path) {
   try {
-    return hash2(await readFile3(join3(root, path)));
+    if ((await lstat4(join3(root, path))).isSymbolicLink())
+      return hash2(`link:${await readlink(join3(root, path))}`);
+    return hash2(await readFile5(join3(root, path)));
   } catch (error62) {
     if (error62.code === "ENOENT") return null;
     throw error62;
@@ -29278,6 +29785,9 @@ async function checkPreparedFiles(root, ctx) {
 }
 async function commitResult(root, token, message, options = {}) {
   const { ctx } = await owned(root, token);
+  if (ctx.mode === "plan") throw new Error("Planning-only runs cannot commit");
+  if (/^Voidra-(Action|Run):/m.test(message))
+    throw new Error("The runtime owns commit trailers");
   if (!["prepared", "commit-pending", "committed"].includes(ctx.phase))
     throw new Error("Prepare the result before committing");
   const existing = await findCommit(root, ctx);
@@ -29357,7 +29867,7 @@ async function reconcileIndex(root, ctx, token) {
     throw new Error("Git index changed outside the run; preserved");
   await owned(root, token);
   await git(root, ["reset", "-q", "HEAD", "--", ...ctx.paths]);
-  await rm(join3(root, `.voidra/local/commit-index-${ctx.run}`), {
+  await rm2(join3(root, `.voidra/local/commit-index-${ctx.run}`), {
     force: true
   });
   const { lockRaw } = await owned(root, token);
@@ -29454,7 +29964,7 @@ async function recoverRun(root, run, options = {}) {
   let ctx = await runContext(root, run);
   if (ctx.phase === "finalized" && ctx.indexReconciled || ["unsupported", "failed", "interrupted"].includes(ctx.phase))
     return ctx;
-  const raw = await text3(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
+  const raw = await text4(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
   if (lock && (!(await inspectLock(lock)).recoverable || lock.ownerToken !== ctx.ownerToken))
     throw new Error("Run owner is active, alive or cannot be verified");
   if (!lock && ctx.ownerPid && ctx.ownerHost === hostname4() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
@@ -29507,6 +30017,371 @@ async function recoverRun(root, run, options = {}) {
   }
   return runContext(root, run);
 }
+async function listRunContexts(root) {
+  await assertUnlinked(root, ".voidra/local/run-checkpoints");
+  const directory = join3(root, ".voidra/local/run-checkpoints");
+  const entries = await readdir3(directory, { withFileTypes: true }).catch(
+    (error62) => {
+      if (error62.code === "ENOENT") return [];
+      throw error62;
+    }
+  );
+  const values = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    values.push(await runContext(root, entry.name.slice(0, -5)));
+  }
+  return values;
+}
+async function publishPlanning(root, token, raw) {
+  const input2 = architectureProposalSchema.parse(raw), { ctx, lockRaw } = await inspectOwnedRun(root, token);
+  if (ctx.phase !== "started" || input2.action !== ctx.action)
+    throw new Error("Planning report does not match the active action");
+  if (await head(root) !== ctx.baseCommit || await git(root, [
+    "for-each-ref",
+    "--format=%(refname):%(objectname)",
+    "refs/tags"
+  ]) !== ctx.baseTags)
+    throw new Error("Git HEAD or tags changed during planning");
+  const source = await snapshotSources(root), changesOutside = sourceChanges(ctx.sourceSnapshot ?? {}, source).filter(
+    (path) => path !== "GLOSSARY.md"
+  );
+  if ((ctx.mode === "plan" || ["discovery", "plan"].includes(
+    schemas.action.parse(
+      parseRecord(
+        ctx.actionPath,
+        await text4(root, ctx.actionPath)
+      ).data
+    ).stage ?? ""
+  )) && changesOutside.length)
+    throw new Error(
+      "Planning changed non-planning files; preserve them and stop"
+    );
+  const result2 = await proposeArchitecture(root, input2, token, true), changes = result2.changes;
+  const actionRaw = changes?.find((c) => c.path === ctx.actionPath)?.content, runRaw = await text4(root, ctx.runPath);
+  if (!changes || !actionRaw || !runRaw || hash2(runRaw) !== ctx.runHash)
+    throw new Error("Planning files changed outside the run");
+  const action = schemas.action.parse(
+    parseRecord(ctx.actionPath, actionRaw).data
+  );
+  const run = serializeRecord(
+    parseRecord(ctx.runPath, runRaw),
+    {
+      ...parseRecord(ctx.runPath, runRaw).data,
+      outcome: "waiting",
+      endedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      toStage: action.stage,
+      planningOnly: changesOutside.length === 0
+    },
+    input2.summary ?? `Planning stopped at ${result2.gate}.
+`
+  ).toString();
+  const final = {
+    ...ctx,
+    phase: "finalized",
+    indexReconciled: true,
+    actionHash: hash2(actionRaw),
+    runHash: hash2(run),
+    paths: [],
+    fileHashes: Object.fromEntries(
+      Object.entries(result2.hashes).filter(
+        ([path]) => path !== ".voidra/local/run.lock"
+      )
+    )
+  };
+  for (const path of sourceChanges(ctx.sourceSnapshot ?? {}, source))
+    final.fileHashes[path] = source[path] ?? null;
+  await save(
+    root,
+    final,
+    [
+      ...changes.filter((c) => c.path !== ".voidra/local/run.lock"),
+      { path: ctx.runPath, expectedHash: hash2(runRaw), content: run },
+      {
+        path: ".voidra/local/run.lock",
+        expectedHash: hash2(lockRaw),
+        content: null
+      }
+    ],
+    Boolean(input2.glossary)
+  );
+  return runContext(root, ctx.run);
+}
+async function snapshotSources(root) {
+  const result2 = {};
+  const walk = async (path) => {
+    if (path === ".git" || path === ".voidra" || path.split("/").includes("node_modules") || path === ".agents/skills" || path === ".claude/skills" || path === ".agent-verification")
+      return;
+    const info = await lstat4(join3(root, path));
+    if (info.isDirectory())
+      for (const name of await readdir3(join3(root, path)))
+        await walk(path ? `${path}/${name}` : name);
+    else result2[path] = await fileHash(root, path);
+  };
+  for (const name of await readdir3(root)) await walk(name);
+  return result2;
+}
+function sourceChanges(before, after) {
+  return [.../* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])].filter(
+    (path) => before[path] !== after[path]
+  );
+}
+async function guardRun(root, token, paths = []) {
+  const { ctx } = await owned(root, token), { action } = await current(root, ctx), project = await checkProject(root), rules = projectLifecycles(project.metadata), plan = readPlan(project.files, action.id, project.records);
+  if (ctx.mode === "plan")
+    throw new Error("Planning-only runs cannot edit implementation files");
+  if (!["implement", "verify"].includes(action.stage ?? ""))
+    throw new Error("This stage cannot edit code");
+  if (rules[action.type].planGate && (!plan || !action.planApproval || Object.entries(plan.hashes).some(
+    ([name, value]) => action.planApproval?.hashes[name] !== value
+  ) || ctx.planRevision && ctx.planRevision !== plan.revision))
+    throw new Error(
+      "Plan changed; stop and obtain fresh approval before any code work"
+    );
+  for (const path of paths) {
+    await safeGitPath(root, path);
+    if (Object.hasOwn(ctx.startingChanges ?? {}, path) && !Object.hasOwn(ctx.priorWork ?? {}, path))
+      throw new Error(
+        `Pre-existing user edits overlap ${path}; preserve them and stop`
+      );
+  }
+  for (const [path, value] of Object.entries(ctx.inputHashes ?? {})) {
+    if (path.endsWith("/requirements.md") || path.endsWith("/blueprint.md") || path.endsWith("/acceptance.md"))
+      continue;
+    if (hash2(project.files.get(path) ?? "") !== value)
+      throw new Error(`Consumed record changed: ${path}`);
+  }
+}
+var researchReportSchema = external_exports.strictObject({
+  findings: external_exports.string().min(1),
+  recommendation: external_exports.string().min(1),
+  ideas: external_exports.array(
+    external_exports.strictObject({
+      title: external_exports.string().min(1),
+      description: external_exports.string().min(1)
+    })
+  )
+});
+var humanReportSchema = external_exports.strictObject({
+  title: external_exports.string().min(1),
+  description: external_exports.string().min(1),
+  steps: external_exports.array(external_exports.string().min(1)).min(1)
+});
+async function assertPlanningEffects(root, ctx) {
+  if (await head(root) !== ctx.baseCommit || await git(root, [
+    "for-each-ref",
+    "--format=%(refname):%(objectname)",
+    "refs/tags"
+  ]) !== ctx.baseTags)
+    throw new Error("Git HEAD or tags changed during planning");
+  if (sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length)
+    throw new Error(
+      "Planning changed repository files; preserve them and stop"
+    );
+}
+async function finishAtGate(root, token, action, summary, extra = []) {
+  const { ctx, lockRaw } = await owned(root, token), { actionRaw, runRaw } = await current(root, ctx);
+  if (ctx.phase !== "started") throw new Error("Run is already finished");
+  const actionBytes = serializeRecord(
+    parseRecord(ctx.actionPath, actionRaw),
+    action
+  ).toString();
+  const runBytes = serializeRecord(
+    parseRecord(ctx.runPath, runRaw),
+    {
+      ...parseRecord(ctx.runPath, runRaw).data,
+      outcome: "waiting",
+      endedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      toStage: action.stage,
+      planningOnly: sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length === 0
+    },
+    summary
+  ).toString();
+  await save(
+    root,
+    {
+      ...ctx,
+      phase: "finalized",
+      indexReconciled: true,
+      actionHash: hash2(actionBytes),
+      runHash: hash2(runBytes),
+      paths: [],
+      fileHashes: {
+        ...Object.fromEntries(
+          extra.map((c) => [
+            c.path,
+            c.content === null ? null : hash2(c.content)
+          ])
+        ),
+        ...Object.fromEntries(
+          await Promise.all(
+            sourceChanges(
+              ctx.sourceSnapshot ?? {},
+              await snapshotSources(root)
+            ).map(async (path) => [path, await fileHash(root, path)])
+          )
+        )
+      }
+    },
+    [
+      ...extra,
+      {
+        path: ctx.actionPath,
+        expectedHash: hash2(actionRaw),
+        content: actionBytes
+      },
+      { path: ctx.runPath, expectedHash: hash2(runRaw), content: runBytes },
+      {
+        path: ".voidra/local/run.lock",
+        expectedHash: hash2(lockRaw),
+        content: null
+      }
+    ]
+  );
+}
+async function publishResearch(root, token, raw) {
+  const input2 = researchReportSchema.parse(raw), { ctx } = await inspectOwnedRun(root, token), { action } = await current(root, ctx);
+  if (action.type !== "research" || action.stage !== "discovery")
+    throw new Error("Findings require Research Discovery");
+  await assertPlanningEffects(root, ctx);
+  const project = await checkProject(root), qPath = `.voidra/actions/${action.id}/questions.md`;
+  const q = project.records.get(qPath)?.document;
+  if (q && schemas.questions.parse(q.data).rounds.some(
+    (r) => r.questions.some(
+      (q2) => !q2.answer || q2.answer.kind === "agent-decides" && !q2.agentChoice
+    )
+  ))
+    throw new Error("Resolve open questions before publishing findings");
+  const ids = new Set(
+    [...project.records.values()].map((r) => String(r.document.data.id))
+  );
+  const changes = [];
+  const proposed = [];
+  for (const idea of input2.ideas) {
+    const id2 = createId("idea", ids);
+    ids.add(id2);
+    proposed.push(id2);
+    const path = `.voidra/backlog/${id2}.md`;
+    changes.push({
+      path,
+      expectedHash: null,
+      content: serializeRecord(
+        parseRecord(path, "---\n{}\n---\n"),
+        {
+          id: id2,
+          title: idea.title,
+          status: "new",
+          createdBy: ctx.agent,
+          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        idea.description
+      ).toString()
+    });
+  }
+  if (q)
+    changes.push({ path: qPath, expectedHash: hash2(q.raw), content: q.raw });
+  const next = transition(
+    action,
+    "advance",
+    {},
+    projectLifecycles(project.metadata)
+  ).action;
+  await finishAtGate(
+    root,
+    token,
+    next,
+    `## Findings
+${input2.findings}
+
+## Recommendation
+${input2.recommendation}
+
+## Proposed ideas
+${proposed.map((id2) => `- ${id2}`).join("\n") || "None."}
+`,
+    changes
+  );
+}
+async function publishHumanBlocker(root, token, raw) {
+  const input2 = humanReportSchema.parse(raw), { ctx } = await inspectOwnedRun(root, token), { action } = await current(root, ctx), project = await checkProject(root);
+  const id2 = createId(
+    "act",
+    new Set(
+      [...project.records.values()].map((r) => String(r.document.data.id))
+    )
+  ), path = `.voidra/actions/${id2}/action.md`;
+  if (ctx.mode === "plan" || ["discovery", "plan"].includes(action.stage ?? ""))
+    await assertPlanningEffects(root, ctx);
+  const human = schemas.action.parse({
+    id: id2,
+    type: "docs",
+    title: input2.title,
+    doneBy: "you",
+    status: "ready",
+    createdBy: ctx.agent,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    steps: input2.steps.map((title2, i) => ({
+      id: `step-${i + 1}`,
+      title: title2,
+      done: false
+    }))
+  });
+  await finishAtGate(
+    root,
+    token,
+    {
+      ...action,
+      status: "ready",
+      blockedBy: [.../* @__PURE__ */ new Set([...action.blockedBy ?? [], id2])]
+    },
+    `Waiting for human action ${id2}: ${input2.title}
+`,
+    [
+      {
+        path,
+        expectedHash: null,
+        content: serializeRecord(
+          parseRecord(path, "---\n{}\n---\n"),
+          human,
+          input2.description
+        ).toString()
+      }
+    ]
+  );
+  return id2;
+}
+async function resolveDelegatedChoices(root, token, raw) {
+  const input2 = external_exports.array(
+    external_exports.strictObject({
+      question: external_exports.string(),
+      choice: external_exports.string().min(1),
+      reason: external_exports.string().min(1)
+    })
+  ).min(1).parse(raw);
+  const { ctx } = await inspectOwnedRun(root, token), project = await checkProject(root), path = `.voidra/actions/${ctx.action}/questions.md`, doc = project.records.get(path)?.document;
+  if (!doc || ctx.phase !== "started")
+    throw new Error("No active question round");
+  const questions = schemas.questions.parse(doc.data);
+  for (const choice of input2) {
+    const q = questions.rounds.flatMap((r) => r.questions).find((q2) => q2.id === choice.question);
+    if (q?.answer?.kind !== "agent-decides" || q.agentChoice)
+      throw new Error("Only unresolved delegated choices may be resolved");
+    if (!q.options.some((o) => o.label === choice.choice))
+      throw new Error("Unknown option");
+    q.agentChoice = {
+      choice: choice.choice,
+      reason: choice.reason,
+      by: ctx.agent,
+      at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  const bytes = serializeRecord(doc, questions).toString();
+  await save(
+    root,
+    { ...ctx, inputHashes: { ...ctx.inputHashes, [path]: hash2(bytes) } },
+    [{ path, expectedHash: hash2(doc.raw), content: bytes }]
+  );
+}
 
 // tools/run-engine/src/runtime.ts
 async function ownerPid() {
@@ -29538,7 +30413,8 @@ async function runRuntime(args, cwd = process.cwd()) {
       "--run",
       "--report",
       "--message",
-      "--summary"
+      "--summary",
+      "--mode"
     ]);
     for (const key of flags.keys())
       if (!allowed.has(key)) throw new Error(`Unknown flag ${key}`);
@@ -29550,7 +30426,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     if (command === "help" || command === "--help")
       return {
         code: 0,
-        value: "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID]; heartbeat --token TOKEN; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
+        value: "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
       };
     if (command === "start") {
       const agent = need("--agent");
@@ -29559,15 +30435,68 @@ async function runRuntime(args, cwd = process.cwd()) {
       const pid = flags.has("--owner-pid") ? Number(need("--owner-pid")) : await ownerPid();
       if (!Number.isSafeInteger(pid) || pid < 1)
         throw new Error("Invalid owner PID");
-      return { code: 0, value: await startRun(root, agent, pid) };
+      const mode = flags.get("--mode") ?? "go";
+      if (mode !== "go" && mode !== "plan") throw new Error("Unknown run mode");
+      const project = await checkProject(root);
+      const templateId = project.metadata?.template?.id;
+      let templateInfo = null;
+      if (templateId) {
+        const folder = typeof __voidraIntakeTemplates === "undefined" ? fileURLToPath2(new URL("../../../templates/", import.meta.url)) : __voidraIntakeTemplates;
+        const path = resolve2(folder, templateId, "template.yaml"), template = await loadTemplate(path);
+        if (template.version !== project.metadata?.template?.version)
+          throw new Error(
+            "Installed template version differs from the project"
+          );
+        templateInfo = {
+          id: template.id,
+          version: template.version,
+          architectureSkill: template.architectureSkill,
+          path
+        };
+      }
+      const ctx = await startRun(root, agent, pid, mode);
+      return {
+        code: 0,
+        value: ctx ? { ...publicContext(ctx), template: templateInfo } : null
+      };
     }
     if (command === "heartbeat") {
       await heartbeat(root, need("--token"));
       return { code: 0, value: { heartbeat: true } };
     }
+    if (command === "planning") {
+      const input2 = JSON.parse(
+        await readFile6(resolve2(root, need("--report")), "utf8")
+      );
+      return {
+        code: 0,
+        value: publicContext(
+          await publishPlanning(root, need("--token"), input2)
+        )
+      };
+    }
+    if (["guard", "choices", "research", "human"].includes(command ?? "")) {
+      const input2 = JSON.parse(
+        await readFile6(resolve2(root, need("--report")), "utf8")
+      ), token = need("--token");
+      if (command === "guard") {
+        if (!Array.isArray(input2) || !input2.every((p) => typeof p === "string"))
+          throw new Error("Guard report must be an array of file paths");
+        await guardRun(root, token, input2);
+      } else if (command === "choices")
+        await resolveDelegatedChoices(root, token, input2);
+      else if (command === "research")
+        await publishResearch(root, token, input2);
+      else
+        return {
+          code: 0,
+          value: { human: await publishHumanBlocker(root, token, input2) }
+        };
+      return { code: 0, value: { ok: true } };
+    }
     if (command === "prepare") {
       const report = reportSchema.parse(
-        JSON.parse(await readFile4(resolve2(root, need("--report")), "utf8"))
+        JSON.parse(await readFile6(resolve2(root, need("--report")), "utf8"))
       );
       await prepareResult(root, need("--token"), report);
       return { code: 0, value: { prepared: true } };
@@ -29590,7 +30519,10 @@ async function runRuntime(args, cwd = process.cwd()) {
     if (command === "recover")
       return { code: 0, value: await recoverRun(root, need("--run")) };
     if (command === "inspect")
-      return { code: 0, value: await runContext(root, need("--run")) };
+      return {
+        code: 0,
+        value: publicContext(await runContext(root, need("--run")))
+      };
     throw new Error("Unknown command; use help");
   } catch (error62) {
     return {
@@ -29598,6 +30530,11 @@ async function runRuntime(args, cwd = process.cwd()) {
       value: { error: error62 instanceof Error ? error62.message : String(error62) }
     };
   }
+}
+function publicContext(ctx) {
+  if (!ctx) return null;
+  const { run, action, agent, phase, ownerToken, actionPath, runPath, mode } = ctx;
+  return { run, action, agent, phase, ownerToken, actionPath, runPath, mode };
 }
 
 // tools/run-engine/src/cli-entry.ts

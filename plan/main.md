@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P07 are Done; P08 is next. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P07 are Done; P08 is In progress. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -36,7 +36,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P05 | [The general template](phase-05-general-template.md) | Profile questions and architecture skill, approved by you | P04 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p05.md) |
 | P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p06.md) |
 | P07 | [Questions, gates and inbox](phase-07-questions-gates-and-inbox.md) | Question rounds, plan and review gates, Waiting for you | P04, P06 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p07.md) |
-| P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | Not started | — |
+| P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | In progress | [Progress evidence](../docs/verification/p08.md) |
 | P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | Not started | — |
 | P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | Not started | — |
 | P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | Not started | — |

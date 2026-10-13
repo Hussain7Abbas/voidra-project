@@ -161,6 +161,7 @@ export async function scanDeprecations(
       else if (
         entry.isFile() &&
         relativePath !== "skills/voidra-go/scripts/runtime.mjs" &&
+        relativePath !== "skills/voidra-plan/scripts/runtime.mjs" &&
         relativePath !== "skills/voidra-init/scripts/init.mjs" &&
         relativePath !==
           "skills/voidra-architect-general/scripts/architecture.mjs" &&

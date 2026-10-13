@@ -155,6 +155,9 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
     "createdWith": {
       "type": "string",
       "minLength": 1
+    },
+    "lifecycleOverrides": {
+      "$ref": "#/$defs/__schema0"
     }
   },
   "required": [
@@ -164,7 +167,40 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
     "template",
     "createdWith"
   ],
-  "additionalProperties": {}
+  "additionalProperties": {},
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
 }
 ```
 
@@ -1110,6 +1146,60 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         ],
         "additionalProperties": {}
       }
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "planningOnly": {
+      "type": "boolean"
+    },
+    "reviews": {
+      "type": "object",
+      "properties": {
+        "standards": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "passed",
+            "summary"
+          ],
+          "additionalProperties": {}
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "passed",
+            "summary"
+          ],
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "standards",
+        "plan"
+      ],
+      "additionalProperties": {}
     }
   },
   "required": [

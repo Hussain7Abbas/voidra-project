@@ -1,6 +1,13 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, readFile, rename, rm } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -43,4 +50,15 @@ if (current !== hash) {
   } finally {
     await rm(temp, { force: true });
   }
+}
+
+const planningTarget = resolve(root, "skills/voidra-plan/scripts/process-info");
+const binary = await readFile(target);
+if (process.argv.includes("--check")) {
+  if (!(await readFile(planningTarget).catch(() => null))?.equals(binary))
+    throw new Error("Planning process helper is stale");
+} else {
+  await mkdir(resolve(root, "skills/voidra-plan/scripts"), { recursive: true });
+  await writeFile(planningTarget, binary);
+  await chmod(planningTarget, 0o755);
 }

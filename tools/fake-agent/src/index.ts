@@ -6,6 +6,8 @@ import {
   finalizeResult,
   initializeExisting,
   prepareResult,
+  publishPlanning,
+  publishResearch,
   startRun,
 } from "@voidra/run-engine";
 import {
@@ -14,6 +16,7 @@ import {
   hash,
   loadTemplate,
   parseRecord,
+  schemas,
   serializeRecord,
 } from "voidra";
 export type Scenario =
@@ -60,7 +63,7 @@ export async function runFakeAgent(
   }
   const ctx = await startRun(root, "codex", process.pid);
   if (!ctx) throw new Error("No queued action");
-  if (ctx.phase === "unsupported") return { run: ctx.run, scenario };
+  if (ctx.phase !== "started") return { run: ctx.run, scenario };
   if (scenario === "invalid-write") {
     await writeFile(
       join(root, ctx.actionPath),
@@ -124,6 +127,38 @@ export async function runFakeAgent(
       await readFile(join(root, ctx.actionPath)),
     ),
     before = await readFile(join(root, "README.md"), "utf8");
+  const data = schemas.action.parse(action.data);
+  if (scenario === "success" && data.type === "research") {
+    await publishResearch(root, ctx.ownerToken, {
+      findings: "The scripted fixture uses a local README boundary.",
+      recommendation:
+        "Keep the next documentation improvement small and observable.",
+      ideas: [
+        {
+          title: "Clarify troubleshooting",
+          description: "Proposed fixture follow-up.",
+        },
+      ],
+    });
+    return { run: ctx.run, scenario };
+  }
+  if (
+    scenario === "success" &&
+    ["discovery", "plan"].includes(data.stage ?? "")
+  ) {
+    await publishPlanning(root, ctx.ownerToken, {
+      action: ctx.action,
+      kind: "plan",
+      summary:
+        "Scripted general architecture dispatch; app-side gate scenario only.",
+      requirements:
+        "## Goal\nClarify local fixture installation.\n## Out of scope\nNetwork and account changes.\n",
+      blueprint:
+        "## Approach\nUpdate the README boundary.\n## Testing seams\nRead the public README and validate planning records.\n## Proposed ADRs\nNone for this reversible documentation fixture.\n",
+      acceptance: "- The README names the installation command.\n",
+    });
+    return { run: ctx.run, scenario };
+  }
   const feedback = (
     action.data.reviewDecision as { feedback?: string } | undefined
   )?.feedback;
@@ -137,6 +172,10 @@ export async function runFakeAgent(
       ? "Added troubleshooting guidance from the review feedback."
       : "Added installation guidance.",
     paths: ["README.md"],
+    reviews: {
+      standards: { passed: true, summary: "Fixture rules checked" },
+      plan: { passed: true, summary: "Scripted accepted scope checked" },
+    },
     checks: [
       { name: "Documentation reviewed", passed: true },
       { name: "voidra check", passed: true },

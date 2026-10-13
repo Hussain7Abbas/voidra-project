@@ -10228,9 +10228,9 @@ var asciiTabOrNewline = /[\t\n\r]/g;
 function stripTabAndNewline(value) {
   return value.replace(asciiTabOrNewline, "");
 }
-function urlHostnameOk(url2, hostname3) {
-  hostname3.lastIndex = 0;
-  return hostname3.test(url2.hostname);
+function urlHostnameOk(url2, hostname4) {
+  hostname4.lastIndex = 0;
+  return hostname4.test(url2.hostname);
 }
 function urlProtocolOk(url2, protocol) {
   protocol.lastIndex = 0;
@@ -27300,6 +27300,14 @@ var stages = [
   "released",
   "cancelled"
 ];
+var lifecycleOverridesSchema = external_exports.partialRecord(
+  external_exports.enum(types),
+  object2({
+    stages: external_exports.array(external_exports.enum(stages)),
+    planGate: external_exports.boolean(),
+    rejectTo: external_exports.enum(stages)
+  })
+);
 var hashesSchema = object2({
   "requirements.md": hashSchema,
   "blueprint.md": hashSchema,
@@ -27385,7 +27393,8 @@ var schemas = {
     requiredVoidra: version2,
     project: object2({ id: id("prj"), name: text }),
     template: object2({ id: slug, version: version2 }).nullable(),
-    createdWith: text
+    createdWith: text,
+    lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
     block: slug,
@@ -27442,7 +27451,13 @@ var schemas = {
       "interrupted"
     ]),
     commit: text.optional(),
-    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional()
+    checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional(),
+    paths: external_exports.array(text).optional(),
+    planningOnly: external_exports.boolean().optional(),
+    reviews: object2({
+      standards: object2({ passed: external_exports.boolean(), summary: text }),
+      plan: object2({ passed: external_exports.boolean(), summary: text })
+    }).optional()
   }),
   release: object2({
     version: version2,
@@ -27588,6 +27603,28 @@ function validateLifecycles(rules) {
   }
   return errors;
 }
+function projectLifecycles(metadata) {
+  const parsed = lifecycleOverridesSchema.safeParse(
+    metadata?.lifecycleOverrides ?? {}
+  );
+  if (!parsed.success)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      "Invalid lifecycle overrides",
+      "lifecycleOverrides"
+    );
+  const rules = { ...lifecycles, ...parsed.data };
+  const errors = validateLifecycles(rules);
+  if (errors.length)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      errors.join("; "),
+      "lifecycleOverrides"
+    );
+  return rules;
+}
 var planFiles = [
   "requirements.md",
   "blueprint.md",
@@ -27712,11 +27749,11 @@ function readPlan(files, id2, records) {
   return planRevision(values);
 }
 function minimumNewer(required2) {
-  const current = PACKAGE_VERSION.split(".").map(Number);
+  const current2 = PACKAGE_VERSION.split(".").map(Number);
   const parts = required2.split("-")[0]?.split(".").map(Number) ?? [];
   for (let i = 0; i < 3; i++) {
-    if ((parts[i] ?? 0) !== current[i])
-      return (parts[i] ?? 0) > (current[i] ?? 0);
+    if ((parts[i] ?? 0) !== current2[i])
+      return (parts[i] ?? 0) > (current2[i] ?? 0);
   }
   return false;
 }
@@ -27816,7 +27853,22 @@ function inspectFiles(files, options = {}) {
     const kind = fileKind(file2);
     if (kind && kind !== "project") parse3(file2, kind);
   }
-  const rules = options.lifecycles ?? lifecycles;
+  let rules;
+  try {
+    const declared = projectLifecycles(metadata);
+    rules = options.lifecycles ?? declared;
+  } catch (error62) {
+    if (error62 instanceof VoidraError) diagnostics.push(error62.diagnostic());
+    else throw error62;
+    return result2;
+  }
+  if (metadata.lifecycleOverrides && Object.keys(metadata.lifecycleOverrides).length && !extendedActions)
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Lifecycle overrides require voidra \u2265 0.2.0"
+    );
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result2;
@@ -28635,24 +28687,26 @@ var templateSchema = external_exports.looseObject({
       questions: external_exports.array(templateQuestionSchema).min(1)
     })
   ).min(1),
-  lifecycleOverrides: external_exports.partialRecord(
-    external_exports.enum(types),
-    external_exports.looseObject({
-      stages: external_exports.array(external_exports.enum(stages)),
-      planGate: external_exports.boolean(),
-      rejectTo: external_exports.enum(stages)
-    })
-  ).optional()
+  lifecycleOverrides: lifecycleOverridesSchema.optional()
 });
 
 // tools/run-engine/src/run.ts
 import { execFile as execFile2 } from "node:child_process";
-import { lstat as lstat3, readdir as readdir2, readFile as readFile3, realpath as realpath2, rm } from "node:fs/promises";
+import {
+  lstat as lstat3,
+  readdir as readdir2,
+  readFile as readFile3,
+  readlink,
+  realpath as realpath2,
+  rm
+} from "node:fs/promises";
+import { hostname as hostname3 } from "node:os";
 import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve } from "node:path";
 import { promisify as promisify2 } from "node:util";
 
 // tools/run-engine/src/process.ts
 import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 var execute = promisify(execFile);
 var processSchema2 = external_exports.strictObject({
@@ -28661,6 +28715,50 @@ var processSchema2 = external_exports.strictObject({
   identity: external_exports.string().min(1),
   command: external_exports.string()
 });
+async function processInfo(pid) {
+  if (process.platform === "darwin") {
+    const binary = typeof __voidraProcessHelper !== "undefined" ? __voidraProcessHelper : fileURLToPath(
+      new URL(
+        "../../../skills/voidra-go/scripts/process-info",
+        import.meta.url
+      )
+    );
+    const result2 = await execute(binary, [String(pid)], { encoding: "utf8" });
+    const data = JSON.parse(result2.stdout);
+    return data === null ? null : processSchema2.parse(data);
+  }
+  try {
+    const result2 = await execute(
+      "ps",
+      ["-p", String(pid), "-o", "ppid=,lstart=,comm="],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          NODE_ENV: process.env.NODE_ENV ?? "production",
+          TZ: "UTC",
+          LC_ALL: "C"
+        }
+      }
+    );
+    const match = /^\s*(\d+)\s+(.{24})\s+(.+)\s*$/.exec(result2.stdout);
+    if (!match) return null;
+    return {
+      pid,
+      parentPid: Number(match[1]),
+      identity: match[2]?.trim() ?? "",
+      command: match[3]?.trim().split("/").at(-1) ?? ""
+    };
+  } catch (error62) {
+    if (error62.code === 1) return null;
+    throw error62;
+  }
+}
+
+// tools/run-engine/src/lock.ts
+async function processIdentity(pid) {
+  return (await processInfo(pid))?.identity ?? null;
+}
 
 // tools/run-engine/src/run.ts
 var execute2 = promisify2(execFile2);
@@ -28688,6 +28786,13 @@ var checkpointSchema = external_exports.looseObject({
     "interrupted"
   ]),
   baseCommit: external_exports.string().nullable(),
+  mode: external_exports.enum(["go", "plan"]).optional(),
+  sourceSnapshot: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
+  inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
+  priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
+  baseTags: external_exports.string().optional(),
+  planRevision: external_exports.string().optional(),
+  startingChanges: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   paths: external_exports.array(external_exports.string()),
   fileHashes: external_exports.record(external_exports.string(), external_exports.string().nullable()),
   commit: external_exports.string().optional(),
@@ -28697,6 +28802,13 @@ var checkpointSchema = external_exports.looseObject({
 });
 var reportSchema = external_exports.strictObject({
   summary: external_exports.string().min(1),
+  reviews: external_exports.strictObject({
+    standards: external_exports.strictObject({
+      passed: external_exports.boolean(),
+      summary: external_exports.string().min(1)
+    }),
+    plan: external_exports.strictObject({ passed: external_exports.boolean(), summary: external_exports.string().min(1) })
+  }).optional(),
   paths: external_exports.array(external_exports.string()),
   checks: external_exports.array(
     external_exports.strictObject({ name: external_exports.string().min(1), passed: external_exports.boolean() })
@@ -28704,11 +28816,11 @@ var reportSchema = external_exports.strictObject({
 });
 var checkpointPath = (run) => `.voidra/local/run-checkpoints/${run}.json`;
 async function assertUnlinked(root, path) {
-  let current = root;
+  let current2 = root;
   for (const part of path.split("/")) {
-    current = join3(current, part);
+    current2 = join3(current2, part);
     try {
-      if ((await lstat3(current)).isSymbolicLink())
+      if ((await lstat3(current2)).isSymbolicLink())
         throw new Error("Private run path contains a symlink");
     } catch (error62) {
       if (error62.code === "ENOENT") return;
@@ -28739,6 +28851,40 @@ async function runContext(root, run) {
       throw new Error("Run checkpoint contains another action's files");
   }
   return ctx;
+}
+async function owned(root, token) {
+  const lockRaw = await text3(root, ".voidra/local/run.lock");
+  if (!lockRaw) throw new Error("Run owner lock was lost");
+  const lock = schemas.lock.parse(JSON.parse(lockRaw));
+  if (lock.ownerToken !== token)
+    throw new Error("Run owner token changed; stop before another write");
+  if (lock.host !== hostname3() || await processIdentity(lock.pid) !== lock.processStartedAt)
+    throw new Error("Run owner is not active on this computer");
+  const ctx = await runContext(root, lock.run);
+  if (ctx.ownerToken !== token) throw new Error("Run checkpoint owner differs");
+  return { ctx, lock, lockRaw };
+}
+async function current(root, ctx) {
+  const checked = await checkProject(root);
+  if (checked.diagnostics.some(
+    (d) => !["stale-approval", "stale-review"].includes(d.code)
+  ))
+    throw new Error("Planning files are invalid or need recovery");
+  const actionRaw = await text3(root, ctx.actionPath), runRaw = await text3(root, ctx.runPath);
+  if (!actionRaw || !runRaw || hash2(actionRaw) !== ctx.actionHash || hash2(runRaw) !== ctx.runHash)
+    throw new Error(
+      "Action or run changed outside this owner; recovery conflict"
+    );
+  return {
+    action: schemas.action.parse(parseRecord(ctx.actionPath, actionRaw).data),
+    actionRaw,
+    runRaw
+  };
+}
+async function inspectOwnedRun(root, token) {
+  const result2 = await owned(root, token);
+  await current(root, result2.ctx);
+  return result2;
 }
 async function safeGitPath(root, path) {
   if (!path || isAbsolute2(path) || path.includes("\0") || path.includes("\\") || path.split("/").some((p) => p === ".." || p === ".git") || path.startsWith(".voidra/local/") || path === ".voidra/local")
@@ -28777,25 +28923,36 @@ async function listRunContexts(root) {
   }
   return values;
 }
+var researchReportSchema = external_exports.strictObject({
+  findings: external_exports.string().min(1),
+  recommendation: external_exports.string().min(1),
+  ideas: external_exports.array(
+    external_exports.strictObject({
+      title: external_exports.string().min(1),
+      description: external_exports.string().min(1)
+    })
+  )
+});
+var humanReportSchema = external_exports.strictObject({
+  title: external_exports.string().min(1),
+  description: external_exports.string().min(1),
+  steps: external_exports.array(external_exports.string().min(1)).min(1)
+});
 
 // tools/run-engine/src/architecture.ts
 var text4 = external_exports.string().min(1);
 var base = {
   action: schemas.action.shape.id,
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(),
-  glossary: text4.optional()
+  glossary: text4.optional(),
+  summary: text4.optional()
 };
-var inputSchema = external_exports.discriminatedUnion("kind", [
+var architectureProposalSchema = external_exports.discriminatedUnion("kind", [
   external_exports.strictObject({
     ...base,
     kind: external_exports.literal("questions"),
     questions: external_exports.array(
-      questionSchema.pick({
-        text: true,
-        why: true,
-        options: true,
-        dependsOn: true
-      })
+      questionSchema.pick({ text: true, why: true, options: true, dependsOn: true }).strict()
     ).min(1)
   }),
   external_exports.strictObject({
@@ -28811,30 +28968,43 @@ var inputSchema = external_exports.discriminatedUnion("kind", [
     slices: external_exports.array(external_exports.strictObject({ title: text4, description: text4 })).min(2)
   })
 ]);
-async function proposeArchitecture(root, raw) {
-  const input3 = inputSchema.parse(raw), path = `.voidra/actions/${input3.action}/action.md`;
+async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
+  const input3 = architectureProposalSchema.parse(raw), path = `.voidra/actions/${input3.action}/action.md`;
+  const owner = ownerToken ? await inspectOwnedRun(root, ownerToken) : null;
+  if (owner && (owner.ctx.action !== input3.action || owner.ctx.phase !== "started"))
+    throw new Error("Proposal does not belong to this active run");
   const check2 = await checkProject(root);
-  if (check2.diagnostics.length)
+  if (check2.diagnostics.some(
+    (d) => !["stale-approval", "stale-review"].includes(d.code)
+  ))
     throw new Error(
       "Project is invalid or read-only; inspect diagnostics first"
     );
   if ([...check2.records.values()].some(
-    (r) => r.kind === "operation" && r.document.data.state === "prepared" || r.kind === "run" && r.document.data.outcome === "running"
+    (r) => r.kind === "operation" && r.document.data.state === "prepared" || r.kind === "run" && r.document.data.outcome === "running" && r.document.data.id !== owner?.ctx.run
   ) || (await listRunContexts(root)).some(
-    (ctx) => !["failed", "unsupported", "interrupted"].includes(ctx.phase) && !(ctx.phase === "finalized" && ctx.indexReconciled)
+    (ctx) => ctx.run !== owner?.ctx.run && !["failed", "unsupported", "interrupted"].includes(ctx.phase) && !(ctx.phase === "finalized" && ctx.indexReconciled)
   ))
     throw new Error(
       "Recover unfinished operations or runs before architecture proposals"
     );
   const bytes = await readFile4(await safePath(root, path)), record2 = parseRecord(path, bytes), action = schemas.action.parse(record2.data);
-  if (action.doneBy !== "agent" || !["discovery", "plan"].includes(action.stage ?? ""))
+  if (action.doneBy !== "agent" || !owner && !["discovery", "plan"].includes(action.stage ?? ""))
     throw new Error(
       "Architecture proposals require an agent action in Discovery or Plan"
     );
+  if (owner && hash2(bytes) !== owner.ctx.actionHash)
+    throw new Error("Action changed outside the run");
+  if (input3.glossary && action.stage !== "discovery")
+    throw new Error("Settled glossary terms are written during Discovery");
   if (input3.revision && input3.revision !== hash2(bytes))
     throw new Error("Action revision changed; reread before proposing");
   const changes = [
-    { path: ".voidra/local/run.lock", expectedHash: null, content: null }
+    {
+      path: ".voidra/local/run.lock",
+      expectedHash: owner ? hash2(owner.lockRaw) : null,
+      content: owner?.lockRaw ?? null
+    }
   ];
   async function put(file2, data, body = "") {
     const full = await safePath(root, file2), old = await readFile4(full).catch((error62) => {
@@ -28908,6 +29078,11 @@ async function proposeArchitecture(root, raw) {
         { action: input3.action },
         input3[file2]
       );
+    const rule = projectLifecycles(check2.metadata)[action.type];
+    if (!rule.planGate)
+      throw new Error(
+        "This action uses its result gate rather than a plan approval"
+      );
     action.stage = "plan";
     action.status = "waiting";
     if (action.planApproval)
@@ -28917,15 +29092,22 @@ async function proposeArchitecture(root, raw) {
       ];
     delete action.planApproval;
   } else {
-    const children = input3.slices.map(() => createId("act"));
+    const existing = new Set(
+      [...check2.records.values()].map((r) => String(r.document.data.id))
+    );
+    const children = input3.slices.map(() => {
+      const id2 = createId("act", existing);
+      existing.add(id2);
+      return id2;
+    });
     for (const [index, slice] of input3.slices.entries())
       await put(
         `.voidra/actions/${children[index]}/action.md`,
         {
           id: children[index],
-          type: "feature",
+          type: action.type,
           title: slice.title,
-          stage: "discovery",
+          stage: projectLifecycles(check2.metadata)[action.type].stages[0],
           status: "ready",
           doneBy: "agent",
           parent: action.id,
@@ -28942,8 +29124,18 @@ async function proposeArchitecture(root, raw) {
       expectedHash: hash2(bytes),
       content: serializeRecord(record2, action).toString()
     });
-    await applyOperation(root, { changes });
-    return { gate: "slices", children };
+    if (!prepareOnly) await applyOperation(root, { changes });
+    return {
+      gate: "slices",
+      children,
+      ...prepareOnly ? { changes } : {},
+      hashes: Object.fromEntries(
+        changes.map((c) => [
+          c.path,
+          c.content === null ? null : hash2(c.content)
+        ])
+      )
+    };
   }
   changes.push({
     path,
@@ -28955,14 +29147,25 @@ async function proposeArchitecture(root, raw) {
       if (error62.code !== "ENOENT") throw error62;
       return null;
     });
+    if (old && !input3.glossary.startsWith(old.toString()))
+      throw new Error(
+        "Settled glossary additions must preserve existing terms"
+      );
     changes.push({
       path: "GLOSSARY.md",
       expectedHash: old === null ? null : hash2(old),
       content: input3.glossary
     });
   }
-  await applyOperation(root, { changes }, { allowGlossary: true });
-  return { gate: input3.kind };
+  if (!prepareOnly)
+    await applyOperation(root, { changes }, { allowGlossary: true });
+  return {
+    gate: input3.kind,
+    ...prepareOnly ? { changes } : {},
+    hashes: Object.fromEntries(
+      changes.map((c) => [c.path, c.content === null ? null : hash2(c.content)])
+    )
+  };
 }
 async function runArchitecture(args, stdin, cwd = process.cwd()) {
   try {

@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { parseRecord, serializeRecord } from "voidra";
-export async function fixture(type = "docs") {
+import { type Action, lifecycles, parseRecord, serializeRecord } from "voidra";
+export async function fixture(type: Action["type"] = "docs") {
   const root = await mkdtemp(join(tmpdir(), "voidra-run-"));
   await cp(resolve("fixtures/new-project/project"), root, { recursive: true });
   const path = ".voidra/actions/act-000000/action.md",
@@ -16,7 +16,7 @@ export async function fixture(type = "docs") {
         id: "act-000000",
         type,
         title: "Document installation",
-        stage: type === "docs" ? "implement" : "discovery",
+        stage: lifecycles[type].stages[0],
         status: "ready",
         doneBy: "agent",
       },

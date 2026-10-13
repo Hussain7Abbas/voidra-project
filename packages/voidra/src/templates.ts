@@ -16,7 +16,7 @@ import { createId } from "./ids.ts";
 import { hash, lifecycles, validateLifecycles } from "./lifecycle.ts";
 import { checkProject, FORMAT_VERSION, PACKAGE_VERSION } from "./project.ts";
 import { fieldLine, parseRecord, serializeRecord } from "./records.ts";
-import { schemas, stages, types, version } from "./schemas.ts";
+import { lifecycleOverridesSchema, schemas, version } from "./schemas.ts";
 import { applyOperation, type WriteManifest } from "./writer.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -55,16 +55,7 @@ export const templateSchema = z.looseObject({
       }),
     )
     .min(1),
-  lifecycleOverrides: z
-    .partialRecord(
-      z.enum(types),
-      z.looseObject({
-        stages: z.array(z.enum(stages)),
-        planGate: z.boolean(),
-        rejectTo: z.enum(stages),
-      }),
-    )
-    .optional(),
+  lifecycleOverrides: lifecycleOverridesSchema.optional(),
 });
 export type Template = z.infer<typeof templateSchema>;
 export type TemplateQuestion = z.infer<typeof templateQuestionSchema>;

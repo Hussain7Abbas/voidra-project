@@ -57,6 +57,9 @@
     "createdWith": {
       "type": "string",
       "minLength": 1
+    },
+    "lifecycleOverrides": {
+      "$ref": "#/$defs/__schema0"
     }
   },
   "required": [
@@ -66,5 +69,38 @@
     "template",
     "createdWith"
   ],
-  "additionalProperties": {}
+  "additionalProperties": {},
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
 }

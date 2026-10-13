@@ -7,6 +7,7 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 const files: { path: string; bytes: Buffer }[] = [];
 for (const [skill, entry, script] of [
   ["voidra-go", "cli-entry.ts", "runtime.mjs"],
+  ["voidra-plan", "cli-entry.ts", "runtime.mjs"],
   ["voidra-init", "init-cli.ts", "init.mjs"],
   ["voidra-architect-general", "architecture-cli.ts", "architecture.mjs"],
 ]) {
@@ -42,15 +43,16 @@ for (const folder of await readdir(resolve(root, "templates"), {
   withFileTypes: true,
 })) {
   if (!folder.isDirectory()) continue;
-  files.push({
-    path: resolve(
-      root,
-      `skills/voidra-init/references/templates/${folder.name}/template.yaml`,
-    ),
-    bytes: await readFile(
-      resolve(root, `templates/${folder.name}/template.yaml`),
-    ),
-  });
+  for (const skill of ["voidra-init", "voidra-go", "voidra-plan"])
+    files.push({
+      path: resolve(
+        root,
+        `skills/${skill}/references/templates/${folder.name}/template.yaml`,
+      ),
+      bytes: await readFile(
+        resolve(root, `templates/${folder.name}/template.yaml`),
+      ),
+    });
 }
 for (const file of files) {
   if (process.argv.includes("--check")) {
@@ -75,3 +77,21 @@ async function checkCopies(directory: string): Promise<void> {
   }
 }
 await checkCopies(templateCopies);
+
+for (const name of [
+  "runtime.md",
+  "discovery.md",
+  "plan.md",
+  "research.md",
+  "third-party-notices.txt",
+]) {
+  const bytes = await readFile(
+    resolve(root, `skills/voidra-go/references/${name}`),
+  );
+  const path = resolve(root, `skills/voidra-plan/references/${name}`);
+  if (process.argv.includes("--check")) {
+    const old = await readFile(path).catch(() => null);
+    if (!old?.equals(bytes))
+      throw new Error("Planning guide is missing or stale; run make gen");
+  } else await writeFile(path, bytes);
+}

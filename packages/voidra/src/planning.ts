@@ -4,8 +4,8 @@ import {
   actionComplete,
   approvalCurrent,
   hash,
-  lifecycles,
   planFiles,
+  projectLifecycles,
   transition,
 } from "./lifecycle.ts";
 import {
@@ -35,7 +35,12 @@ const ideaEdit = ideaInput.omit({ by: true }).extend({
 
 async function planningProject(root: string): Promise<ProjectInspection> {
   const project = await checkProject(root);
-  if (!project.metadata || project.diagnostics.length)
+  if (
+    !project.metadata ||
+    project.diagnostics.some(
+      (d) => !["stale-approval", "stale-review"].includes(d.code),
+    )
+  )
     throw new Error("Fix planning-file problems before editing");
   if (
     project.records.has(".voidra/local/run.lock") ||
@@ -86,7 +91,7 @@ export async function promoteIdea(
     id,
     title: input.title ?? idea.title,
     type: input.type,
-    stage: lifecycles[input.type].stages[0],
+    stage: projectLifecycles(project.metadata)[input.type].stages[0],
     status: "ready",
     doneBy: "agent",
     ...(input.assignee ? { assignee: input.assignee } : {}),
@@ -241,7 +246,7 @@ async function applyActionChange(
         plan = readPlan(project.files, id, project.records);
       if (
         parent.doneBy === "agent" &&
-        lifecycles[parent.type].planGate &&
+        projectLifecycles(project.metadata)[parent.type].planGate &&
         hasPlan &&
         !approvalCurrent(parent.planApproval, plan)
       )
@@ -282,7 +287,7 @@ async function applyActionChange(
       }
       if (
         parent.doneBy === "agent" &&
-        lifecycles[parent.type].planGate &&
+        projectLifecycles(project.metadata)[parent.type].planGate &&
         !hasPlan
       )
         minimum = true;
@@ -334,7 +339,8 @@ export async function editAction(
     action =
       action.doneBy === "you"
         ? { ...action, stage: "cancelled", status: "complete" }
-        : transition(action, "cancel", {}).action;
+        : transition(action, "cancel", {}, projectLifecycles(project.metadata))
+            .action;
   }
   action.updatedAt = new Date().toISOString();
   await applyActionChange(
@@ -399,7 +405,7 @@ export async function createAction(
     doneBy: input.doneBy,
     ...(input.assignee ? { assignee: input.assignee } : {}),
     ...(input.doneBy === "agent"
-      ? { stage: lifecycles[input.type].stages[0] }
+      ? { stage: projectLifecycles(project.metadata)[input.type].stages[0] }
       : {
           steps: input.steps?.map((label, index) => ({
             id: `step-${index + 1}`,

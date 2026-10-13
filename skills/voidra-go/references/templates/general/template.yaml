@@ -1,0 +1,161 @@
+id: general
+version: 1.0.0
+format: 1
+title: General software
+description: Start with the purpose, then capture the choices that guide discovery and architecture. Only the project goal is required at intake; the other answers can stay open.
+architectureSkill: voidra-architect-general
+lifecycleOverrides: {}
+blocks:
+  - id: problem
+    title: Problem and outcome
+    help: Establish the useful outcome and the work it improves.
+    questions:
+      - id: goal
+        question: What should this project make possible?
+        type: long-text
+        required: true
+        help: Describe the problem and the useful outcome in a few sentences.
+        why: Sets the Bootstrap objective and keeps requirements tied to a useful result.
+        example: Help independent developers keep project decisions and progress beside their code.
+      - id: workflow
+        question: How is this work done today, and where does it break down?
+        type: long-text
+        help: Describe the current process, tools and pain points. Leave this open if the workflow is new.
+        why: Reveals existing behavior to preserve and the first end-to-end path to improve.
+        example: Plans are spread across chat and notes, so decisions disappear between agent sessions.
+  - id: users
+    title: People and success
+    help: Identify the people and the outcome they would recognize as success.
+    questions:
+      - id: audience
+        question: Who will use it?
+        type: short-text
+        help: Name the intended people, roles or teams and their relevant context.
+        why: Guides permissions, workflows, language and the acceptance examples.
+        example: Independent developers who build with coding agents.
+      - id: success
+        question: What would show that the first version is useful?
+        type: short-text
+        help: Give one observable result, user task or measure.
+        why: Gives Verify and the review gate something concrete to assess.
+        example: A user can create an action, run it with an agent and review its result.
+  - id: scope
+    title: Features and boundaries
+    help: Keep the first version focused and identify the boundaries that matter.
+    questions:
+      - id: features
+        question: What are the first useful features?
+        type: list
+        help: Put one user-visible capability on each line, in rough priority order.
+        why: Defines the initial vertical slices and helps the agent avoid implementing extra features.
+        example: [Create a project, Track actions, Review completed work]
+      - id: modules
+        question: Which modules or boundaries must be preserved, and what is outside the first version?
+        type: long-text
+        help: Describe important responsibilities, existing architecture or contracts, and explicit non-goals. Let the agent propose a design when none is chosen.
+        why: Constrains architecture and the plan's out-of-scope section without requiring a premature blueprint.
+        example: Keep planning data separate from source code. Do not launch agents from the app in the first version.
+  - id: technology
+    title: Technologies and libraries
+    help: Distinguish existing requirements from choices the agent can propose.
+    questions:
+      - id: stack
+        question: Which technologies are already chosen?
+        type: short-text
+        help: Name required languages, frameworks and runtime versions. Leave undecided choices open.
+        why: Determines compatible tooling and prevents the agent from replacing an established stack.
+        example: TypeScript, React and Node 24.
+      - id: libraries
+        question: Which libraries or tools must be used or avoided?
+        type: list
+        help: Put one rule on each line, including the reason when useful.
+        why: Shapes dependencies and records constraints that could justify an architecture decision.
+        example: [Use the existing validation library, Avoid adding a server framework]
+  - id: design
+    title: Design and interaction
+    help: Capture useful visual and interaction references.
+    questions:
+      - id: direction
+        question: Which design system, references or interaction rules should it follow?
+        type: long-text
+        help: Link a style guide, describe the desired experience, or leave it open for a proposal.
+        why: Keeps interface work consistent and provides a concrete basis for visual review.
+        example: Follow the existing design tokens, support light and dark themes, and preserve keyboard navigation.
+  - id: integrations
+    title: External systems
+    help: Name the boundaries outside this project.
+    questions:
+      - id: systems
+        question: Which external systems must it connect to, and how is access controlled?
+        type: list
+        help: List each API or service with its purpose, authentication and any known limits. Do not include credentials.
+        why: Identifies integration contracts, failure cases and the external seams that can be mocked in tests.
+        example: [GitHub for release metadata without authentication, Optional AI provider with a user-owned key]
+  - id: data
+    title: Data and protection
+    help: Describe the information the project owns and the rules around it.
+    questions:
+      - id: model
+        question: What information does the project store or manage?
+        type: list
+        help: List the main records and relationships using the project's own terms.
+        why: Establishes the domain model, storage boundaries and glossary candidates.
+        example: [Projects have profiles, Actions have plans and run results]
+      - id: protection
+        question: Which privacy, security or data-retention rules must it respect?
+        type: long-text
+        help: Describe sensitive data, sharing boundaries, permissions, deletion or retention requirements. Do not include secrets.
+        why: Turns protection requirements into architecture constraints and testable acceptance criteria.
+        example: Keep project source local and never send it to an AI service from the app.
+  - id: delivery
+    title: Runtime and delivery
+    help: Record where users encounter the project and how it reaches them.
+    questions:
+      - id: platform
+        question: Where will the project run?
+        type: single-choice
+        allowFreeText: true
+        help: Choose the main surface or describe another one.
+        why: Determines runtime capabilities, packaging and the relevant user workflows.
+        options:
+          - {value: desktop, label: Desktop app}
+          - {value: web, label: Web app}
+          - {value: cli, label: Command line}
+          - {value: mobile, label: Mobile app}
+          - {value: library, label: Library or service}
+        example: desktop
+      - id: distribution
+        question: How will the first version be deployed or distributed?
+        type: long-text
+        help: Name the intended environment, installation path, update method and relevant platform restrictions.
+        why: Makes deployment, installation and release work part of the Bootstrap plan.
+        example: An unsigned Apple Silicon app downloaded from GitHub Releases, with manual updates.
+  - id: constraints
+    title: Priorities, limits and references
+    help: State the trade-offs and source materials that guide later decisions.
+    questions:
+      - id: priorities
+        question: Which qualities matter most?
+        type: multiple-choice
+        allowFreeText: true
+        help: Choose all that apply and add other priorities when needed.
+        why: Gives the agent a basis for comparing alternatives and proposing meaningful ADRs.
+        options:
+          - {value: simplicity, label: Simplicity}
+          - {value: performance, label: Performance}
+          - {value: accessibility, label: Accessibility}
+          - {value: offline, label: Offline use}
+          - {value: cost, label: Low operating cost}
+        example: [simplicity, accessibility]
+      - id: limits
+        question: Which constraints or fixed decisions must the work respect?
+        type: long-text
+        help: Include relevant budget, deadlines, compatibility, licensing, performance or operational limits.
+        why: Bounds scope and feasibility and prevents the agent from silently overriding a fixed decision.
+        example: Apple Silicon only, no developer account, and no authenticated agent runs in CI.
+      - id: references
+        question: Which existing documents, examples or source materials should guide the work?
+        type: list
+        help: Put one project-relative file or useful reference on each line, with its purpose when helpful.
+        why: Gives Discovery an evidence trail and lets the agent find facts before asking the person.
+        example: [VISION.md for behavior, docs/design-system.md for interface rules]

@@ -1,14 +1,25 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { checkProject, loadTemplate } from "voidra";
+
+declare const __voidraIntakeTemplates: string | undefined;
+
 import { processInfo } from "./process.ts";
 import {
   commitResult,
   failRun,
   finalizeResult,
+  guardRun,
   heartbeat,
   prepareResult,
+  publishHumanBlocker,
+  publishPlanning,
+  publishResearch,
+  type RunContext,
   recoverRun,
   reportSchema,
+  resolveDelegatedChoices,
   runContext,
   startRun,
 } from "./run.ts";
@@ -47,6 +58,7 @@ export async function runRuntime(
       "--report",
       "--message",
       "--summary",
+      "--mode",
     ]);
     for (const key of flags.keys())
       if (!allowed.has(key)) throw new Error(`Unknown flag ${key}`);
@@ -60,7 +72,7 @@ export async function runRuntime(
       return {
         code: 0,
         value:
-          "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID]; heartbeat --token TOKEN; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
+          "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
       };
     if (command === "start") {
       const agent = need("--agent");
@@ -71,11 +83,76 @@ export async function runRuntime(
         : await ownerPid();
       if (!Number.isSafeInteger(pid) || pid < 1)
         throw new Error("Invalid owner PID");
-      return { code: 0, value: await startRun(root, agent, pid) };
+      const mode = flags.get("--mode") ?? "go";
+      if (mode !== "go" && mode !== "plan") throw new Error("Unknown run mode");
+      const project = await checkProject(root);
+      const templateId = project.metadata?.template?.id;
+      let templateInfo: {
+        id: string;
+        version: string;
+        architectureSkill: string;
+        path: string;
+      } | null = null;
+      if (templateId) {
+        const folder =
+          typeof __voidraIntakeTemplates === "undefined"
+            ? fileURLToPath(new URL("../../../templates/", import.meta.url))
+            : __voidraIntakeTemplates;
+        const path = resolve(folder, templateId, "template.yaml"),
+          template = await loadTemplate(path);
+        if (template.version !== project.metadata?.template?.version)
+          throw new Error(
+            "Installed template version differs from the project",
+          );
+        templateInfo = {
+          id: template.id,
+          version: template.version,
+          architectureSkill: template.architectureSkill,
+          path,
+        };
+      }
+      const ctx = await startRun(root, agent, pid, mode);
+      return {
+        code: 0,
+        value: ctx
+          ? { ...(publicContext(ctx) as object), template: templateInfo }
+          : null,
+      };
     }
     if (command === "heartbeat") {
       await heartbeat(root, need("--token"));
       return { code: 0, value: { heartbeat: true } };
+    }
+    if (command === "planning") {
+      const input = JSON.parse(
+        await readFile(resolve(root, need("--report")), "utf8"),
+      );
+      return {
+        code: 0,
+        value: publicContext(
+          await publishPlanning(root, need("--token"), input),
+        ),
+      };
+    }
+    if (["guard", "choices", "research", "human"].includes(command ?? "")) {
+      const input = JSON.parse(
+          await readFile(resolve(root, need("--report")), "utf8"),
+        ),
+        token = need("--token");
+      if (command === "guard") {
+        if (!Array.isArray(input) || !input.every((p) => typeof p === "string"))
+          throw new Error("Guard report must be an array of file paths");
+        await guardRun(root, token, input);
+      } else if (command === "choices")
+        await resolveDelegatedChoices(root, token, input);
+      else if (command === "research")
+        await publishResearch(root, token, input);
+      else
+        return {
+          code: 0,
+          value: { human: await publishHumanBlocker(root, token, input) },
+        };
+      return { code: 0, value: { ok: true } };
     }
     if (command === "prepare") {
       const report = reportSchema.parse(
@@ -102,7 +179,10 @@ export async function runRuntime(
     if (command === "recover")
       return { code: 0, value: await recoverRun(root, need("--run")) };
     if (command === "inspect")
-      return { code: 0, value: await runContext(root, need("--run")) };
+      return {
+        code: 0,
+        value: publicContext(await runContext(root, need("--run"))),
+      };
     throw new Error("Unknown command; use help");
   } catch (error) {
     return {
@@ -110,4 +190,11 @@ export async function runRuntime(
       value: { error: error instanceof Error ? error.message : String(error) },
     };
   }
+}
+
+function publicContext(ctx: RunContext | null): unknown {
+  if (!ctx) return null;
+  const { run, action, agent, phase, ownerToken, actionPath, runPath, mode } =
+    ctx;
+  return { run, action, agent, phase, ownerToken, actionPath, runPath, mode };
 }

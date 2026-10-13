@@ -5,10 +5,10 @@ import {
   actionComplete,
   approvalCurrent,
   type Lifecycles,
-  lifecycles,
   type PlanRevision,
   planFiles,
   planRevision,
+  projectLifecycles,
   validateLifecycles,
 } from "./lifecycle.ts";
 import { fieldLine, parseRecord, type RecordDocument } from "./records.ts";
@@ -229,7 +229,26 @@ export function inspectFiles(
     const kind = fileKind(file);
     if (kind && kind !== "project") parse(file, kind);
   }
-  const rules = options.lifecycles ?? lifecycles;
+  let rules: Lifecycles;
+  try {
+    const declared = projectLifecycles(metadata);
+    rules = options.lifecycles ?? declared;
+  } catch (error) {
+    if (error instanceof VoidraError) diagnostics.push(error.diagnostic());
+    else throw error;
+    return result;
+  }
+  if (
+    metadata.lifecycleOverrides &&
+    Object.keys(metadata.lifecycleOverrides).length &&
+    !extendedActions
+  )
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Lifecycle overrides require voidra ≥ 0.2.0",
+    );
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result;

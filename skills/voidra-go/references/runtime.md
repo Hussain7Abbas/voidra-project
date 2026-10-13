@@ -2,7 +2,7 @@
 
 Use Node 24.13.0+. Resolve the installed skill folder from the skill path (`${CLAUDE_SKILL_DIR}` in Claude Code), then run `node <skill-folder>/scripts/runtime.mjs <command>`. The project defaults to the current directory; `--project <folder>` selects it explicitly. Commands return JSON and exit 0/1. `help` lists flags.
 
-- `start --agent claude-code|codex [--owner-pid PID]`: validates the queue, atomically persists ownership, consumption and the start result, and returns the checkpoint (including ownerToken). A null result means an empty queue. An unsupported phase requires no work or commit. The folder must already be a local Git repository.
+- `start --agent claude-code|codex [--owner-pid PID]`: validates the queue, atomically persists ownership, consumption and the start result, and returns a bounded action/run/phase/token summary; full snapshots remain private. A null result means an empty queue. A non-started phase already stopped at a gate and requires no work or commit. Use `--mode plan` for planning-only execution. The folder must already be a local Git repository.
 - `heartbeat --token TOKEN`: proves PID/start/token ownership, then updates the heartbeat.
 - `prepare --token TOKEN --report FILE`: validates current records, allowed commit paths and successful checks; persists the prepared Review result and commit checkpoint.
 - `commit --token TOKEN --message TEXT`: checks prepared bytes and HEAD, persists intent, and uses a separate Git index to commit this action. Matching action/run trailers reconcile an existing commit instead of creating another.
@@ -25,3 +25,13 @@ Paths are exact project-relative changed files. Include additions/deletions; exc
 Validate with `npx --yes voidra@0 check .` after each completed helper operation. If it reports an unfinished operation, inspect the journal and use `npx --yes voidra@0 recover <op-id>` (or explicitly roll back) before run recovery. Never overwrite a conflicting outside edit automatically. Consumed records remain evidence after interruption and prevent undo.
 
 A heartbeat older than two minutes displays a warning; the owner identity still controls recovery. Keep heartbeat current while working. After Review rejection, queue/run again: read the saved feedback and create a follow-up commit with the same action trailer and a new run trailer.
+
+## Planning commands
+
+- `planning --token TOKEN --report FILE`: publishes questions, plans or slices through the installed architecture procedure, records a stopped run and releases the lock.
+- `choices --token TOKEN --report FILE`: resolves only unanswered agent-decides choices; report is an array of `{question,choice,reason}`.
+- `guard --token TOKEN --report FILE`: verifies the implementation boundary before edits; report is an array of exact relative file paths.
+- `research --token TOKEN --report FILE`: publishes findings, recommendation and proposed ideas without code or commits.
+- `human --token TOKEN --report FILE`: creates a human checklist and blocks this action.
+
+Use `.voidra/local/` for reports, never a source path. Planning-only runs may use planning/choices/research/human, but cannot prepare or commit implementation. Planning proposal effects preserve repository files, HEAD and tags. Glossary additions are made atomically by the helper during Discovery. Snapshot mismatches stop and preserve the conflicting work.

@@ -6,6 +6,35 @@ import { checkProject, parseRecord, schemas } from "voidra";
 import { fixture } from "../../run-engine/tests/helpers.ts";
 import { runFakeAgent } from "../src/index.ts";
 
+for (const type of [
+  "feature",
+  "bug",
+  "improvement",
+  "profile-change",
+  "research",
+] as const)
+  it(`scripted ${type} stops at its declared planning/result gate`, async () => {
+    const root = await fixture(type);
+    try {
+      await runFakeAgent(root, "success");
+      const checked = await checkProject(root);
+      expect(checked.diagnostics).toEqual([]);
+      expect(
+        checked.records.get(".voidra/actions/act-000000/action.md")?.document
+          .data,
+      ).toMatchObject({
+        stage: type === "research" ? "review" : "plan",
+        status: "waiting",
+      });
+      expect(checked.files.has(".voidra/local/run.lock")).toBe(false);
+      expect(await readFile(join(root, "README.md"), "utf8")).toBe(
+        "# Fixture\n",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
 it("scripted intake creates inferred data and preserves the existing code", async () => {
   const root = await mkdtemp(join(tmpdir(), "voidra-fake-intake-"));
   try {

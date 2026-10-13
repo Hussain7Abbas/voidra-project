@@ -354,7 +354,14 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
     value: z.json(),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
   }),
-  z.strictObject({ command: z.literal("queue-action"), id: z.string().min(1) }),
+  z.strictObject({
+    command: z.literal("queue-action"),
+    id: z.string().min(1),
+    revision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  }),
   z.strictObject({
     command: z.literal("review-action"),
     id: z.string().min(1),

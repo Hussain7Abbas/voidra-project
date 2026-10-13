@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
 import { VoidraError } from "./errors.ts";
-import { type Action, type Approval, stages, types } from "./schemas.ts";
+import {
+  type Action,
+  type Approval,
+  lifecycleOverridesSchema,
+  type ProjectMetadata,
+  stages,
+  types,
+} from "./schemas.ts";
 export type Stage = (typeof stages)[number];
 export interface Lifecycle {
   stages: Stage[];
@@ -92,6 +99,28 @@ export function validateLifecycles(rules: Lifecycles): string[] {
       errors.push(`${type}: finish at done`);
   }
   return errors;
+}
+export function projectLifecycles(metadata?: ProjectMetadata): Lifecycles {
+  const parsed = lifecycleOverridesSchema.safeParse(
+    metadata?.lifecycleOverrides ?? {},
+  );
+  if (!parsed.success)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      "Invalid lifecycle overrides",
+      "lifecycleOverrides",
+    );
+  const rules = { ...lifecycles, ...parsed.data };
+  const errors = validateLifecycles(rules);
+  if (errors.length)
+    throw new VoidraError(
+      "lifecycle",
+      ".voidra/voidra.json",
+      errors.join("; "),
+      "lifecycleOverrides",
+    );
+  return rules;
 }
 export const planFiles = [
   "requirements.md",

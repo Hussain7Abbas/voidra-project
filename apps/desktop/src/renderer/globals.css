@@ -141,10 +141,7 @@
     font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
-    transition:
-      background-color var(--motion-fast) var(--motion-ease),
-      border-color var(--motion-fast) var(--motion-ease),
-      color var(--motion-fast) var(--motion-ease);
+    transition: opacity var(--motion-fast) var(--motion-ease);
   }
   .btn:disabled {
     opacity: 0.55;
@@ -219,7 +216,6 @@
     color: var(--ink);
     font: inherit;
     font-size: 0.95rem;
-    transition: border-color var(--motion-fast) var(--motion-ease);
   }
   .input::placeholder {
     color: var(--muted);
@@ -274,9 +270,6 @@
   }
   .data-table tbody tr:last-child td {
     border-bottom: 0;
-  }
-  .data-table tbody tr {
-    transition: background-color var(--motion-fast) var(--motion-ease);
   }
   .data-table tbody tr:hover {
     background: color-mix(in srgb, var(--wash) 55%, transparent);
@@ -380,14 +373,7 @@
   }
 }
 
-/* Theme palettes switch together; hover transitions resume after paint. */
-html[data-theme-changing] *,
-html[data-theme-changing] *::before,
-html[data-theme-changing] *::after,
-html[data-theme-changing] *::backdrop {
-  transition: none !important;
-}
-
+/* Theme colors apply immediately, including controls first painted later. */
 /* Unlayered, so it overrides every layered transition and animation. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -838,8 +824,6 @@ html[data-theme-changing] *::backdrop {
 }
 .board-column {
   min-width: 0;
-  content-visibility: auto;
-  contain-intrinsic-block-size: auto 28rem;
 }
 .slice-group-header {
   border-inline-start: 2px solid var(--border);

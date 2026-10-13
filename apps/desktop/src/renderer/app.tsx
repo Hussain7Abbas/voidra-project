@@ -60,7 +60,6 @@ function useSnapshot() {
     retry: 1,
   });
 }
-let themeChange = 0;
 function applyTheme(preference: ThemePreference): void {
   const root = document.documentElement;
   const theme =
@@ -70,14 +69,7 @@ function applyTheme(preference: ThemePreference): void {
         : "light"
       : preference;
   if (root.dataset.theme === theme) return;
-  const revision = ++themeChange;
-  root.dataset.themeChanging = "true";
   root.dataset.theme = theme;
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      if (revision === themeChange) delete root.dataset.themeChanging;
-    }),
-  );
 }
 function Shell() {
   const snapshot = useSnapshot();

@@ -61,6 +61,9 @@ Releases and `voidra-sync` (P12) and ADR naming details (P11).
 | P08-09 | Agent differences and real-agent checks | 5 | P08-05, P08-06, P08-07 | `docs/agents.md` exists. Both agents run Feature, Bug, Improvement/refactor, Research, Profile change and Docs/chore scenarios, with slices and human blockers, using the matrix. Record valid output, correct gate stops, rework targets, architecture dispatch, write paths and commits in the evidence file. |
 | P08-10 | Approval enforcement and interrupted-run recovery | 5 | P08-05, P01-12, P03-11 | With the app closed, a changed approved plan stops work for approval again. A fake-agent run interrupted after a commit reconciles that commit on resume, keeps the consumed-record start marker and produces no duplicate commit. A conflicting outside edit stops recovery. |
 | P08-11 | Planning skill real-agent checks | 3 | P08-08, P08-10 | Both agents run `voidra-plan` through Discovery and Plan, update settled glossary terms, and stop before implementation. File and git snapshots prove the D22 restrictions. A changed approved plan is tested before a subsequent `voidra-go` resume, with no code written until approval again. Commands, models and results are recorded. |
+| P08-12 | Gate/runtime hand-off follow-ups | 5 | P08-01, P07 | Validate and honor template lifecycle overrides at disk helpers and app gates; activate Profile change drafts only through an explicit displayed-revision user decision; protect terminal human answer history. Unchanged sibling stale gates cannot prevent another action’s fresh approval or safe queueing. |
+
+| P08-13 | Deferred theme-palette follow-up | 2 | P07 | Repair P07 CI’s offscreen board contrast failure. Theme colors change together even for content painted later; no disabled axe rule or arbitrary delay. Keyboard navigation remains intact. |
 
 ## Tests
 

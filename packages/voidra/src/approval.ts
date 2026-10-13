@@ -2,9 +2,9 @@ import { VoidraError } from "./errors.ts";
 import {
   approvalCurrent,
   hash,
-  lifecycles,
   type PlanRevision,
   planFiles,
+  projectLifecycles,
   transition,
 } from "./lifecycle.ts";
 import { checkProject, type ProjectInspection, readPlan } from "./project.ts";
@@ -88,7 +88,7 @@ export async function approveAction(
       "Action is missing or invalid",
     );
   let action = schemas.action.parse(record.data);
-  const rules = options.lifecycles ?? lifecycles;
+  const rules = options.lifecycles ?? projectLifecycles(checked.metadata);
   const questions = checked.records.get(`.voidra/actions/${id}/questions.md`);
   const questionsOpen = questions
     ? schemas.questions

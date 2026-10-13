@@ -11,3 +11,6 @@ Extends [root instructions](../../AGENTS.md). This scope implements deterministi
 - Keep the run architecture, skill runtime/reference generation and phase evidence current with public helper changes. Runtime changes need source/bundle synchronization before linking or agent checks.
 
 `CLAUDE.md` contains only the sibling instruction pointer.
+
+- P08 planning proposals share the active run token and stop atomically with its result and lock release. `voidra-plan` uses explicit plan mode; source snapshots, HEAD/tags and existing glossary bytes must be preserved. Public CLI summaries must not expose full source fingerprints.
+- Implementation preparation requires approved bytes, no overlap with starting user edits, passing checks and both review parts for gated types. Research and human blockers finish without implementation commits. Keep runtime bundles and shared planning guides synchronized for both Go and Plan skills.
