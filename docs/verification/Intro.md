@@ -11,3 +11,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P02 — Desktop shell](p02.md): security, native services, themes, workflows, accessibility and arm64 packaging.
 
 - [P03 — Tracer bullet](p03.md): action/run loop, explicit recovery, fake-agent workflows and both real agents.
+
+- [P04 — Onboarding and profile](p04.md): templates, both intake routes, confirmations, drafts and real-agent checks.

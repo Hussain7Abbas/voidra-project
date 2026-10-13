@@ -1,5 +1,6 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { inspectLock, listRunContexts } from "@voidra/run-engine";
 import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
@@ -7,13 +8,17 @@ import {
   applyOperation,
   checkProject,
   createId,
+  detectCode,
   FORMAT_VERSION,
   hash,
+  initializeProject,
   PACKAGE_VERSION,
   parseRecord,
+  readTemplates,
   schemas,
   serializeRecord,
   transition,
+  updateProfileAnswer,
 } from "voidra";
 import {
   type WorkspaceRequest,
@@ -21,7 +26,8 @@ import {
   workspaceSchema,
 } from "../shared/bridge.ts";
 
-const INDEX_VERSION = 1;
+declare const __voidraTemplatesRoot: string | undefined;
+const INDEX_VERSION = 2;
 export class ProjectWorkspace {
   private database: Database.Database;
   private watcher: FSWatcher | null = null;
@@ -33,12 +39,17 @@ export class ProjectWorkspace {
 
   readonly root: string;
   readonly databasePath: string;
+  readonly templatesDirectory: string;
   constructor(
     root: string,
     databasePath: string,
     notify: () => void = () => {},
+    templatesDirectory = typeof __voidraTemplatesRoot !== "undefined"
+      ? __voidraTemplatesRoot
+      : fileURLToPath(new URL("../../../../templates/", import.meta.url)),
   ) {
     this.notify = notify;
+    this.templatesDirectory = templatesDirectory;
     this.root = root;
     this.databasePath = databasePath;
     this.database = this.open();
@@ -85,7 +96,9 @@ export class ProjectWorkspace {
       if (db.pragma("quick_check", { simple: true }) !== "ok")
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
-        db.exec("drop table if exists actions; drop table if exists runs;");
+        db.exec(
+          "drop table if exists actions; drop table if exists runs; drop table if exists profiles;",
+        );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
     } catch {
@@ -95,11 +108,55 @@ export class ProjectWorkspace {
       db.pragma(`user_version = ${INDEX_VERSION}`);
     }
     db.exec(
-      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null);",
+      "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null);",
     );
     return db;
   }
   async handle(request: WorkspaceRequest): Promise<WorkspaceSnapshot> {
+    if (request.command === "initialize-profile") {
+      const catalog = await readTemplates(this.templatesDirectory),
+        template = catalog.templates.find((t) => t.id === request.template);
+      if (!template)
+        throw new Error(
+          "Template not available; inspect its validation message",
+        );
+      await initializeProject(this.root, template, {
+        name: request.name,
+        answers: Object.fromEntries(
+          Object.entries(request.answers).map(([key, value]) => [
+            key,
+            { value },
+          ]),
+        ),
+        bootstrap: !(await detectCode(this.root)).hasCode,
+      });
+    }
+    if (request.command === "edit-profile-answer") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length
+      )
+        throw new Error(
+          "Finish or recover the run before changing the profile",
+        );
+      const catalog = await readTemplates(this.templatesDirectory),
+        template = catalog.templates.find(
+          (t) =>
+            t.id === current.template?.id &&
+            t.version === current.template.version,
+        );
+      if (!template)
+        throw new Error("This project's template version is not installed");
+      await updateProfileAnswer(this.root, template, {
+        block: request.block,
+        id: request.id,
+        value: request.value,
+        by: "You",
+        expectedHash: request.revision,
+      });
+    }
     if (request.command === "create-voidra") await this.initialize();
     if (request.command === "review-action")
       await this.reviewAction(
@@ -305,6 +362,10 @@ export class ProjectWorkspace {
     }
     const project = await checkProject(this.root);
     const hasVoidra = project.files.size > 0;
+    const catalog = await readTemplates(this.templatesDirectory),
+      code = hasVoidra
+        ? { hasCode: false, evidence: [] }
+        : await detectCode(this.root);
     let runPending = false;
     const recoveries: WorkspaceSnapshot["recoveries"] = [];
     const lockData = project.records.get(".voidra/local/run.lock")?.document
@@ -397,14 +458,26 @@ export class ProjectWorkspace {
       );
     if (!pending)
       this.database.transaction(() => {
-        this.database.exec("delete from actions; delete from runs;");
+        this.database.exec(
+          "delete from actions; delete from runs; delete from profiles;",
+        );
         const addAction = this.database.prepare(
           "insert into actions values (?, ?)",
         );
         const addRun = this.database.prepare(
           "insert into runs values (?, ?, ?)",
         );
+        const addProfile = this.database.prepare(
+          "insert into profiles values (?, ?)",
+        );
         for (const [path, { kind, document }] of project.records) {
+          if (kind === "profile") {
+            const data = schemas.profile.parse(document.data);
+            addProfile.run(
+              data.block,
+              JSON.stringify({ data, body: document.body, path }),
+            );
+          }
           if (kind === "action") {
             const data = schemas.action.parse(document.data);
             addAction.run(
@@ -447,6 +520,24 @@ export class ProjectWorkspace {
       name: project.metadata?.project.name ?? basename(this.root),
       hasVoidra,
       readOnly: hasVoidra && project.diagnostics.length > 0,
+      hasCode: code.hasCode,
+      codeEvidence: code.evidence,
+      templates: catalog.templates,
+      templateProblems: catalog.diagnostics.map(
+        (d) => `${d.file} [${d.field}]: ${d.message}`,
+      ),
+      template: project.metadata?.template ?? null,
+      profiles: (
+        this.database
+          .prepare("select value from profiles order by id")
+          .all() as { value: string }[]
+      ).map((row) => {
+        const profile = JSON.parse(row.value) as { path: string };
+        return {
+          ...profile,
+          revision: hash(project.files.get(profile.path) ?? ""),
+        };
+      }),
       actions,
       diagnostics: hasVoidra ? project.diagnostics : [],
       recoveries,

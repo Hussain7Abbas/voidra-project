@@ -1,0 +1,62 @@
+id: general
+version: 0.1.0
+format: 1
+title: General software
+description: A starter profile for a software project. The full template is reviewed in P05.
+architectureSkill: voidra-architect-general
+lifecycleOverrides: {}
+blocks:
+  - id: problem
+    title: Problem and outcome
+    help: Describe the purpose before choosing an implementation.
+    questions:
+      - id: goal
+        question: What should this project make possible?
+        type: long-text
+        required: true
+        help: Name the problem and the useful outcome. You can refine it later.
+        example: Make it easy to track a small software project.
+  - id: users
+    title: People and scope
+    help: Identify who uses the project and its initial scope.
+    questions:
+      - id: audience
+        question: Who will use it?
+        type: short-text
+        help: Name the intended people or teams.
+        example: Independent developers.
+      - id: features
+        question: What are the first useful features?
+        type: list
+        help: Put one feature on each line. Keep the first version small.
+        example: [Create a project, Track progress]
+  - id: delivery
+    title: Delivery and technology
+    help: Record useful constraints without choosing an architecture too early.
+    questions:
+      - id: platform
+        question: Where will the project run?
+        type: single-choice
+        allowFreeText: true
+        help: Choose the main surface or describe another one.
+        options:
+          - {value: desktop, label: Desktop app}
+          - {value: web, label: Web app}
+          - {value: cli, label: Command line}
+          - {value: mobile, label: Mobile app}
+        example: desktop
+      - id: priorities
+        question: Which qualities matter most?
+        type: multiple-choice
+        allowFreeText: true
+        help: Choose all that apply. Additional priorities can be described too.
+        options:
+          - {value: simplicity, label: Simplicity}
+          - {value: performance, label: Performance}
+          - {value: accessibility, label: Accessibility}
+        example: [simplicity, accessibility]
+      - id: stack
+        question: Which technologies are already chosen?
+        type: short-text
+        help: List the existing choices or leave this open for planning.
+        example: TypeScript and React.

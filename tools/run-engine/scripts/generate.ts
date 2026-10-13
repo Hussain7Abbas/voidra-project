@@ -1,43 +1,76 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const output = resolve(root, "skills/voidra-go/scripts/runtime.mjs");
-const result = await build({
-  absWorkingDir: root,
-  entryPoints: ["tools/run-engine/src/cli-entry.ts"],
-  outfile: output,
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  target: "node24",
-  write: false,
-  minify: false,
-  alias: { voidra: resolve(root, "packages/voidra/src/index.ts") },
-  banner: {
-    js: "// Generated from tools/run-engine. AGPL-3.0-or-later; bundled dependency notices are in references/third-party-notices.txt.\nimport { createRequire as __voidraCreateRequire } from 'node:module'; const require = __voidraCreateRequire(import.meta.url);",
-  },
-});
-const bytes = result.outputFiles?.[0]?.contents;
-if (!bytes) throw new Error("No runtime bundle");
-const format = await readFile(
-  resolve(root, "skills/shared/references/format.md"),
-);
-const files = [
-  { path: output, bytes: Buffer.from(bytes) },
-  {
-    path: resolve(root, "skills/voidra-go/references/format.md"),
-    bytes: format,
-  },
-];
+const files: { path: string; bytes: Buffer }[] = [];
+for (const [skill, entry, script] of [
+  ["voidra-go", "cli-entry.ts", "runtime.mjs"],
+  ["voidra-init", "init-cli.ts", "init.mjs"],
+]) {
+  const output = resolve(root, `skills/${skill}/scripts/${script}`);
+  const result = await build({
+    absWorkingDir: root,
+    entryPoints: [`tools/run-engine/src/${entry}`],
+    outfile: output,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+    write: false,
+    minify: false,
+    alias: { voidra: resolve(root, "packages/voidra/src/index.ts") },
+    banner: {
+      js: "// Generated from tools/run-engine. AGPL-3.0-or-later; bundled dependency notices are in references/third-party-notices.txt.\nimport { createRequire as __voidraCreateRequire } from 'node:module'; import { fileURLToPath as __voidraFileURL } from 'node:url'; const require = __voidraCreateRequire(import.meta.url); const __voidraProcessHelper=__voidraFileURL(new URL('./process-info',import.meta.url)); const __voidraIntakeTemplates=__voidraFileURL(new URL('../references/templates/',import.meta.url));",
+    },
+  });
+  const bytes = result.outputFiles?.[0]?.contents;
+  if (!bytes) throw new Error("No skill bundle");
+  files.push(
+    { path: output, bytes: Buffer.from(bytes) },
+    {
+      path: resolve(root, `skills/${skill}/references/format.md`),
+      bytes: await readFile(
+        resolve(root, "skills/shared/references/format.md"),
+      ),
+    },
+  );
+}
+for (const folder of await readdir(resolve(root, "templates"), {
+  withFileTypes: true,
+})) {
+  if (!folder.isDirectory()) continue;
+  files.push({
+    path: resolve(
+      root,
+      `skills/voidra-init/references/templates/${folder.name}/template.yaml`,
+    ),
+    bytes: await readFile(
+      resolve(root, `templates/${folder.name}/template.yaml`),
+    ),
+  });
+}
 for (const file of files) {
   if (process.argv.includes("--check")) {
     const old = await readFile(file.path).catch(() => null);
     if (!old?.equals(file.bytes))
       throw new Error(
-        "Skill runtime/reference is missing or stale; run make gen",
+        "Skill runtime/reference/template is missing or stale; run make gen",
       );
-  } else await writeFile(file.path, file.bytes);
+  } else {
+    await mkdir(dirname(file.path), { recursive: true });
+    await writeFile(file.path, file.bytes);
+  }
 }
+const templateCopies = resolve(root, "skills/voidra-init/references/templates");
+const expected = new Set(files.map((file) => file.path));
+async function checkCopies(directory: string): Promise<void> {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) await checkCopies(path);
+    else if (!expected.has(path))
+      throw new Error(`Orphan generated template copy: ${path}`);
+  }
+}
+await checkCopies(templateCopies);

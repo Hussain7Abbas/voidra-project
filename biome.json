@@ -9,7 +9,8 @@
     "includes": [
       "**",
       "!**/pnpm-lock.yaml",
-      "!skills/voidra-go/scripts/runtime.mjs"
+      "!skills/voidra-go/scripts/runtime.mjs",
+      "!skills/voidra-init/scripts/init.mjs"
     ]
   },
   "formatter": {

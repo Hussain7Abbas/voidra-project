@@ -60,6 +60,8 @@ The final general-template content (P05) and running Bootstrap (P08).
 | P04-06 | Confirm inferred answers | 2 | P04-04 | Confirming sets the answer to confirmed and records who and when. |
 | P04-07 | `voidra-init` skill | 5 | P04-01 | The golden output for the `existing-code` fixture passes `voidra check`. The glossary draft and the AGENTS.md section follow the rules above. Nothing is committed. A real-agent check in each agent is recorded in the evidence file. |
 
+| P04-08 | Portable skill assets | 2 | P04-07, P03-12 | Copied skill folders resolve their own templates and process helper without the development checkout. Generated asset checks include intake runtime/template copies. Draft Profile changes cannot be consumed before review. |
+
 ## Tests
 
 - **Unit:** the template loader, code detection, the profile-change difference and the atomic creation of `.voidra/`.

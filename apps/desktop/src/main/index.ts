@@ -263,7 +263,7 @@ async function start(): Promise<void> {
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "copy-agent-command") {
           await clipboard.writeText(
-            request.agent === "claude-code" ? "/voidra-go" : "$voidra-go",
+            `${request.agent === "claude-code" ? "/" : "$"}${request.skill ?? "voidra-go"}`,
           );
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-theme") {

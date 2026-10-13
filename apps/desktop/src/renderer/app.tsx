@@ -26,6 +26,7 @@ import type {
   ThemePreference,
 } from "../shared/bridge.ts";
 import { ProjectActions } from "./project-actions.tsx";
+import { ProjectOnboarding, ProjectProfile } from "./project-profile.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -71,9 +72,9 @@ function Shell() {
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
   const [navigationEpoch, setNavigationEpoch] = useState(0);
-  const [navigationTarget, setNavigationTarget] = useState<"actions" | "run">(
-    "actions",
-  );
+  const [navigationTarget, setNavigationTarget] = useState<
+    "actions" | "run" | "profile"
+  >("actions");
   const data = snapshot.data;
   const themePreference = data?.theme;
   useEffect(
@@ -216,16 +217,20 @@ function Shell() {
               <li key={item.label}>
                 <button
                   type="button"
-                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : "Actions") : index === 0) ? "active" : ""}`}
+                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : "Actions") : index === 0) ? "active" : ""}`}
                   disabled={
                     data?.project?.hasVoidra
-                      ? !["Actions", "Run"].includes(item.label)
+                      ? !["Actions", "Run", "Profile"].includes(item.label)
                       : index !== 0
                   }
                   onClick={() => {
                     setNavigationEpoch((value) => value + 1);
                     setNavigationTarget(
-                      item.label === "Run" ? "run" : "actions",
+                      item.label === "Run"
+                        ? "run"
+                        : item.label === "Profile"
+                          ? "profile"
+                          : "actions",
                     );
                     setMenu(false);
                   }}
@@ -233,7 +238,11 @@ function Shell() {
                     (
                       data?.project?.hasVoidra
                         ? item.label ===
-                          (navigationTarget === "run" ? "Run" : "Actions")
+                          (navigationTarget === "run"
+                            ? "Run"
+                            : navigationTarget === "profile"
+                              ? "Profile"
+                              : "Actions")
                         : index === 0
                     )
                       ? "page"
@@ -321,12 +330,6 @@ function Shell() {
               busy={busy}
               navigationEpoch={navigationEpoch}
               navigationTarget={navigationTarget}
-              initialize={() =>
-                void act(
-                  { command: "create-voidra" },
-                  "Planning folder created",
-                )
-              }
             />
           )}
         </main>
@@ -382,29 +385,28 @@ function Content({
   data,
   open,
   busy,
-  initialize,
   navigationEpoch,
   navigationTarget,
 }: {
   data: Snapshot;
   open: () => void;
   busy: boolean;
-  initialize: () => void;
   navigationEpoch: number;
-  navigationTarget: "actions" | "run";
+  navigationTarget: "actions" | "run" | "profile";
 }) {
   const project = data.project;
   if (project?.hasVoidra)
-    return <ProjectActions key={navigationEpoch} view={navigationTarget} />;
+    return navigationTarget === "profile" ? (
+      <ProjectProfile key={navigationEpoch} />
+    ) : (
+      <ProjectActions key={navigationEpoch} view={navigationTarget} />
+    );
+  if (project) return <ProjectOnboarding name={project.name} />;
   return (
     <>
       <PageHeader
-        title={project ? project.name : "Your next project starts here"}
-        description={
-          project
-            ? "A workspace for your plans, decisions and progress."
-            : "Bring your project’s plans and progress together, with clear checkpoints for you and your coding agent."
-        }
+        title="Your next project starts here"
+        description="Bring your project’s plans and progress together, with clear checkpoints for you and your coding agent."
         actions={
           <Button
             variant="primary"
@@ -421,69 +423,42 @@ function Content({
           <Layers size={34} strokeWidth={1.5} aria-hidden />
         </div>
         <div>
-          <p className="eyebrow">
-            {project
-              ? "Project folder opened"
-              : "A place for the whole project"}
-          </p>
-          <h2 id="welcome-title">
-            {project
-              ? project.hasVoidra
-                ? "Planning folder found"
-                : "Set up a home for your project’s plans"
-              : "Keep the plan close to the work"}
-          </h2>
+          <p className="eyebrow">A place for the whole project</p>
+          <h2 id="welcome-title">Keep the plan close to the work</h2>
           <p>
-            {project
-              ? project.hasVoidra
-                ? "Your planning records are kept with this project. You can open another folder or adjust this workspace’s appearance."
-                : "Voidra planning hasn’t been set up in this folder yet. Your existing project files stay where they are."
-              : "Open an existing project or choose an empty folder. Voidra keeps planning records alongside your code."}
+            Open an existing project or choose an empty folder. Voidra keeps
+            planning records alongside your code.
           </p>
-          {!project && (
-            <Button
-              className="mt-6"
-              onClick={open}
-              icon={<ArrowRight size={16} aria-hidden />}
-            >
-              Choose a folder
-            </Button>
-          )}
-          {project && <code className="project-path">{project.path}</code>}
-          {project && !project.hasVoidra && (
-            <Button
-              className="mt-6"
-              variant="primary"
-              loading={busy}
-              onClick={initialize}
-            >
-              Create .voidra/
-            </Button>
-          )}
+          <Button
+            className="mt-6"
+            onClick={open}
+            icon={<ArrowRight size={16} aria-hidden />}
+          >
+            Choose a folder
+          </Button>
         </div>
       </section>
-      {!project && (
-        <section className="workflow-grid" aria-label="How Voidra works">
-          <article className="card workflow-card">
-            <span className="step-number">01</span>
-            <h2>Shape the plan</h2>
-            <p>Collect ideas and define what a useful change should do.</p>
-          </article>
-          <article className="card workflow-card">
-            <span className="step-number">02</span>
-            <h2>Work with your agent</h2>
-            <p>Give your coding agent a clear plan and checkpoints.</p>
-          </article>
-          <article className="card workflow-card">
-            <span className="step-number">03</span>
-            <h2>Review and ship</h2>
-            <p>Accept completed work and keep track of what ships.</p>
-          </article>
-        </section>
-      )}
+      <section className="workflow-grid" aria-label="How Voidra works">
+        <article className="card workflow-card">
+          <span className="step-number">01</span>
+          <h2>Shape the plan</h2>
+          <p>Collect ideas and define what a useful change should do.</p>
+        </article>
+        <article className="card workflow-card">
+          <span className="step-number">02</span>
+          <h2>Work with your agent</h2>
+          <p>Give your coding agent a clear plan and checkpoints.</p>
+        </article>
+        <article className="card workflow-card">
+          <span className="step-number">03</span>
+          <h2>Review and ship</h2>
+          <p>Accept completed work and keep track of what ships.</p>
+        </article>
+      </section>
     </>
   );
 }
+
 export function DesktopApp() {
   const [client] = useState(() => new QueryClient());
   return (

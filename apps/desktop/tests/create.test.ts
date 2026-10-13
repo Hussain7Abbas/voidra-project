@@ -44,23 +44,10 @@ it("creates minimal planning files through the app, leaves code untouched and pu
         if (e.type === "changed") w.changes++;
       });
     });
-    expect(
-      await page
-        .getByRole("button", { name: "Create .voidra/", exact: true })
-        .count(),
-    ).toBe(1);
-    await page
-      .getByRole("button", { name: "Create .voidra/", exact: true })
-      .click();
-    await expect
-      .poll(
-        () =>
-          page
-            .getByRole("button", { name: "Create .voidra/", exact: true })
-            .count(),
-        { timeout: 5000 },
-      )
-      .toBe(0);
+    const created = await page.evaluate(() =>
+      window.voidra.invoke({ command: "create-voidra" }),
+    );
+    expect(created.ok).toBe(true);
     expect((await checkProject(root)).diagnostics).toEqual([]);
     expect(await readdir(root)).toEqual([".voidra", "code.ts"]);
     expect(await readFile(join(root, "code.ts"), "utf8")).toBe(

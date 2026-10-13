@@ -7,6 +7,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `apps/desktop/`: secure Electron shell, static Next renderer, bridge, utility services and native/e2e/package tests; follow its [local instructions](apps/desktop/AGENTS.md).
 - `packages/voidra/`: shared format, lifecycles, CLI, safe writes, fixtures and schema generation; follow its [local instructions](packages/voidra/AGENTS.md).
 - `fixtures/`: committed validation catalog; large output is generated into temporary folders.
+- `templates/`: bundled, validated profile questions; follow its [local instructions](templates/AGENTS.md). The final general content needs the named P05 approval.
 - `skills/`: executable skills and self-contained generated references; follow its [local instructions](skills/AGENTS.md).
 - `tools/run-engine/`: standalone run ownership, durable Git recovery, skill linking and artifact generation. Follow its [local instructions](tools/run-engine/AGENTS.md).
 - `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.

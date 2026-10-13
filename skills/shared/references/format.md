@@ -427,6 +427,32 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
     },
+    "profileChange": {
+      "type": "object",
+      "properties": {
+        "block": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "answerId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "before": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "after": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "block",
+        "answerId",
+        "before",
+        "after"
+      ],
+      "additionalProperties": {}
+    },
     "planApproval": {
       "type": "object",
       "properties": {
@@ -584,7 +610,71 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
     "status",
     "doneBy"
   ],
-  "additionalProperties": {}
+  "additionalProperties": {},
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    },
+    "__schema1": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema1"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema1"
+          }
+        }
+      ]
+    }
+  }
 }
 ```
 
@@ -1208,5 +1298,242 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "string",
   "pattern": "^(?:\\/)?local\\/\\s*$"
+}
+```
+
+### template
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "format": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "architectureSkill": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "blocks": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "help": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questions": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "question": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "short-text",
+                    "long-text",
+                    "single-choice",
+                    "multiple-choice",
+                    "list"
+                  ]
+                },
+                "help": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "why": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "example": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "allowFreeText": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "label"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "question",
+                "type",
+                "help"
+              ],
+              "additionalProperties": {}
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "help",
+          "questions"
+        ],
+        "additionalProperties": {}
+      }
+    },
+    "lifecycleOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "feature",
+          "bug",
+          "improvement",
+          "docs",
+          "profile-change",
+          "research",
+          "release"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "discovery",
+                "plan",
+                "implement",
+                "verify",
+                "review",
+                "done",
+                "released",
+                "cancelled"
+              ]
+            }
+          },
+          "planGate": {
+            "type": "boolean"
+          },
+          "rejectTo": {
+            "type": "string",
+            "enum": [
+              "discovery",
+              "plan",
+              "implement",
+              "verify",
+              "review",
+              "done",
+              "released",
+              "cancelled"
+            ]
+          }
+        },
+        "required": [
+          "stages",
+          "planGate",
+          "rejectTo"
+        ],
+        "additionalProperties": {}
+      }
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "format",
+    "title",
+    "description",
+    "architectureSkill",
+    "blocks"
+  ],
+  "additionalProperties": {},
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
 }
 ```

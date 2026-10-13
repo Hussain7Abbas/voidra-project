@@ -4,7 +4,7 @@
 
 An open-source desktop app for planning and tracking software projects built with AI coding agents. Voidra keeps plans and progress in Markdown under `.voidra/`, while Claude Code or Codex implements actions through skills and human approval gates.
 
-**Pre-alpha.** P00 establishes the repository tooling; P01 publishes the [`voidra` 0.1.0 format package and CLI](https://www.npmjs.com/package/voidra/v/0.1.0). P02 adds the secure desktop shell. P03 implements a Docs/chore loop: create and queue an action, run `/voidra-go` in Claude Code or `$voidra-go` in Codex, then accept or request changes in the app. Other action types and onboarding arrive in the following phases. See the [phase index](plan/main.md#phase-index) for actual progress.
+**Pre-alpha.** P00 establishes the repository tooling; P01 publishes the [`voidra` 0.1.0 format package and CLI](https://www.npmjs.com/package/voidra/v/0.1.0). P02 adds the secure desktop shell. P03 implements a Docs/chore loop: create and queue an action, run `/voidra-go` in Claude Code or `$voidra-go` in Codex, then accept or request changes in the app. P04 adds template-based onboarding, profiles and `voidra-init` for existing code. Other action types and the final general template arrive in the following phases. See the [phase index](plan/main.md#phase-index) for actual progress.
 
 - [Vision](VISION.md): product behavior and scope.
 - [Implementation plan](plan/main.md): phases, decisions and verification evidence.

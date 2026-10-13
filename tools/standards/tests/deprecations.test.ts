@@ -149,6 +149,7 @@ describe("repository scanning and CLI", () => {
       "src/out/production.ts": "export const generatedResult = 1;",
       "src/release/production.ts": "export const release = 1;",
       "skills/voidra-go/scripts/runtime.mjs": "// @deprecated",
+      "skills/voidra-init/scripts/init.mjs": "// @deprecated",
       "skills/voidra-go/scripts/authored.mjs": "export const authored = 1;",
       "src/old.test.ts": "// @deprecated",
       "src/types.d.ts": "// @deprecated",

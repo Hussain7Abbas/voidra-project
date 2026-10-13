@@ -1,5 +1,5 @@
 // Generated from tools/run-engine. AGPL-3.0-or-later; bundled dependency notices are in references/third-party-notices.txt.
-import { createRequire as __voidraCreateRequire } from 'node:module'; const require = __voidraCreateRequire(import.meta.url);
+import { createRequire as __voidraCreateRequire } from 'node:module'; import { fileURLToPath as __voidraFileURL } from 'node:url'; const require = __voidraCreateRequire(import.meta.url); const __voidraProcessHelper=__voidraFileURL(new URL('./process-info',import.meta.url)); const __voidraIntakeTemplates=__voidraFileURL(new URL('../references/templates/',import.meta.url));
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -1007,14 +1007,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text3, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text4, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text3;
+        return text4;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text3.length <= endStep)
-        return text3;
+      if (text4.length <= endStep)
+        return text4;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1031,14 +1031,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text3, i, indent.length);
+        i = consumeMoreIndentedLines(text4, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text3[i += 1]; ) {
+      for (let ch; ch = text4[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text3[i + 1]) {
+          switch (text4[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -1055,12 +1055,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text3, i, indent.length);
+            i = consumeMoreIndentedLines(text4, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text3[i + 1];
+            const next = text4[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -1072,12 +1072,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text3[i += 1];
+                ch = text4[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text3;
+                return text4;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1092,39 +1092,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text3;
+        return text4;
       if (onFold)
         onFold();
-      let res = text3.slice(0, folds[0]);
+      let res = text4.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text3.length;
+        const end2 = folds[i2 + 1] || text4.length;
         if (fold === 0)
           res = `
-${indent}${text3.slice(0, end2)}`;
+${indent}${text4.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text3[fold]}\\`;
+            res += `${text4[fold]}\\`;
           res += `
-${indent}${text3.slice(fold + 1, end2)}`;
+${indent}${text4.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text3, i, indent) {
+    function consumeMoreIndentedLines(text4, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text3[start];
+      let ch = text4[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text3[++i];
+          ch = text4[++i];
         } else {
           do {
-            ch = text3[++i];
+            ch = text4[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text3[start];
+          ch = text4[start];
         }
       }
       return end;
@@ -16729,8 +16729,8 @@ function ko_default() {
 }
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/locales/lt.js
-var capitalizeFirstCharacter = (text3) => {
-  return text3.charAt(0).toUpperCase() + text3.slice(1);
+var capitalizeFirstCharacter = (text4) => {
+  return text4.charAt(0).toUpperCase() + text4.slice(1);
 };
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
@@ -27415,6 +27415,12 @@ var actionSchema = object2({
   createdBy: text.optional(),
   createdAt: date5.optional(),
   updatedAt: date5.optional(),
+  profileChange: object2({
+    block: slug,
+    answerId: slug,
+    before: external_exports.json(),
+    after: external_exports.json()
+  }).optional(),
   planApproval: approvalSchema.optional(),
   approvalHistory: external_exports.array(approvalSchema).optional(),
   reviewDecision: object2({
@@ -28647,6 +28653,51 @@ async function applyOperation(root, input2, options = {}, migration = false) {
   }
 }
 
+// packages/voidra/src/templates.ts
+var slug2 = external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+var text2 = external_exports.string().min(1);
+var templateQuestionSchema = external_exports.looseObject({
+  id: slug2,
+  question: text2,
+  type: external_exports.enum([
+    "short-text",
+    "long-text",
+    "single-choice",
+    "multiple-choice",
+    "list"
+  ]),
+  help: text2,
+  why: text2.optional(),
+  required: external_exports.boolean().optional(),
+  example: external_exports.json().optional(),
+  allowFreeText: external_exports.boolean().optional(),
+  options: external_exports.array(external_exports.looseObject({ value: text2, label: text2 })).optional()
+});
+var templateSchema = external_exports.looseObject({
+  id: slug2,
+  version: version2,
+  format: external_exports.number().int().min(1),
+  title: text2,
+  description: text2,
+  architectureSkill: slug2,
+  blocks: external_exports.array(
+    external_exports.looseObject({
+      id: slug2,
+      title: text2,
+      help: text2,
+      questions: external_exports.array(templateQuestionSchema).min(1)
+    })
+  ).min(1),
+  lifecycleOverrides: external_exports.partialRecord(
+    external_exports.enum(types),
+    external_exports.looseObject({
+      stages: external_exports.array(external_exports.enum(stages)),
+      planGate: external_exports.boolean(),
+      rejectTo: external_exports.enum(stages)
+    })
+  ).optional()
+});
+
 // tools/run-engine/src/lock.ts
 import { hostname as hostname3 } from "node:os";
 var HEARTBEAT_STALE_MS = 12e4;
@@ -28765,7 +28816,7 @@ async function assertUnlinked(root, path) {
     }
   }
 }
-var text2 = async (root, path) => {
+var text3 = async (root, path) => {
   await assertUnlinked(root, path);
   try {
     return await readFile3(join3(root, path), "utf8");
@@ -28797,7 +28848,7 @@ async function head(root) {
 async function runContext(root, run) {
   if (!/^run-[0-9a-hjkmnp-tv-z]{6}$/.test(run))
     throw new Error("Invalid run ID");
-  const value = await text2(root, checkpointPath(run));
+  const value = await text3(root, checkpointPath(run));
   if (value === null) throw new Error("Run checkpoint not found");
   const ctx = checkpointSchema.parse(JSON.parse(value));
   if (ctx.run !== run || ctx.actionPath !== `.voidra/actions/${ctx.action}/action.md` || !ctx.runPath.startsWith(`.voidra/actions/${ctx.action}/runs/`) || !ctx.runPath.endsWith(`-${ctx.agent}-${ctx.run}.md`))
@@ -28810,7 +28861,7 @@ async function runContext(root, run) {
   return ctx;
 }
 async function owned(root, token) {
-  const lockRaw = await text2(root, ".voidra/local/run.lock");
+  const lockRaw = await text3(root, ".voidra/local/run.lock");
   if (!lockRaw) throw new Error("Run owner lock was lost");
   const lock = schemas.lock.parse(JSON.parse(lockRaw));
   if (lock.ownerToken !== token)
@@ -28822,9 +28873,9 @@ async function owned(root, token) {
   return { ctx, lock, lockRaw };
 }
 async function save(root, ctx, changes = []) {
-  const path = checkpointPath(ctx.run), old = await text2(root, path);
+  const path = checkpointPath(ctx.run), old = await text3(root, path);
   if (!changes.some((change) => change.path === ".voidra/local/run.lock")) {
-    const lockRaw = await text2(root, ".voidra/local/run.lock");
+    const lockRaw = await text3(root, ".voidra/local/run.lock");
     if (lockRaw === null || schemas.lock.parse(JSON.parse(lockRaw)).ownerToken !== ctx.ownerToken)
       throw new Error("Run owner token changed before writing");
     changes = [
@@ -28852,7 +28903,7 @@ async function current(root, ctx) {
   const checked = await checkProject(root);
   if (checked.diagnostics.length)
     throw new Error("Planning files are invalid or need recovery");
-  const actionRaw = await text2(root, ctx.actionPath), runRaw = await text2(root, ctx.runPath);
+  const actionRaw = await text3(root, ctx.actionPath), runRaw = await text3(root, ctx.runPath);
   if (!actionRaw || !runRaw || hash2(actionRaw) !== ctx.actionHash || hash2(runRaw) !== ctx.runHash)
     throw new Error(
       "Action or run changed outside this owner; recovery conflict"
@@ -28881,6 +28932,8 @@ async function startRun(root, agent, ownerPid2 = process.pid) {
   const actionPath = `.voidra/actions/${actionId}/action.md`, doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
+  if (action.type === "profile-change" && action.status === "draft")
+    throw new Error("Review the Profile change draft before queueing it");
   if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["review", "done", "released", "cancelled"].includes(action.stage ?? ""))
     throw new Error("Queued action is at a gate or already running");
   for (const dependency of action.blockedBy ?? []) {
@@ -29048,7 +29101,7 @@ async function prepareResult(root, token, input2) {
   const paths = [.../* @__PURE__ */ new Set([...report.paths, ctx.actionPath, ctx.runPath])];
   const fileHashes = {};
   for (const path of paths) {
-    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text2(root, path);
+    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text3(root, path);
     fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : await fileHash(root, path);
   }
   await save(
@@ -29278,7 +29331,7 @@ async function recoverRun(root, run, options = {}) {
   let ctx = await runContext(root, run);
   if (ctx.phase === "finalized" && ctx.indexReconciled || ["unsupported", "failed", "interrupted"].includes(ctx.phase))
     return ctx;
-  const raw = await text2(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
+  const raw = await text3(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
   if (lock && (!(await inspectLock(lock)).recoverable || lock.ownerToken !== ctx.ownerToken))
     throw new Error("Run owner is active, alive or cannot be verified");
   if (!lock && ctx.ownerPid && ctx.ownerHost === hostname4() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)

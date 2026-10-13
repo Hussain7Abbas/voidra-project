@@ -87,6 +87,12 @@ export const actionSchema = object({
   createdBy: text.optional(),
   createdAt: date.optional(),
   updatedAt: date.optional(),
+  profileChange: object({
+    block: slug,
+    answerId: slug,
+    before: z.json(),
+    after: z.json(),
+  }).optional(),
   planApproval: approvalSchema.optional(),
   approvalHistory: z.array(approvalSchema).optional(),
   reviewDecision: object({

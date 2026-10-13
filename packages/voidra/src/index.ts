@@ -7,4 +7,5 @@ export * from "./migration.ts";
 export * from "./project.ts";
 export * from "./records.ts";
 export * from "./schemas.ts";
+export * from "./templates.ts";
 export * from "./writer.ts";

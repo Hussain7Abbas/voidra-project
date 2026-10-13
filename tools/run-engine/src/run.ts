@@ -241,6 +241,8 @@ export async function startRun(
     doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
+  if (action.type === "profile-change" && action.status === "draft")
+    throw new Error("Review the Profile change draft before queueing it");
   if (
     action.doneBy !== "agent" ||
     !["ready", "draft", "failed"].includes(action.status) ||

@@ -1,8 +1,70 @@
 import { z } from "zod";
+
+const templateViewSchema = z.object({
+  id: z.string(),
+  version: z.string(),
+  title: z.string(),
+  description: z.string(),
+  blocks: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      help: z.string(),
+      questions: z.array(
+        z.object({
+          id: z.string(),
+          question: z.string(),
+          help: z.string(),
+          type: z.enum([
+            "short-text",
+            "long-text",
+            "single-choice",
+            "multiple-choice",
+            "list",
+          ]),
+          required: z.boolean().optional(),
+          allowFreeText: z.boolean().optional(),
+          example: z.json().optional(),
+          options: z
+            .array(z.object({ value: z.string(), label: z.string() }))
+            .optional(),
+        }),
+      ),
+    }),
+  ),
+});
+export type TemplateView = z.infer<typeof templateViewSchema>;
 export const workspaceSchema = z.strictObject({
   name: z.string(),
   hasVoidra: z.boolean(),
   readOnly: z.boolean(),
+  hasCode: z.boolean(),
+  codeEvidence: z.array(z.string()),
+  templates: z.array(templateViewSchema),
+  templateProblems: z.array(z.string()),
+  template: z.object({ id: z.string(), version: z.string() }).nullable(),
+  profiles: z.array(
+    z.strictObject({
+      path: z.string(),
+      revision: z.string(),
+      body: z.string(),
+      data: z.looseObject({
+        block: z.string(),
+        title: z.string(),
+        answers: z.array(
+          z.looseObject({
+            id: z.string(),
+            question: z.string(),
+            answer: z.json(),
+            status: z.enum(["confirmed", "inferred", "assumed", "open"]),
+            source: z.string().optional(),
+            confirmedBy: z.string().optional(),
+            updatedAt: z.string().optional(),
+          }),
+        ),
+      }),
+    }),
+  ),
   actions: z.array(
     z.strictObject({
       data: z.looseObject({
@@ -89,6 +151,19 @@ export const serviceStateSchema = z.enum([
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("workspace") }),
   z.strictObject({ command: z.literal("create-voidra") }),
+  z.strictObject({
+    command: z.literal("initialize-profile"),
+    template: z.string().min(1),
+    name: z.string().trim().min(1).max(160),
+    answers: z.record(z.string(), z.json()),
+  }),
+  z.strictObject({
+    command: z.literal("edit-profile-answer"),
+    block: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    value: z.json(),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
   z.strictObject({ command: z.literal("queue-action"), id: z.string().min(1) }),
   z.strictObject({
     command: z.literal("review-action"),
@@ -117,6 +192,7 @@ export const requestSchema = z.discriminatedUnion("command", [
   z.strictObject({
     command: z.literal("copy-agent-command"),
     agent: z.enum(["claude-code", "codex"]),
+    skill: z.enum(["voidra-go", "voidra-init"]).optional(),
   }),
   z.strictObject({
     command: z.literal("open-recent"),

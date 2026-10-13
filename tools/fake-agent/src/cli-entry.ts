@@ -6,6 +6,7 @@ if (
   !root ||
   !scenario ||
   ![
+    "init",
     "success",
     "invalid-write",
     "crash-mid-run",

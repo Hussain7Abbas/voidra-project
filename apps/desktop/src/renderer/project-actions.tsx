@@ -377,7 +377,7 @@ export function ProjectActions({ view }: { view: "actions" | "run" }) {
     <>
       <PageHeader
         title="Actions"
-        description="Small documentation and maintenance changes."
+        description="Your project’s planned work and progress."
         actions={
           <Button
             variant="primary"

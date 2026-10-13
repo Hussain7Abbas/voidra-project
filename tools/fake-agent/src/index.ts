@@ -1,13 +1,23 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   commitResult,
   finalizeResult,
+  initializeExisting,
   prepareResult,
   startRun,
 } from "@voidra/run-engine";
-import { applyOperation, hash, parseRecord, serializeRecord } from "voidra";
+import {
+  applyOperation,
+  detectCode,
+  hash,
+  loadTemplate,
+  parseRecord,
+  serializeRecord,
+} from "voidra";
 export type Scenario =
+  | "init"
   | "success"
   | "invalid-write"
   | "crash-mid-run"
@@ -19,6 +29,35 @@ export async function runFakeAgent(
   root: string,
   scenario: Scenario,
 ): Promise<{ run: string; scenario: Scenario }> {
+  if (scenario === "init") {
+    const template = await loadTemplate(
+        fileURLToPath(
+          new URL("../../../templates/general/template.yaml", import.meta.url),
+        ),
+      ),
+      evidence = (await detectCode(root)).evidence[0];
+    if (!evidence) throw new Error("Existing-code fixture is required");
+    const answers: Record<string, { value: unknown; source: string }> =
+      Object.fromEntries(
+        template.blocks.flatMap((block) =>
+          block.questions.map((q) => [
+            `${block.id}.${q.id}`,
+            { value: null, source: `${evidence}:1 (not specified)` },
+          ]),
+        ),
+      );
+    answers["problem.goal"] = {
+      value: "Expose the existing greeting",
+      source: `${evidence}:1`,
+    };
+    await initializeExisting(root, template, {
+      name: "Existing greeting",
+      answers,
+      glossary:
+        "# Draft glossary\n\nGreeting: the message exposed by the existing code.\n",
+    });
+    return { run: "", scenario };
+  }
   const ctx = await startRun(root, "codex", process.pid);
   if (!ctx) throw new Error("No queued action");
   if (ctx.phase === "unsupported") return { run: ctx.run, scenario };

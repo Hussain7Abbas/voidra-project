@@ -91,6 +91,11 @@ try {
   if (workspace.ok && workspace.data.kind === "workspace") {
     assert.deepEqual(workspace.data.workspace.diagnostics, []);
     assert.equal(workspace.data.workspace.lock.state, "running");
+    assert.ok(
+      workspace.data.workspace.templates.some(
+        (template) => template.id === "general" && template.blocks.length > 0,
+      ),
+    );
   }
   const runtime = await application.evaluate(() => ({
     electron: process.versions.electron,

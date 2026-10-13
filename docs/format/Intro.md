@@ -26,3 +26,5 @@ This is the contract fixed by P01-01. Implementation and verification follow in 
 - [Generated schema reference](reference/Intro.md)
 
 - [Public package API](api.md)
+
+- [Templates](template.md): profile questions, loading, atomic intake and profile changes.

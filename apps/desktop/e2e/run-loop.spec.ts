@@ -105,8 +105,17 @@ test.beforeEach(async () => {
   page = await app.firstWindow();
   await page.locator('[data-app-ready="true"]').waitFor();
   await page
-    .getByRole("button", { name: "Create .voidra/", exact: true })
+    .getByRole("button", { name: "Use General software", exact: true })
     .click();
+  await page
+    .getByLabel(/What should this project make possible/)
+    .fill("Track fixture documentation");
+  await page
+    .getByRole("button", { name: "Create planning folder", exact: true })
+    .click();
+  await expect(
+    page.getByText("Project profile created", { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Create Docs/chore action", exact: true })
     .click();
@@ -354,6 +363,8 @@ test("an interrupted grouped write holds the last complete action until explicit
   await recover(run);
   expect((await checkProject(root)).diagnostics).toEqual([]);
   const checked = await checkProject(root),
-    action = [...checked.records.values()].find((r) => r.kind === "action");
+    action = [...checked.records.values()].find(
+      (r) => r.kind === "action" && r.document.data.type === "docs",
+    );
   expect(action?.document.data.title).toBe("Document installation");
 });

@@ -1,9 +1,29 @@
-import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 import { checkProject, parseRecord, schemas } from "voidra";
 import { fixture } from "../../run-engine/tests/helpers.ts";
 import { runFakeAgent } from "../src/index.ts";
+
+it("scripted intake creates inferred data and preserves the existing code", async () => {
+  const root = await mkdtemp(join(tmpdir(), "voidra-fake-intake-"));
+  try {
+    await expect(runFakeAgent(root, "init")).rejects.toThrow(
+      "Existing-code fixture",
+    );
+    await cp(resolve("fixtures/existing-code/project"), root, {
+      recursive: true,
+    });
+    await runFakeAgent(root, "init");
+    expect((await checkProject(root)).diagnostics).toEqual([]);
+    expect(await readFile(join(root, "src/app.ts"), "utf8")).toBe(
+      'export const greeting = "Hello";\n',
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 for (const scenario of [
   "success",
