@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P05 are Done; P06 is In progress. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P06 are Done. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -34,7 +34,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P03 | [Tracer bullet](phase-03-tracer-bullet.md) | One action from the app through `/voidra-go` and back | P01, P02 | M1 | Done (2026-10-13) | [Evidence](../docs/verification/p03.md) |
 | P04 | [Onboarding, profile and `voidra-init`](phase-04-onboarding-profile-and-init.md) | Both ways in; editable profile | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p04.md) |
 | P05 | [The general template](phase-05-general-template.md) | Profile questions and architecture skill, approved by you | P04 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p05.md) |
-| P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | In progress | — |
+| P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p06.md) |
 | P07 | [Questions, gates and inbox](phase-07-questions-gates-and-inbox.md) | Question rounds, plan and review gates, Waiting for you | P04, P06 | M2 | Not started | — |
 | P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | Not started | — |
 | P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | Not started | — |
@@ -90,7 +90,7 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 
 | D24 | Continue non-stop until P17 is completed; resolve questions and named design/document reviews using the approved vision. Record delegated decisions as agent decisions, not personal user reviews. Account access and physical checks still require actual evidence. | You, 2026-10-13 |
 
-| D25 | P06 publishes voidra 0.2.0 for the new planning APIs and aggregate-parent validation. Format stays 1; new projects and aggregate writes advertise the reader minimum. This keeps later standalone checks consistent with the app. | Agent decision under D24, 2026-10-13 |
+| D25 | P06 prepares voidra 0.2.0 for new planning APIs and aggregate validation. Format stays 1 and new forms advertise the minimum reader. npm requires an authenticator code; registry publication remains P15. Earlier real-agent fixtures install the genuine locally packed candidate so npx uses the same validated CLI as the app. | Agent decision under D24, 2026-10-13 |
 
 ### Open
 

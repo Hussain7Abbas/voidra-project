@@ -22,6 +22,7 @@ Pushing a version tag builds an unsigned DMG on GitHub Releases. The app tells y
   - compares versions;
   - shows a banner with the notes and a **Download** button that opens the release page;
   - can be turned off in Settings.
+- P06's local 0.2.0 candidate was not published because npm returned EOTP. Registry 0.1.0 remains the baseline. Establish trusted publishing and publish the matching release library here; do not claim the candidate was already on npm.
 - **npm trusted publishing** (`publish-npm.yml`) for `voidra`, using GitHub's OIDC with provenance, so no npm token is stored. Linking the package to the workflow is a one-time setting on npm. The agent does it with the npm CLI if npm offers a command for it; otherwise this is the one website step left for you.
 - **Version alignment.** One rule for app, `voidra` and skill versions, recorded in an ADR.
 - **`make release`:** bumps versions, tags and pushes, following the `makefile-standards` Deploy section.

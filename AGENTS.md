@@ -1,6 +1,6 @@
 # Voidra Project
 
-Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 is complete and M1 proves the Docs/chore tracer bullet; P04 is complete with onboarding and the project profile; P05 is complete with the general template and architecture skill under the delegated review recorded in D24. P06 widens backlog and actions.
+Voidra Project is an open-source desktop app for planning and tracking software projects built with AI coding agents. [VISION.md](VISION.md) defines what it is. [plan/main.md](plan/main.md) tracks implementation. [docs/intro.md](docs/intro.md) is the documentation entry point. P00 tooling and the published P01 format package/CLI are complete; P02 desktop shell is complete; P03 is complete and M1 proves the Docs/chore tracer bullet; P04 is complete with onboarding and the project profile; P05 is complete with the general template and architecture skill under the delegated review recorded in D24. P06 is complete with backlog, all action types, dependencies, human checklists and the board. P07 adds questions, gates and the inbox.
 
 ## Structure and shared rules
 
@@ -78,5 +78,7 @@ When a story asks for a skill to be tried with real agents, run the check yourse
 4. Run `voidra check` on the result and inspect what the agent wrote and committed.
 5. If a step fails, rerun it with that agent's default model. A failure with both models is a skill problem: fix it. A failure only with the small model is a model limit: record it.
 6. Record the commands, model IDs, effort settings and results in the phase's evidence file.
+
+Until P15 publishes the matching library, build and pack the current `voidra` candidate, install that genuine archive into each temporary fixture with `npm install --no-save --package-lock=false --ignore-scripts <archive>`, and verify `npx --offline --yes voidra@0 version` resolves the candidate. Ignore `node_modules/` before setup commits and include its prepared state in the allowed fixture tooling. This is the actual CLI, not a mock; record archive integrity and version in evidence. npm 0.1.0 remains the public baseline until trusted publishing.
 
 Use the real-agent coverage matrix in [plan/main.md](plan/main.md#real-agent-coverage-matrix) to select scenarios. Snapshot files and git history before each run, then check allowed write paths, gate stops and commit trailers as well as file validity. A fake-agent run or a valid golden example never substitutes for these checks.
