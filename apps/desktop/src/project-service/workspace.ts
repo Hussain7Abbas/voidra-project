@@ -49,13 +49,16 @@ import {
 import {
   type WorkspaceRequest,
   type WorkspaceSnapshot,
+  workspaceEdits,
   workspaceSchema,
 } from "../shared/bridge.ts";
+import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
 const INDEX_VERSION = 4;
 export class ProjectWorkspace {
   private database: Database.Database;
+  private history: UndoHistory;
   private watcher: FSWatcher | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private delivered = "";
@@ -79,6 +82,7 @@ export class ProjectWorkspace {
     this.root = root;
     this.databasePath = databasePath;
     this.database = this.open();
+    this.history = new UndoHistory(this.root, this.database);
   }
   async start(): Promise<void> {
     this.watcher = watch(
@@ -147,6 +151,23 @@ export class ProjectWorkspace {
     return db;
   }
   async handle(request: WorkspaceRequest): Promise<WorkspaceSnapshot> {
+    if (request.command === "undo" || request.command === "redo") {
+      await this.history.replay(
+        request.command,
+        request.revision,
+        request.overwriteRevision,
+      );
+      await this.publish();
+      return this.snapshot();
+    }
+    const label = workspaceEdits[request.command];
+    return label
+      ? this.history.perform(label, () => this.applyRequest(request))
+      : this.applyRequest(request);
+  }
+  private async applyRequest(
+    request: WorkspaceRequest,
+  ): Promise<WorkspaceSnapshot> {
     if (request.command === "commit-planning") {
       const result = await commitPlanning(this.root, {
         id: request.id,
@@ -281,16 +302,21 @@ export class ProjectWorkspace {
         throw new Error(
           "Template not available; inspect its validation message",
         );
-      await initializeProject(this.root, template, {
-        name: request.name,
-        answers: Object.fromEntries(
-          Object.entries(request.answers).map(([key, value]) => [
-            key,
-            { value },
-          ]),
-        ),
-        bootstrap: !(await detectCode(this.root)).hasCode,
-      });
+      await initializeProject(
+        this.root,
+        template,
+        {
+          name: request.name,
+          answers: Object.fromEntries(
+            Object.entries(request.answers).map(([key, value]) => [
+              key,
+              { value },
+            ]),
+          ),
+          bootstrap: !(await detectCode(this.root)).hasCode,
+        },
+        {},
+      );
     }
     if (request.command === "edit-profile-answer") {
       const current = await this.snapshot();
@@ -350,7 +376,7 @@ export class ProjectWorkspace {
       await this.createAction(request.title, request.description, request);
     return this.snapshot();
   }
-  async reviewAction(
+  private async reviewAction(
     id: string,
     decision: "accepted" | "rejected",
     revision: string,
@@ -368,7 +394,7 @@ export class ProjectWorkspace {
     await decideReview(this.root, id, revision, decision, feedback, "You");
     await this.publish();
   }
-  async queueAction(id: string, revision?: string): Promise<void> {
+  private async queueAction(id: string, revision?: string): Promise<void> {
     const current = await this.snapshot();
     if (
       current.lock.state !== "none" ||
@@ -411,7 +437,7 @@ export class ProjectWorkspace {
     });
     await this.publish();
   }
-  async createAction(
+  private async createAction(
     title: string,
     description: string,
     options?: Extract<WorkspaceRequest, { command: "create-action" }>,
@@ -434,10 +460,12 @@ export class ProjectWorkspace {
     });
     await this.publish();
   }
-  async initialize(): Promise<void> {
+  private async initialize(): Promise<void> {
     const existing = await checkProject(this.root);
     if (
-      existing.files.size ||
+      [...existing.files.keys()].some(
+        (path) => !path.startsWith(".voidra/local/"),
+      ) ||
       existing.diagnostics.some((d) => d.code !== "required-file")
     )
       throw new Error(
@@ -472,9 +500,12 @@ export class ProjectWorkspace {
     if (!existsSync(this.databasePath)) {
       this.database.close();
       this.database = this.open();
+      this.history = new UndoHistory(this.root, this.database);
     }
     const project = await checkProject(this.root);
-    const hasVoidra = project.files.size > 0;
+    const hasVoidra = [...project.files.keys()].some(
+      (path) => !path.startsWith(".voidra/local/"),
+    );
     const catalog = await readTemplates(this.templatesDirectory),
       code = hasVoidra
         ? { hasCode: false, evidence: [] }
@@ -486,14 +517,23 @@ export class ProjectWorkspace {
     const lock = await inspectLock(
       lockData ?? (project.files.has(".voidra/local/run.lock") ? {} : null),
     );
-    for (const record of project.records.values()) {
+    for (const [path, bytes] of project.files) {
       if (
-        record.kind === "operation" &&
-        record.document.data.state === "prepared"
+        !/^\.voidra\/local\/operations\/op-[0-9a-hjkmnp-tv-z]{6}\.json$/.test(
+          path,
+        )
       )
+        continue;
+      let operation: ReturnType<typeof schemas.operation.safeParse>;
+      try {
+        operation = schemas.operation.safeParse(JSON.parse(bytes.toString()));
+      } catch {
+        continue;
+      }
+      if (operation.success && operation.data.state === "prepared")
         recoveries.push({
           kind: "operation",
-          id: String(record.document.data.id),
+          id: operation.data.id,
           recoverable: true,
           message:
             "A grouped write was interrupted; complete or roll it back before continuing.",
@@ -724,6 +764,7 @@ export class ProjectWorkspace {
       };
     });
     return workspaceSchema.parse({
+      editing: await this.history.state(),
       name: project.metadata?.project.name ?? basename(this.root),
       hasVoidra,
       readOnly: hasVoidra && blockingPlanningDiagnostics(project).length > 0,

@@ -22,7 +22,11 @@ import {
 } from "./project.ts";
 import { fieldLine, parseRecord, serializeRecord } from "./records.ts";
 import { lifecycleOverridesSchema, schemas, version } from "./schemas.ts";
-import { applyOperation, type WriteManifest } from "./writer.ts";
+import {
+  applyOperation,
+  type WriteManifest,
+  type WriteOptions,
+} from "./writer.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   text = z.string().min(1);
@@ -277,6 +281,7 @@ export async function initializeProject(
   root: string,
   input: Template,
   options: IntakeOptions,
+  writer?: WriteOptions,
 ): Promise<{ paths: string[]; bootstrap?: string }> {
   const template = validateTemplate(input),
     at = new Date().toISOString(),
@@ -294,7 +299,8 @@ export async function initializeProject(
         if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
         throw error;
       });
-  if (await exists()) throw new Error("Planning directory already exists");
+  if (!writer && (await exists()))
+    throw new Error("Planning directory already exists");
   const files = new Map<string, string | Buffer>([
     [
       ".voidra/voidra.json",
@@ -366,6 +372,44 @@ export async function initializeProject(
         "Use the project profile to discover the remaining questions and propose a Bootstrap plan. Stop for approval before implementation.\n",
       ),
     );
+  }
+  if (writer) {
+    const sharedFiles = async (folder: string): Promise<boolean> => {
+      for (const entry of await readdir(folder, { withFileTypes: true })) {
+        if (folder === join(root, ".voidra") && entry.name === "local")
+          continue;
+        if (
+          !entry.isDirectory() ||
+          (await sharedFiles(join(folder, entry.name)))
+        )
+          return true;
+      }
+      return false;
+    };
+    if (await exists()) {
+      const state = await lstat(join(root, ".voidra"));
+      if (
+        !state.isDirectory() ||
+        state.isSymbolicLink() ||
+        (await sharedFiles(join(root, ".voidra")))
+      )
+        throw new Error("Planning directory already exists");
+    }
+    await applyOperation(
+      root,
+      {
+        changes: [...files].map(([path, content]) => ({
+          path,
+          expectedHash: null,
+          content: content.toString(),
+        })),
+      },
+      {
+        ...writer,
+        lifecycles: { ...lifecycles, ...template.lifecycleOverrides },
+      },
+    );
+    return { paths: [...files.keys()], ...(bootstrap ? { bootstrap } : {}) };
   }
   const stage = await mkdtemp(join(dirname(resolve(root)), ".voidra-staging-"));
   try {

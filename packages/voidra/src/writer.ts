@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import {
   lstat,
@@ -42,6 +43,8 @@ export const manifestSchema = z.looseObject({
 export type WriteManifest = z.infer<typeof manifestSchema>;
 export type Checkpoint = (point: string, path: string) => Promise<void> | void;
 export interface WriteOptions {
+  /** Undo initialization only: permit a wholly absent shared project, never a partial one. */
+  allowEmptyProject?: boolean;
   allowGlossary?: boolean;
   checkpoint?: Checkpoint;
   lifecycles?: Lifecycles;
@@ -50,6 +53,26 @@ export interface OperationResult {
   id: string;
   state: Operation["state"];
   alreadyCompleted: boolean;
+}
+export interface OperationObserver {
+  prepared(operation: Operation): Promise<void> | void;
+  committed(id: string): Promise<void> | void;
+}
+const observers = new AsyncLocalStorage<{
+  root: string;
+  observer: OperationObserver;
+}>();
+/** Scope app history to this asynchronous edit; agent/CLI writes stay independent. */
+export async function withOperationObserver<T>(
+  root: string,
+  observer: OperationObserver,
+  edit: () => Promise<T>,
+): Promise<T> {
+  return observers.run({ root: await realpath(root), observer }, edit);
+}
+function operationObserver(root: string): OperationObserver | undefined {
+  const context = observers.getStore();
+  return context?.root === root ? context.observer : undefined;
 }
 const journalDir = ".voidra/local/operations";
 const lockPath = ".voidra/local/writer.lock";
@@ -302,12 +325,28 @@ function validateOverlay(
     rollback,
     deferred,
   );
-  if (problems.length)
+  if (problems.length && !emptyProject(overlay, problems, options))
     fail(
       "invalid-overlay",
       problems[0]?.file ?? "",
       `Intended project is invalid: ${problems.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`,
     );
+}
+function emptyProject(
+  files: ProjectFiles,
+  diagnostics: Diagnostic[],
+  options: WriteOptions,
+): boolean {
+  return (
+    options.allowEmptyProject === true &&
+    ![...files.keys()].some(
+      (path) =>
+        path.startsWith(".voidra/") && !path.startsWith(".voidra/local/"),
+    ) &&
+    diagnostics.every(
+      (d) => d.code === "required-file" && d.file === ".voidra/voidra.json",
+    )
+  );
 }
 async function assertVersion(
   root: string,
@@ -373,6 +412,11 @@ async function finish(
   options: WriteOptions,
   rollback = false,
 ): Promise<OperationResult> {
+  options = {
+    ...options,
+    allowEmptyProject:
+      options.allowEmptyProject || operation.allowEmptyProject === true,
+  };
   const deferred = z
     .array(z.string().regex(/^[a-f0-9]{64}$/))
     .parse(operation.deferredDiagnostics ?? []);
@@ -445,14 +489,15 @@ async function finish(
       ignoreOperation: operation.id,
     },
   );
+  const problems = blockingDiagnostics(
+    checked.diagnostics,
+    operation.changes,
+    rollback,
+    deferred,
+  );
   if (
     final.diagnostics.length ||
-    blockingDiagnostics(
-      checked.diagnostics,
-      operation.changes,
-      rollback,
-      deferred,
-    ).length
+    (problems.length && !emptyProject(final.files, problems, options))
   )
     fail(
       "post-validation",
@@ -462,6 +507,7 @@ async function finish(
   await options.checkpoint?.("before-commit", operation.id);
   operation.state = rollback ? "rolled-back" : "committed";
   await journal(root, operation, options);
+  if (!rollback) await operationObserver(root)?.committed(operation.id);
   await options.checkpoint?.("committed", operation.id);
   return { id: operation.id, state: operation.state, alreadyCompleted: false };
 }
@@ -494,6 +540,7 @@ export async function applyOperation(
       JSON.stringify({
         changes: manifest.changes,
         allowGlossary: Boolean(options.allowGlossary),
+        ...(options.allowEmptyProject ? { allowEmptyProject: true } : {}),
       }),
     );
     const existing = await optionalRead(
@@ -557,10 +604,17 @@ export async function applyOperation(
       fingerprint,
       state: "prepared",
       changes,
+      ...(options.allowEmptyProject ? { allowEmptyProject: true } : {}),
       deferredDiagnostics: deferredConflictDiagnostics(
         inspectFiles(read.files, { ignoreOperation: id }),
       ).map(diagnosticFingerprint),
     };
+    const changed = changes.filter((change) => change.before !== change.after);
+    if (changed.length)
+      await operationObserver(resolved)?.prepared({
+        ...operation,
+        changes: changed,
+      });
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id);
     return await finish(resolved, operation, options);

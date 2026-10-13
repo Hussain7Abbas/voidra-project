@@ -27,6 +27,7 @@ export type Scenario =
   | "crash-after-commit"
   | "stale-lock"
   | "live-stale"
+  | "pause-after-start"
   | "interrupted-operation";
 export async function runFakeAgent(
   root: string,
@@ -64,6 +65,7 @@ export async function runFakeAgent(
   const ctx = await startRun(root, "codex", process.pid);
   if (!ctx) throw new Error("No queued action");
   if (ctx.phase !== "started") return { run: ctx.run, scenario };
+  if (scenario === "pause-after-start") return { run: ctx.run, scenario };
   if (scenario === "invalid-write") {
     await writeFile(
       join(root, ctx.actionPath),

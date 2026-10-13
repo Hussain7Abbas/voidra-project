@@ -87,6 +87,13 @@ const templateViewSchema = z.object({
   ),
 });
 export type TemplateView = z.infer<typeof templateViewSchema>;
+const historyEntrySchema = z.strictObject({
+  label: z.string().nullable(),
+  revision: z.string().nullable(),
+  blocked: z.string().nullable(),
+  conflicts: z.array(z.string()),
+  overwriteRevision: z.string().nullable(),
+});
 export const gitHistorySchema = z.strictObject({
   commits: z.array(
     z.strictObject({
@@ -102,6 +109,11 @@ export const gitHistorySchema = z.strictObject({
   notice: z.string().nullable(),
 });
 export const workspaceSchema = z.strictObject({
+  editing: z.strictObject({
+    undo: historyEntrySchema,
+    redo: historyEntrySchema,
+    notice: z.string().nullable(),
+  }),
   name: z.string(),
   hasVoidra: z.boolean(),
   readOnly: z.boolean(),
@@ -321,6 +333,22 @@ export const serviceStateSchema = z.enum([
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({
+    command: z.literal("undo"),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    overwriteRevision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  }),
+  z.strictObject({
+    command: z.literal("redo"),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    overwriteRevision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  }),
+  z.strictObject({
     command: z.literal("commit-planning"),
     id: z.string().uuid(),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
@@ -463,7 +491,39 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
 ]);
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
+/** Exhaustive classification: a new project command must declare its edit label. */
+export const workspaceEdits = {
+  workspace: null,
+  "commit-planning": null,
+  "recover-planning": null,
+  "discard-planning": null,
+  undo: null,
+  redo: null,
+  "answer-question": "Answer question",
+  "approve-plan": "Approve plan",
+  "reject-plan": "Request plan changes",
+  "create-voidra": "Create planning folder",
+  "edit-action": "Edit action",
+  "set-human-step": "Change checklist",
+  "promote-idea": "Promote idea",
+  "create-idea": "Create idea",
+  "edit-idea": "Edit idea",
+  "initialize-profile": "Create project profile",
+  "edit-profile-answer": "Edit profile answer",
+  "replace-queue": "Change run queue",
+  "queue-action": "Queue action",
+  "review-action": "Review action",
+  "create-action": "Create action",
+} satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  z.strictObject({
+    command: z.literal("text-edit-focus"),
+    editing: z.boolean(),
+  }),
+  z.strictObject({
+    command: z.literal("text-edit"),
+    direction: z.enum(["undo", "redo"]),
+  }),
   ...workspaceRequestSchema.options,
   z.strictObject({
     command: z.literal("open-commit"),
@@ -550,6 +610,10 @@ export type BridgeResponse = z.infer<typeof responseSchema>;
 export type ProjectInfo = z.infer<typeof projectSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export const eventSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("edit-history"),
+    direction: z.enum(["undo", "redo"]),
+  }),
   z.strictObject({ type: z.literal("changed") }),
   z.strictObject({ type: z.literal("settings") }),
   z.strictObject({ type: z.literal("service"), state: serviceStateSchema }),

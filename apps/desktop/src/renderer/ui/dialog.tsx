@@ -60,7 +60,7 @@ export function Dialog({
       className={`m-auto w-[calc(100%-2rem)] ${width} rounded-card border border-line bg-surface p-0 text-ink shadow-[var(--shadow)] backdrop:bg-black/45 backdrop:backdrop-blur-[2px]`}
     >
       {open && (
-        <div className="flex max-h-[min(88vh,52rem)] flex-col">
+        <section className="flex max-h-[min(88vh,52rem)] flex-col">
           <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
             <div>
               <h2 id={titleId} className="text-lg font-semibold">
@@ -88,7 +88,7 @@ export function Dialog({
               {footer}
             </footer>
           )}
-        </div>
+        </section>
       )}
     </dialog>
   );

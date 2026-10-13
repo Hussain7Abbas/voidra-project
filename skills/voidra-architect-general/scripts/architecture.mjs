@@ -28193,6 +28193,7 @@ async function checkProject(root, options = {}) {
 }
 
 // packages/voidra/src/writer.ts
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import {
   lstat as lstat2,
@@ -28237,6 +28238,11 @@ var manifestSchema = external_exports.looseObject({
     })
   ).min(1)
 });
+var observers = new AsyncLocalStorage();
+function operationObserver(root) {
+  const context = observers.getStore();
+  return context?.root === root ? context.observer : void 0;
+}
 var journalDir = ".voidra/local/operations";
 var lockPath = ".voidra/local/writer.lock";
 var optionalRead = async (path) => {
@@ -28431,12 +28437,19 @@ function validateOverlay(files, changes, id2, options, rollback = false, deferre
     rollback,
     deferred
   );
-  if (problems.length)
+  if (problems.length && !emptyProject(overlay, problems, options))
     fail(
       "invalid-overlay",
       problems[0]?.file ?? "",
       `Intended project is invalid: ${problems.map((d) => `${d.file} ${d.field}: ${d.message}`).join("; ")}`
     );
+}
+function emptyProject(files, diagnostics, options) {
+  return options.allowEmptyProject === true && ![...files.keys()].some(
+    (path) => path.startsWith(".voidra/") && !path.startsWith(".voidra/local/")
+  ) && diagnostics.every(
+    (d) => d.code === "required-file" && d.file === ".voidra/voidra.json"
+  );
 }
 async function assertVersion(root, allowPrototype = false) {
   const target = await safePath(root, ".voidra/voidra.json");
@@ -28484,6 +28497,10 @@ async function readJournal(root, id2) {
   return op;
 }
 async function finish(root, operation, options, rollback = false) {
+  options = {
+    ...options,
+    allowEmptyProject: options.allowEmptyProject || operation.allowEmptyProject === true
+  };
   const deferred = external_exports.array(external_exports.string().regex(/^[a-f0-9]{64}$/)).parse(operation.deferredDiagnostics ?? []);
   const targets = operation.changes.map((change) => ({
     change,
@@ -28548,12 +28565,13 @@ async function finish(root, operation, options, rollback = false) {
       ignoreOperation: operation.id
     }
   );
-  if (final.diagnostics.length || blockingDiagnostics(
+  const problems = blockingDiagnostics(
     checked.diagnostics,
     operation.changes,
     rollback,
     deferred
-  ).length)
+  );
+  if (final.diagnostics.length || problems.length && !emptyProject(final.files, problems, options))
     fail(
       "post-validation",
       operation.id,
@@ -28562,6 +28580,7 @@ async function finish(root, operation, options, rollback = false) {
   await options.checkpoint?.("before-commit", operation.id);
   operation.state = rollback ? "rolled-back" : "committed";
   await journal(root, operation, options);
+  if (!rollback) await operationObserver(root)?.committed(operation.id);
   await options.checkpoint?.("committed", operation.id);
   return { id: operation.id, state: operation.state, alreadyCompleted: false };
 }
@@ -28586,7 +28605,8 @@ async function applyOperation(root, input3, options = {}, migration = false) {
     const fingerprint = hash2(
       JSON.stringify({
         changes: manifest.changes,
-        allowGlossary: Boolean(options.allowGlossary)
+        allowGlossary: Boolean(options.allowGlossary),
+        ...options.allowEmptyProject ? { allowEmptyProject: true } : {}
       })
     );
     const existing = await optionalRead(
@@ -28644,10 +28664,17 @@ async function applyOperation(root, input3, options = {}, migration = false) {
       fingerprint,
       state: "prepared",
       changes,
+      ...options.allowEmptyProject ? { allowEmptyProject: true } : {},
       deferredDiagnostics: deferredConflictDiagnostics(
         inspectFiles(read.files, { ignoreOperation: id2 })
       ).map(diagnosticFingerprint)
     };
+    const changed = changes.filter((change) => change.before !== change.after);
+    if (changed.length)
+      await operationObserver(resolved)?.prepared({
+        ...operation,
+        changes: changed
+      });
     await journal(resolved, operation, options);
     await options.checkpoint?.("journal-prepared", id2);
     return await finish(resolved, operation, options);

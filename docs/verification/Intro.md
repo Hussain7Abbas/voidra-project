@@ -22,4 +22,6 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [P08 — Standalone lifecycles](p08.md): Go/Plan execution, all implementation types and real-agent evidence.
 
-- [P09 — Runs, commits and teams](p09.md): ordered queues, safe planning commits, team refresh, conflicts, performance and dogfooding; closure in progress.
+- [P09 — Runs, commits and teams](p09.md): ordered queues, safe planning commits, team refresh, conflicts, performance and dogfooding; M2 reached.
+
+- [P10: Undo and redo](p10.md) — In progress; persistent history and safety checks implemented, final UI/quality verification pending.

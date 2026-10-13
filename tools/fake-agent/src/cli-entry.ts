@@ -13,6 +13,7 @@ if (
     "crash-after-commit",
     "stale-lock",
     "live-stale",
+    "pause-after-start",
     "interrupted-operation",
   ].includes(scenario)
 )
@@ -20,4 +21,5 @@ if (
 process.stdout.write(
   `${JSON.stringify(await runFakeAgent(resolve(root), scenario as Scenario))}\n`,
 );
-if (scenario === "live-stale") setInterval(() => {}, 1000);
+if (scenario === "live-stale" || scenario === "pause-after-start")
+  setInterval(() => {}, 1000);

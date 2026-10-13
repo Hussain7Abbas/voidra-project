@@ -25,6 +25,7 @@ import type {
   Snapshot,
   ThemePreference,
 } from "../shared/bridge.ts";
+import { EditHistory } from "./edit-history.tsx";
 import { inboxItems } from "./inbox.ts";
 import { ProjectActions } from "./project-actions.tsx";
 import { ProjectBacklog } from "./project-backlog.tsx";
@@ -85,14 +86,17 @@ function Shell() {
     "actions" | "run" | "profile" | "backlog" | "inbox"
   >("actions");
   const data = snapshot.data;
-  const workspace = useWorkspace(!!data?.project?.hasVoidra);
+  const workspace = useWorkspace(!!data?.project);
+  const hasPlanning = workspace.data
+    ? workspace.data.hasVoidra || workspace.data.recoveries.length > 0
+    : !!data?.project?.hasVoidra;
   const waitingCount = workspace.data ? inboxItems(workspace.data).length : 0;
   const themePreference = data?.theme;
   useEffect(
     () =>
       window.voidra.subscribe((event) => {
         if (event.type === "settings") setSettings(true);
-        else void query.invalidateQueries();
+        else if (event.type !== "edit-history") void query.invalidateQueries();
       }),
     [query],
   );
@@ -229,9 +233,9 @@ function Shell() {
                 <button
                   type="button"
                   aria-label={item.label}
-                  className={`nav-item ${(data?.project?.hasVoidra ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                  className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                   disabled={
-                    data?.project?.hasVoidra
+                    hasPlanning
                       ? ![
                           "Actions",
                           "Run",
@@ -258,7 +262,7 @@ function Shell() {
                   }}
                   aria-current={
                     (
-                      data?.project?.hasVoidra
+                      hasPlanning
                         ? item.label ===
                           (navigationTarget === "inbox"
                             ? "Waiting for you"
@@ -318,6 +322,10 @@ function Shell() {
               {data?.project?.name ?? "Your workspace"}
             </span>
           </div>
+          <EditHistory
+            editing={workspace.data?.editing}
+            onChange={() => query.invalidateQueries()}
+          />
           <span className="workspace-status">
             <span className="status-dot" />
             {data?.serviceState === "ready"
@@ -361,6 +369,7 @@ function Shell() {
           ) : (
             <Content
               data={data as Snapshot}
+              hasPlanning={hasPlanning}
               open={open}
               busy={busy}
               navigationEpoch={navigationEpoch}
@@ -418,19 +427,21 @@ function Shell() {
 }
 function Content({
   data,
+  hasPlanning,
   open,
   busy,
   navigationEpoch,
   navigationTarget,
 }: {
   data: Snapshot;
+  hasPlanning: boolean;
   open: () => void;
   busy: boolean;
   navigationEpoch: number;
   navigationTarget: "actions" | "run" | "profile" | "backlog" | "inbox";
 }) {
   const project = data.project;
-  if (project?.hasVoidra)
+  if (project && hasPlanning)
     return navigationTarget === "profile" ? (
       <ProjectProfile key={navigationEpoch} />
     ) : navigationTarget === "backlog" ? (

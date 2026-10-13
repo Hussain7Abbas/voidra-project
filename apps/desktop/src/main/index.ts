@@ -7,6 +7,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  type MenuItemConstructorOptions,
   nativeTheme,
   protocol,
   session,
@@ -19,6 +20,7 @@ import {
   type ProjectInfo,
   requestSchema,
   responseSchema,
+  type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
 import {
   APP_ORIGIN,
@@ -53,9 +55,36 @@ if (!single) app.quit();
 const registry = new WindowRegistry();
 const services = new Map<number, ProjectService>();
 const projects = new Map<number, ProjectInfo>();
+const editing = new Map<number, WorkspaceSnapshot["editing"]>();
+const textEditing = new Set<number>();
+function updateEditMenu(id: number): void {
+  const focused = BrowserWindow.getFocusedWindow();
+  if (focused ? focused.id !== id : registry.ids().length !== 1) return;
+  for (const direction of ["undo", "redo"] as const) {
+    const item = Menu.getApplicationMenu()?.getMenuItemById(
+      `project-${direction}`,
+    );
+    if (!item) continue;
+    const value = editing.get(id)?.[direction];
+    const verb = direction === "undo" ? "Undo" : "Redo";
+    item.label = textEditing.has(id)
+      ? `${verb} Typing`
+      : `${verb}${value?.label ? ` ${value.label}` : ""}`;
+    item.enabled = textEditing.has(id) || !!value?.label;
+  }
+}
 const closing = new Set<Promise<void>>();
 const notify = (id: number, event: BridgeEvent): void => {
   BrowserWindow.fromId(id)?.webContents.send("voidra:event", event);
+  if (event.type === "changed" && services.get(id)?.state === "ready")
+    void services
+      .get(id)
+      ?.workspace({ command: "workspace" })
+      .then((workspace) => {
+        editing.set(id, workspace.editing);
+        updateEditMenu(id);
+      })
+      .catch(() => {});
 };
 const broadcast = (): void => {
   for (const id of registry.ids()) notify(id, { type: "changed" });
@@ -108,6 +137,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     },
   });
   registry.register(window.id, root);
+  window.on("focus", () => updateEditMenu(window.id));
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.on("will-frame-navigate", (event) =>
@@ -122,6 +152,8 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     }
     services.delete(window.id);
     projects.delete(window.id);
+    editing.delete(window.id);
+    textEditing.delete(window.id);
   });
   window.on("ready-to-show", () => window.show());
   if (root) {
@@ -231,7 +263,16 @@ async function start(): Promise<void> {
       const request = parsed.data;
       try {
         let response: BridgeResponse;
-        if (request.command === "snapshot") {
+        if (request.command === "text-edit-focus") {
+          if (request.editing) textEditing.add(window.id);
+          else textEditing.delete(window.id);
+          updateEditMenu(window.id);
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "text-edit") {
+          if (request.direction === "undo") window.webContents.undo();
+          else window.webContents.redo();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "snapshot") {
           const service = services.get(window.id);
           if (service?.state === "ready")
             try {
@@ -250,11 +291,14 @@ async function start(): Promise<void> {
         } else if (isWorkspaceRequest(request)) {
           const service = services.get(window.id);
           if (!service) throw new Error("Open a project first");
+          const workspace = await service.workspace(request);
+          editing.set(window.id, workspace.editing);
+          updateEditMenu(window.id);
           response = {
             ok: true,
             data: {
               kind: "workspace",
-              workspace: await service.workspace(request),
+              workspace,
             },
           };
         } else if (request.command === "open-commit") {
@@ -425,7 +469,33 @@ async function start(): Promise<void> {
           { role: "close" },
         ],
       },
-      { role: "editMenu" },
+      {
+        label: "Edit",
+        submenu: [
+          ...(["undo", "redo"] as const).map<MenuItemConstructorOptions>(
+            (direction) => ({
+              id: `project-${direction}`,
+              label: direction === "undo" ? "Undo" : "Redo",
+              enabled: false,
+              accelerator:
+                direction === "undo" ? "CmdOrCtrl+Z" : "CmdOrCtrl+Shift+Z",
+              click: (_event, window) => {
+                const focused = window
+                  ? BrowserWindow.fromId(window.id)
+                  : BrowserWindow.getFocusedWindow();
+                if (focused)
+                  notify(focused.id, { type: "edit-history", direction });
+              },
+            }),
+          ),
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "pasteAndMatchStyle" },
+          { role: "selectAll" },
+        ],
+      },
       { role: "windowMenu" },
     ]),
   );

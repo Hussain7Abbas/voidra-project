@@ -18,3 +18,5 @@ These records describe confirmed project decisions, not completed runtime featur
 - [Project watcher](2026-10-13-project-watcher.md): debounce, echo suppression and recovery boundaries.
 
 - [Run ownership](2026-10-13-run-ownership.md): live-owner protection and durable commit reconciliation.
+
+- [Persistent undo history](2026-10-13-undo-history.md): bounded local snapshots and consumed-record protection.
