@@ -8,7 +8,9 @@ Group questions by prerequisites, not topic count. Ask every independent scope-c
 
 Every question requires `text`, `why`, and options `{label, description, recommended}`. Exactly one option is recommended; letter labels are easiest to use in chat. Free text is enabled automatically. Examples are illustrative, not answers to infer for an actual project.
 
-Run `node <skill-folder>/scripts/architecture.mjs` with real JSON on stdin:
+Run `node <skill-folder>/scripts/architecture.mjs` with real JSON on stdin. In a restricted shell use a quoted `printf` pipeline or a subprocess with its `input` parameter, rather than relying on shell heredoc temporary files. For example, a Python subprocess can send `json.dumps(proposal)` directly to the helper. A report file must already exist inside an allowed project folder.
+
+Question input:
 
 ```json
 {"action":"act-000000","kind":"questions","questions":[{"text":"Who can read a saved project?","why":"Defines the authorization boundary before choosing storage.","options":[{"label":"a","description":"Only its owner","recommended":true},{"label":"b","description":"A shared team","recommended":false}]}]}
