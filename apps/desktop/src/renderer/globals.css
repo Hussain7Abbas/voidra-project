@@ -380,6 +380,14 @@
   }
 }
 
+/* Theme palettes switch together; hover transitions resume after paint. */
+html[data-theme-changing] *,
+html[data-theme-changing] *::before,
+html[data-theme-changing] *::after,
+html[data-theme-changing] *::backdrop {
+  transition: none !important;
+}
+
 /* Unlayered, so it overrides every layered transition and animation. */
 @media (prefers-reduced-motion: reduce) {
   *,

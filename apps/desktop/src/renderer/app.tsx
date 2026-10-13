@@ -54,13 +54,24 @@ function useSnapshot() {
     retry: 1,
   });
 }
+let themeChange = 0;
 function applyTheme(preference: ThemePreference): void {
-  document.documentElement.dataset.theme =
+  const root = document.documentElement;
+  const theme =
     preference === "system"
       ? window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light"
       : preference;
+  if (root.dataset.theme === theme) return;
+  const revision = ++themeChange;
+  root.dataset.themeChanging = "true";
+  root.dataset.theme = theme;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (revision === themeChange) delete root.dataset.themeChanging;
+    }),
+  );
 }
 function Shell() {
   const snapshot = useSnapshot();

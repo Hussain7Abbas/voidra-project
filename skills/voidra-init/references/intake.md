@@ -7,20 +7,84 @@ node <skill-directory>/scripts/init.mjs --template general <<'JSON'
 {
   "name": "Existing project",
   "answers": {
-    "problem.goal": {"value": "The observed purpose", "source": "src/app.ts:1"},
-    "users.audience": {"value": null, "source": "src/app.ts:1 (audience not specified)"},
-    "users.features": {"value": ["Observed feature"], "source": "src/app.ts:1"},
-    "delivery.platform": {"value": null, "source": "src/app.ts:1 (platform not specified)"},
-    "delivery.priorities": {"value": null, "source": "src/app.ts:1 (priorities not specified)"},
-    "delivery.stack": {"value": "TypeScript", "source": "src/app.ts:1"}
+    "problem.goal": {
+      "value": "Expose the observed greeting",
+      "source": "src/app.ts:1"
+    },
+    "problem.workflow": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "users.audience": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "users.success": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "scope.features": {
+      "value": [
+        "Export greeting"
+      ],
+      "source": "src/app.ts:1"
+    },
+    "scope.modules": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "technology.stack": {
+      "value": "TypeScript",
+      "source": "src/app.ts:1"
+    },
+    "technology.libraries": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "design.direction": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "integrations.systems": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "data.model": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "data.protection": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "delivery.platform": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "delivery.distribution": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "constraints.priorities": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "constraints.limits": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    },
+    "constraints.references": {
+      "value": null,
+      "source": "src/app.ts:1 (not specified by this file)"
+    }
   },
-  "glossary": "# Draft glossary\n\nObserved term: definition based on the code.\n"
+  "glossary": "# Draft glossary\n\nGreeting: the text exported by src/app.ts.\n"
 }
 JSON
 npx --yes voidra@0 check .
 ```
 
-This illustrates the starter template's report shape, not universal answers. Read the selected template and provide all its questions. Keys are `<block>.<question>`; text/choice answers are strings, multiple choices/lists are arrays and unknown answers are null. Each source must name an existing, unlinked project file. Do not use a path outside the project. Optional flags are `--project FOLDER`, `--template ID`, and `--report FILE` instead of stdin; `--help` prints usage. Stdin avoids leaving a report file in the project.
+This illustrates the general template's report shape, not universal answers. Read the selected template and provide all its questions. Keys are `<block>.<question>`; text/choice answers are strings, multiple choices/lists are arrays and unknown answers are null. Each source must name an existing, unlinked project file. Do not use a path outside the project. Optional flags are `--project FOLDER`, `--template ID`, and `--report FILE` instead of stdin; `--help` prints usage. Stdin avoids leaving a report file in the project.
 
 The helper checks for actual code, validates templates/answers and refuses an existing .voidra. It creates no Bootstrap for existing code. Profile answers remain inferred, including unresolved nulls; the person can fill those in rather than confirming an empty answer. No Git command is executed.
 

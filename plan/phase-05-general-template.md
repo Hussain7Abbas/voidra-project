@@ -48,6 +48,8 @@ More templates and template sharing (v2).
 | P05-05 | Versioning | 2 | P05-02 | `template.yaml` declares version 1.0.0 and its format. A mismatch is reported clearly. |
 | P05-06 | Architecture skill real-agent checks | 3 | P05-02, P05-03, P05-04, P05-05 | In both agents, invoke the architecture skill directly on temporary projects: a Discovery round and Bootstrap plan exercise seams and an ADR proposal; a large request produces linked slices. Outputs pass `voidra check`, no implementation starts before approval, and commands, model IDs, write paths and gate stops are recorded. |
 
+| P05-07 | Coherent theme changes | 2 | P02 | Follow-up to the P04 closing CI contrast failure: text/background palettes change together on every rendered frame, including repeated switches. A real Electron regression test passes; theme/accessibility CI passes. |
+
 ## Tests
 
 - The template validates; the golden examples pass `voidra check`; the skill passes lint.

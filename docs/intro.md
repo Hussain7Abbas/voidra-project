@@ -15,3 +15,5 @@ P00 supplies repository tooling and policies. P01 publishes the format package a
 
 - [Design system](design-system.md): how the desktop applies Ink & Iris.
 - [P02 evidence](verification/p02.md): native, end-to-end, accessibility and packaged checks.
+
+- [General template review](templates/general-review.md): proposed profile questions awaiting the P05 product decision.

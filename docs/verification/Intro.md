@@ -13,3 +13,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P03 — Tracer bullet](p03.md): action/run loop, explicit recovery, fake-agent workflows and both real agents.
 
 - [P04 — Onboarding and profile](p04.md): templates, both intake routes, confirmations, drafts and real-agent checks.
+
+- [P05 — General template draft](p05.md): validated proposal and theme follow-up; user review and architecture checks are pending.
