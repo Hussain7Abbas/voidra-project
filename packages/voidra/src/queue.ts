@@ -1,0 +1,149 @@
+import { z } from "zod";
+import { actionComplete, hash } from "./lifecycle.ts";
+import { checkProject, type ProjectInspection } from "./project.ts";
+import { parseRecord, serializeRecord } from "./records.ts";
+import { schemas } from "./schemas.ts";
+import { applyOperation } from "./writer.ts";
+
+export function queueDecision(
+  project: ProjectInspection,
+  id: string,
+  options: { activatingProfileDraft?: boolean; stopAtStalePlan?: boolean } = {},
+): { allowed: boolean; reason: string | null } {
+  const refused = (reason: string) => ({ allowed: false, reason });
+  const record = project.records.get(`.voidra/actions/${id}/action.md`);
+  if (record?.kind !== "action") return refused("Action not found");
+  const parsed = schemas.action.safeParse(record.document.data);
+  if (!parsed.success)
+    return refused("Repair this action’s fields before queueing");
+  const action = parsed.data;
+  const questionData = project.records.get(`.voidra/actions/${id}/questions.md`)
+    ?.document.data;
+  const questions = questionData
+    ? schemas.questions.safeParse(questionData)
+    : null;
+  if (
+    questions?.success &&
+    questions.data.rounds.some((r) => r.questions.some((q) => !q.answer))
+  )
+    return refused("Answer the open questions before queueing");
+  if (action.stage === "review" && action.type !== "release" && !questionData)
+    return refused("Review needs a human decision");
+  if (
+    project.diagnostics.some(
+      (d) =>
+        d.file.startsWith(`.voidra/actions/${id}/`) &&
+        !(options.stopAtStalePlan && d.code === "stale-approval"),
+    )
+  )
+    return refused(
+      "Resolve this action’s planning-file problems before queueing",
+    );
+  if (
+    action.type === "profile-change" &&
+    action.status === "draft" &&
+    !options.activatingProfileDraft
+  )
+    return refused("Review and activate the Profile change draft first");
+  if (
+    action.doneBy !== "agent" ||
+    !["ready", "draft", "failed"].includes(action.status) ||
+    ["done", "released", "cancelled"].includes(action.stage ?? "")
+  )
+    return refused("This action cannot be queued at its current gate");
+  for (const id of action.blockedBy ?? []) {
+    const dep = project.records.get(`.voidra/actions/${id}/action.md`),
+      parsed = schemas.action.safeParse(dep?.document.data);
+    if (!parsed.success || !actionComplete(parsed.data))
+      return refused("Finish the blocking actions before queueing");
+  }
+  if (
+    [...project.records.values()].some(
+      (r) =>
+        r.kind === "action" &&
+        r.document.data.parent === id &&
+        (!schemas.action.safeParse(r.document.data).success ||
+          !actionComplete(schemas.action.parse(r.document.data))),
+    )
+  )
+    return refused("Complete the child slices before queueing their parent");
+  return { allowed: true, reason: null };
+}
+const queueInput = z.strictObject({
+  ids: z
+    .array(schemas.action.shape.id)
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      "Duplicate queued action",
+    ),
+  revision: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  by: z.string().min(1),
+});
+export async function replaceActionQueue(
+  root: string,
+  raw: z.input<typeof queueInput>,
+): Promise<void> {
+  const input = queueInput.parse(raw),
+    project = await checkProject(root);
+  if (
+    !project.metadata ||
+    project.diagnostics.some(
+      (d) => !["stale-approval", "stale-review"].includes(d.code),
+    )
+  )
+    throw new Error("Fix planning-file problems before editing the queue");
+  if (project.files.has(".voidra/local/run.lock"))
+    throw new Error(
+      "Finish or recover the active run before editing the queue",
+    );
+  if (
+    [...project.records.values()].some(
+      (r) => r.kind === "run" && r.document.data.outcome === "running",
+    )
+  )
+    throw new Error(
+      "Finish or recover the unfinished run before editing the queue",
+    );
+  const path = ".voidra/local/pending-actions.md",
+    bytes = project.files.get(path);
+  if ((bytes ? hash(bytes) : null) !== input.revision)
+    throw new Error("Queue changed on disk; refresh before editing");
+  for (const id of input.ids) {
+    const decision = queueDecision(project, id);
+    if (!decision.allowed)
+      throw new Error(decision.reason ?? "Cannot queue this action");
+  }
+  const doc = bytes
+    ? parseRecord(path, bytes)
+    : parseRecord(path, "---\n{}\n---\n");
+  await applyOperation(root, {
+    changes: [
+      {
+        path,
+        expectedHash: input.revision,
+        content: serializeRecord(
+          doc,
+          {
+            ...doc.data,
+            queuedBy: input.by,
+            queuedAt: new Date().toISOString(),
+          },
+          input.ids.map((id, i) => `${i + 1}. [ ] ${id}`).join("\n"),
+        ).toString(),
+      },
+      ...input.ids.map((id) => {
+        const path = `.voidra/actions/${id}/action.md`,
+          bytes = project.files.get(path);
+        return {
+          path,
+          expectedHash: bytes ? hash(bytes) : null,
+          content: bytes?.toString() ?? null,
+        };
+      }),
+      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+    ],
+  });
+}

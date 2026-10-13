@@ -1,7 +1,61 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P08 are Done; P09 is next. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P08 are Done; P09 is In progress. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
+
+## Session hand-off — 2026-10-13
+
+The user requested this checkpoint so work can continue in another session. **Resume P09; do not restart P08 or claim P09–P17 are complete.** The continuing objective is to finish through P17 under D24, choosing routine answers from the vision. The phase files below remain the acceptance criteria; this hand-off records the actual stopping point.
+
+### Completed and verified
+
+- **P00–P08 are Done. P09 is In progress. P10–P17 are Not started.** M1 is reached; M2 still requires P09, including dogfooding. This repository does not yet have its own `.voidra/`.
+- P08 implementation is committed and pushed as `ca892db02c5b59887e399629dd2fa175d570bf8b`; its evidence/status completion is `2d302a1009b2ca6a1bea3220bae491edb13bf8e3` (`Record verified completion of P08`). These are the last completed-phase commits, before this P09 checkpoint.
+- [P08 evidence](../docs/verification/p08.md) records **282 passing tests in 48 files** from `make check`, all coverage/format/type/generated-reference gates, and **34/34 Electron end-to-end tests** from `make e2e`. [CI 38395361833](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38395361833) passed quality, build, end-to-end/accessibility, unsigned arm64 packaging and packaged startup on the P08 implementation.
+- P07's remote dark-theme contrast failure was repaired in P08 and verified in that successful CI run. Do not weaken accessibility assertions or reopen P07 for that already-resolved failure.
+- P08 includes standalone Go and Plan execution, template architecture dispatch, explicit delegated choices, exact approval guards, thin slices, Research without implementation commits, human blockers, owned partial-work recovery and follow-up commits after rejected Review. Plan-only runs preserve source, HEAD/tags and existing glossary bytes. Release execution remains P12.
+- Real Claude Code and Codex checks covered mixed planning, every P08 implementation type, Research, rejected Feature/Research work, human blockers, slices, planning-only glossary changes and stale approved plans with the app closed. [P08 evidence](../docs/verification/p08.md#real-agent-matrix) and [agent differences](../docs/agents.md) retain commands, results and failed attempts. Goldens and fake-agent tests are separate evidence, not substitutes for these real checks.
+
+### P09 checkpoint: implemented so far, still incomplete
+
+Only the beginning of **P09-01 (Run screen)** has been implemented. No P09 story has been accepted, no P09 evidence file has been written, and no P09 full `make check` or Electron suite has run at this checkpoint.
+
+| File | Current work |
+| --- | --- |
+| [`packages/voidra/src/queue.ts`](../packages/voidra/src/queue.ts) | New public `queueDecision` eligibility/reason helper and `replaceActionQueue` ordered private queue writer. The writer checks the exact displayed queue revision, duplicate IDs, project diagnostics, active/unfinished runs and each selected action, then uses the grouped writer with action/lock guards. |
+| [`packages/voidra/src/index.ts`](../packages/voidra/src/index.ts) | Exports those two helpers. |
+| [`packages/voidra/tests/queue.test.ts`](../packages/voidra/tests/queue.test.ts) | One public-boundary test using real temporary files: persisted ordering, queue revision refusal, duplicates, missing/human actions and an unfinished dependency. |
+
+`queueDecision` also contains guards for unanswered questions, Review awaiting a human decision, inactive Profile drafts, invalid action fields, terminal/nonqueueable states and incomplete child slices. **Those additional branches are not yet individually covered by this focused test.** Explicit agent-decides answers remain eligible for agent resolution. The optional stale-plan allowance is for the runtime's safe stop, not permission to implement stale work.
+
+The focused test passed **1/1** on the current helper (`.cache/p09-queue-current-check.log`), the three package files passed a focused Biome check, and `pnpm --filter voidra build` passed (`.cache/p09-checkpoint-build.log`). These limited checks do not satisfy P09's full verification or coverage requirements. This work and the hand-off are saved together in the commit titled **`Checkpoint P09 queue work and session handoff`**; its CI must be checked on resume.
+
+**Not integrated:** the desktop service, typed bridge, Run screen and runtime still use the existing single-action queue flow. There is no new picker/reorder UI, commit-history UI, planning-commit feature, team assignment, conflict experience, performance baseline or dogfooding yet. Rebuild the package before importing these new public helpers through `voidra`; do not assume ignored `dist/` from another session is current.
+
+### Resume work in this order
+
+1. Read [root instructions](../AGENTS.md), [VISION.md](../VISION.md), this file, [plan rules](AGENTS.md), [P09](phase-09-runs-commits-and-teams.md), and its dependency [P08 evidence](../docs/verification/p08.md). Inspect the checkpoint diff and current Git status before changing anything. The checkpoint commit is intentionally incomplete; use `git log` to identify it and check its CI result rather than attributing P08's green CI to P09.
+2. Finish **P09-01**: extend eligibility/revision/race tests; integrate shared queue helpers through the service and validated bridge; add a picker that lists only eligible agent actions, puts yours/unassigned first, persists order and shows live lock/recovery state. Test at package, service/bridge and actual Electron seams. Relevant files: `apps/desktop/src/project-service/workspace.ts`, `apps/desktop/src/shared/bridge.ts`, `apps/desktop/src/renderer/project-actions.tsx`, `apps/desktop/tests/queue.test.ts` and the desktop end-to-end suite. Preserve explicit Profile-draft activation and exact displayed revisions.
+3. Implement **P09-02**: read real Git `Voidra-Action` trailers, link commits to actions, open verified GitHub remote commit URLs, and retain untagged commits for P12. Use real temporary repositories and argument-array Git calls.
+4. Implement **P09-03**: preview exact new/modified/deleted `.voidra/` paths and commit only that selection. Exclude `.voidra/local/` even if force-tracked. Register new paths before `git commit --only`; preserve unrelated staging and partial staging, including after hook failure. Test literal unusual filenames, HEAD/index/file-hash changes, active runs, merge/rebase states, empty/non-repository cases and crash recovery with a unique planning-operation trailer. After a successful commit, reconcile it rather than duplicating it or reporting it as undone. The existing run engine's separate-index recovery is a reference, not an implemented planning-commit solution.
+5. Implement **P09-04/05**: assign unassigned actions to the actual Git identity at run start, refresh pulled/disk changes, detect conflict markers and block writes only to the affected records. Do not overwrite conflicts or change unrelated files.
+6. Implement **P09-06**: generate the 1,000-action fixture, measure open/board/index behavior and record actual Apple Silicon timings against the proposed open-under-two-seconds budget.
+7. Implement **P09-07**: run `voidra-init` on this repository, preserve the existing root `GLOSSARY.md` and instructions, validate its `.voidra/` and begin tracking new ideas/bugs. The app's planning button cannot commit glossary/instructions; any such files need a separate explicit agent/Git commit. Only then claim M2.
+8. Finish P09 with evidence, docs/instruction updates, local checks, CI, commit and push. Continue P10–P17 using their phase files. The phase index remains the authoritative dependency/status list.
+
+Write tests first at the agreed public seams and run `make check` after each completed story. Run builds, generation and Electron tests sequentially; do not launch duplicate jobs. Run `make gen` when authored runtime/template/schema inputs change and verify generated assets; never regenerate linked skill bundles while a real-agent fixture is executing. Avoid repeating passing checks unless edits, failures or unresolved concerns justify it.
+
+### Decisions, boundaries and later follow-ups
+
+- **User preferences and authorization:** questions must appear in chat with `a`, `b`, `c` options and **Choose one** / **Choose any that apply**, never question cards. D23/D24 authorize continuing all phases and delegated product choices/reviews. Record agent decisions honestly; never label them personal user reviews. Account operations and physical checks require actual evidence. Do not ask for routine phase confirmation again. The latest request is to save this hand-off, not to start more implementation in this session.
+- **GitHub:** repository/account is `Hussain7Abbas/voidra-project`, branch `main`. Use that account's existing token for `gh` and authenticated pushes without switching the active `gh` account. Root instructions already authorize phase commits and pushes. Preserve unrelated edits.
+- **npm:** public `voidra` is still **0.1.0**; the workspace candidate is **0.2.0** and remains unpublished. P06 publication encountered `EOTP`. D25 defers publication/trusted publishing to P15; no token or authenticator code was created. Earlier real checks install a genuine freshly built/packed candidate in each temporary fixture, verify `npx --offline --yes voidra@0 version`, and ignore `node_modules/` before setup commits. Repack current source for future runs. The initial P08 archive hash and final validator checks are in its evidence; do not claim the old archive represents subsequent edits.
+- **Real agents:** primary IDs were `claude-haiku-4-5` and `gpt-6-luna`, both low effort. Use current CLI `--help`, headless fixture-only permissions and the root procedure. Codex fixtures used a separate Git metadata directory inside the permitted temporary parent to avoid protected `.git` writes. Reports stay in the fixture and caches outside `.voidra/local/`. The configured `gpt-6.1-sol` alias was rejected; successful default retries omitted `-m` and isolated user configuration. Their exact resolved model ID remains unavailable, as documented; do not invent it or rerun solely to guess metadata.
+- **Preserve safety contracts:** exact three-file plan hashes (D21), displayed-revision gate writes, persistent consumed records before agent work, lock/token ownership, durable recovery without duplicate commits, protected confirmed human answers, no source edits in Plan/Research, no private queue references in committed run consumption, and stale sibling diagnostics that do not globally block fresh work. Git uses argument arrays and literal paths; the app's only Git write is the restricted planning commit. Renderer stays sandboxed and uses the validated bridge, not filesystem/network access.
+- **P09/P17 investigation, not yet implemented:** check the brand-new non-Git Bootstrap flow. Existing runtime startup requires a Git repository, while onboarding can create a project in an empty folder. Determine the actual vision-aligned flow and test it before release; no fix or new product decision is claimed here. Also verify selected folders inside a repository use the correct Git root or an explicit supported boundary.
+- **P12 investigation:** compare aggregate completion and human-action Released behavior with the vision when adding Release; P06 aggregate handling currently centers on Done. Do not silently claim this later-stage behavior is complete.
+- **Later phases:** P10 must honor consumed-record undo guards; P11 connects changed assumptions to actions/ADRs/glossary; P13 keeps optional OpenRouter secrets/network in the main process and manual functionality available without a key; P14 must distribute all new Plan assets and verify lifecycle/template overrides; P15 ships unsigned Apple Silicon only (D05/D16, no Apple Developer account). P17's explicitly manual VoiceOver pass still needs a real human result. Do not invent account, signing, physical accessibility or release evidence.
+- **Local logs:** `.cache/p08-final-check.log`, `.cache/p08-full-e2e.log` and `.cache/real-{lifecycles,rework,structure,planning,stale}/` contain detailed ignored logs/audits. They are useful on this machine, but the committed evidence and this hand-off are the durable record. All P08 real-agent jobs finished; no ongoing agent work must be resumed or repeatedly polled.
 
 ## Sources of truth
 
@@ -20,7 +74,7 @@ You never paste anything. Open Claude Code or Codex in this folder and say **"ru
 5. do every step itself, including all GitHub work with `gh` and the real-agent checks, run headlessly with low-cost models;
 6. write the evidence file, update this table, commit and push, then tell you what's next.
 
-You are asked only for decisions, for decisions and named approvals unless expressly delegated and for anything that needs your accounts. The only manual tasks left for you are a VoiceOver pass before release (P17) and possibly one npm website step (P15).
+You are asked only for decisions and named approvals unless expressly delegated, and for anything that needs your accounts. The only manual tasks left for you are a VoiceOver pass before release (P17) and possibly one npm website step (P15).
 
 ## Phase index
 
@@ -37,7 +91,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p06.md) |
 | P07 | [Questions, gates and inbox](phase-07-questions-gates-and-inbox.md) | Question rounds, plan and review gates, Waiting for you | P04, P06 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p07.md) |
 | P08 | [`voidra-go` lifecycles](phase-08-voidra-go-lifecycles.md) | Skills run every action type as the vision describes | P05, P07 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p08.md) |
-| P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | Not started | — |
+| P09 | [Runs, commits and teams](phase-09-runs-commits-and-teams.md) | Safe daily use; dogfooding starts | P08 | M2 | In progress | — |
 | P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | Not started | — |
 | P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | Not started | — |
 | P12 | [Releases and `voidra-sync`](phase-12-releases-and-sync.md) | Releases from done actions; catching up with outside work | P09 | M3 | Not started | — |
@@ -87,9 +141,7 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | D21 | Any content change to requirements, blueprint or acceptance criteria invalidates plan approval, including formatting-only edits. Record and compare exact file-content hashes; require approval again. | You, 2026-10-12 (question 2a) |
 | D22 | `voidra-plan` may update the repository-root `GLOSSARY.md` during Discovery as well as `.voidra/`. It changes no source code or other repository files and makes no commits or tags. | You, 2026-10-12 (question 3b) |
 | D23 | Continue through all remaining phases non-stop. Report understanding/progress in commentary without repeating generic phase approvals; retain explicitly named product review gates unless separately delegated, and account actions requiring the user. | You, 2026-10-13 |
-
 | D24 | Continue non-stop until P17 is completed; resolve questions and named design/document reviews using the approved vision. Record delegated decisions as agent decisions, not personal user reviews. Account access and physical checks still require actual evidence. | You, 2026-10-13 |
-
 | D25 | P06 prepares voidra 0.2.0 for new planning APIs and aggregate validation. Format stays 1 and new forms advertise the minimum reader. npm requires an authenticator code; registry publication remains P15. Earlier real-agent fixtures install the genuine locally packed candidate so npx uses the same validated CLI as the app. | Agent decision under D24, 2026-10-13 |
 
 ### Open
