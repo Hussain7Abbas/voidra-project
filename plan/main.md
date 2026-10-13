@@ -1,6 +1,6 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P03 are Done; P04 is In progress. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P04 are Done. M1 was reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Sources of truth
@@ -32,7 +32,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P01 | [Format and the `voidra` package](phase-01-format-and-voidra-package.md) | One package that defines, reads, writes and checks `.voidra/` | P00 | M1 | Done (2026-10-13) | [Evidence](../docs/verification/p01.md) |
 | P02 | [Desktop shell and design system](phase-02-desktop-shell-and-design-system.md) | Secure Electron app, Ink & Iris UI, project windows, packaging smoke | P00 | M1 | Done (2026-10-13) | [Evidence](../docs/verification/p02.md) |
 | P03 | [Tracer bullet](phase-03-tracer-bullet.md) | One action from the app through `/voidra-go` and back | P01, P02 | M1 | Done (2026-10-13) | [Evidence](../docs/verification/p03.md) |
-| P04 | [Onboarding, profile and `voidra-init`](phase-04-onboarding-profile-and-init.md) | Both ways in; editable profile | P03 | M2 | In progress | — |
+| P04 | [Onboarding, profile and `voidra-init`](phase-04-onboarding-profile-and-init.md) | Both ways in; editable profile | P03 | M2 | Done (2026-10-13) | [Evidence](../docs/verification/p04.md) |
 | P05 | [The general template](phase-05-general-template.md) | Profile questions and architecture skill, approved by you | P04 | M2 | Not started | — |
 | P06 | [Backlog, actions and lifecycles](phase-06-backlog-actions-and-lifecycles.md) | Ideas, every action type, dependencies, slices, actions done by you | P03 | M2 | Not started | — |
 | P07 | [Questions, gates and inbox](phase-07-questions-gates-and-inbox.md) | Question rounds, plan and review gates, Waiting for you | P04, P06 | M2 | Not started | — |
