@@ -26,4 +26,4 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [P10: Undo and redo](p10.md) — persistent history, exact replay, consumed-record protection, native menus and passing full CI.
 
-- [P11: Decisions and documents](p11.md) — decision search, assumption revisits, read-only glossary/docs and ADR examples; final checks in progress.
+- [P11: Decisions and documents](p11.md) — decision search, assumption revisits, read-only glossary/docs and ADR examples; full local and CI checks pass.
