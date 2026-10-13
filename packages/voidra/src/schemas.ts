@@ -95,6 +95,9 @@ export const actionSchema = object({
   releaseActions: z.array(id("act")).min(1).optional(),
   releaseVersion: version.optional(),
   releaseTag: text.optional(),
+  releaseFiles: z.array(text).optional(),
+  releaseMessage: text.optional(),
+  releasedIn: version.optional(),
   completedBySlices: z.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date.optional(),
@@ -199,6 +202,7 @@ export const schemas = {
   }),
   release: object({
     version,
+    supersededByVersion: version.optional(),
     action: id("act").optional(),
     actions: z.array(id("act")),
     status: z.enum(["draft", "released"]),

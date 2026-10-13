@@ -21,6 +21,9 @@ import {
   projectLifecycles,
   queueDecision,
   readPlan,
+  recoverOperation,
+  releaseCandidates,
+  releasedMember,
   schemas,
   serializeRecord,
   transition,
@@ -72,6 +75,13 @@ const checkpointSchema = z.looseObject({
   message: z.string().optional(),
   indexBefore: z.string().optional(),
   indexReconciled: z.boolean().optional(),
+  release: z
+    .strictObject({
+      version: schemas.release.shape.version,
+      tag: z.string().min(1),
+      message: z.string().min(1),
+    })
+    .optional(),
 });
 export type RunContext = z.infer<typeof checkpointSchema>;
 export const reportSchema = z.strictObject({
@@ -93,7 +103,322 @@ export const reportSchema = z.strictObject({
 export type RunReport = z.infer<typeof reportSchema>;
 export type RunOptions = {
   checkpoint?: (point: string) => Promise<void> | void;
+  writeCheckpoint?: import("voidra").WriteOptions["checkpoint"];
 };
+function releaseIntent(
+  action: Action,
+  revision: string | undefined,
+): NonNullable<RunContext["release"]> {
+  if (
+    action.type !== "release" ||
+    !["review", "released"].includes(action.stage ?? "") ||
+    action.reviewDecision?.decision !== "accepted" ||
+    action.reviewDecision.revision !== revision ||
+    !action.releaseActions?.length ||
+    !action.releaseFiles ||
+    !action.releaseVersion ||
+    !action.releaseTag ||
+    !action.releaseMessage
+  )
+    throw new Error("Release requires a complete, unchanged accepted proposal");
+  return {
+    version: action.releaseVersion,
+    tag: action.releaseTag,
+    message: action.releaseMessage,
+  };
+}
+const releasePlanSchema = z.strictObject({
+  version: schemas.release.shape.version,
+  tag: z.string().min(1),
+  message: z.string().min(1),
+  paths: z.array(z.string().min(1)),
+  notes: z.string().min(1),
+  requirements: z.string().min(1),
+  blueprint: z.string().min(1),
+  acceptance: z.string().min(1),
+  actions: z
+    .array(
+      z.strictObject({
+        id: schemas.action.shape.id,
+        revision: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+    )
+    .min(1)
+    .optional(),
+});
+export async function publishReleasePlan(
+  root: string,
+  token: string,
+  raw: z.input<typeof releasePlanSchema>,
+): Promise<void> {
+  const report = releasePlanSchema.parse(raw),
+    { ctx } = await owned(root, token),
+    { action } = await current(root, ctx);
+  if (
+    ctx.phase !== "started" ||
+    action.type !== "release" ||
+    action.stage !== "plan"
+  )
+    throw new Error("Release proposals require an owned Plan run");
+  await assertPlanningEffects(root, ctx);
+  if (
+    /^Voidra-(Action|Run):/m.test(report.message) ||
+    report.tag.startsWith("-")
+  )
+    throw new Error("Invalid release message or tag");
+  await git(root, ["check-ref-format", `refs/tags/${report.tag}`]);
+  if (
+    await git(root, ["rev-parse", "--verify", `refs/tags/${report.tag}`]).catch(
+      () => "",
+    )
+  )
+    throw new Error("The proposed tag already exists");
+  if (new Set(report.paths).size !== report.paths.length)
+    throw new Error("Duplicate release path");
+  for (const path of report.paths) {
+    await safeGitPath(root, path);
+    if (path.startsWith(".voidra/"))
+      throw new Error("Version/changelog paths must be repository files");
+  }
+  const project = await checkProject(root),
+    candidates = new Map(
+      releaseCandidates(project, action.id).map((candidate) => [
+        candidate.id,
+        candidate,
+      ]),
+    );
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (hash(project.files.get(path) ?? "") !== expected)
+      throw new Error(`Consumed record changed: ${path}`);
+  const selected =
+    report.actions ??
+    (action.releaseActions ?? []).map((id) => {
+      const candidate = candidates.get(id);
+      if (!candidate)
+        throw new Error("Selected release work is no longer eligible");
+      return { id, revision: candidate.revision };
+    });
+  if (
+    !selected.length ||
+    new Set(selected.map((member) => member.id)).size !== selected.length
+  )
+    throw new Error("Choose completed, unreleased work once");
+  for (const member of selected)
+    if (candidates.get(member.id)?.revision !== member.revision)
+      throw new Error("Release selection changed or is ineligible");
+  const recordPath = `.voidra/releases/${report.version}.md`,
+    prior = project.records.get(recordPath)?.document;
+  if (
+    prior &&
+    (prior.data.action !== action.id || prior.data.status === "released")
+  )
+    throw new Error("This version belongs to another release");
+  const next: Action = {
+    ...action,
+    releaseActions: selected.map((member) => member.id),
+    releaseVersion: report.version,
+    releaseTag: report.tag,
+    releaseFiles: report.paths,
+    releaseMessage: report.message,
+    title: `Release ${report.version}`,
+  };
+  const changes: Parameters<typeof applyOperation>[1]["changes"] = [];
+  for (const [file, body] of Object.entries({
+    "requirements.md": report.requirements,
+    "blueprint.md": report.blueprint,
+    "acceptance.md": report.acceptance,
+  })) {
+    const path = `.voidra/actions/${action.id}/${file}`,
+      old = project.records.get(path)?.document;
+    changes.push({
+      path,
+      expectedHash: old ? hash(old.raw) : null,
+      content: serializeRecord(
+        old ?? parseRecord(path, "---\n{}\n---\n"),
+        { ...(old?.data ?? {}), action: action.id },
+        body,
+      ).toString(),
+    });
+  }
+  changes.push({
+    path: recordPath,
+    expectedHash: prior ? hash(prior.raw) : null,
+    content: serializeRecord(
+      prior ?? parseRecord(recordPath, "---\n{}\n---\n"),
+      {
+        ...(prior?.data ?? {}),
+        version: report.version,
+        action: action.id,
+        actions: next.releaseActions,
+        tag: report.tag,
+        status: "draft",
+      },
+      report.notes,
+    ).toString(),
+  });
+  if (action.releaseVersion && action.releaseVersion !== report.version) {
+    const oldPath = `.voidra/releases/${action.releaseVersion}.md`,
+      old = project.records.get(oldPath)?.document;
+    if (old?.data.action === action.id && old.data.status === "draft")
+      changes.push({
+        path: oldPath,
+        expectedHash: hash(old.raw),
+        content: serializeRecord(old, {
+          ...old.data,
+          supersededByVersion: report.version,
+        }).toString(),
+      });
+  }
+  for (const member of selected) {
+    const path = `.voidra/actions/${member.id}/action.md`;
+    changes.push({
+      path,
+      expectedHash: member.revision,
+      content: project.files.get(path)?.toString() ?? null,
+    });
+  }
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (!changes.some((change) => change.path === path))
+      changes.push({
+        path,
+        expectedHash: expected,
+        content: project.files.get(path)?.toString() ?? null,
+      });
+  const overlay = new Map(project.files);
+  for (const change of changes) {
+    if (change.content === null) overlay.delete(change.path);
+    else overlay.set(change.path, Buffer.from(change.content));
+  }
+  overlay.set(
+    ctx.actionPath,
+    serializeRecord(
+      parseRecord(ctx.actionPath, project.files.get(ctx.actionPath) as Buffer),
+      next,
+    ),
+  );
+  const plan = readPlan(overlay, action.id);
+  if (!plan) throw new Error("Release plan is incomplete");
+  let reviewed = next;
+  for (let index = 0; index < 8 && reviewed.stage !== "review"; index++)
+    reviewed = transition(
+      reviewed,
+      "advance",
+      { plan },
+      projectLifecycles(project.metadata),
+    ).action;
+  if (reviewed.stage !== "review")
+    throw new Error("Release proposal did not reach Review");
+  await finishAtGate(
+    root,
+    token,
+    reviewed,
+    "Release proposal ready for exact Review acceptance. No code, commit or tag was changed.\n",
+    changes,
+  );
+}
+async function finalizeRelease(
+  root: string,
+  ctx: RunContext,
+  token: string,
+  options: RunOptions,
+): Promise<void> {
+  if (!ctx.release || !ctx.commit)
+    throw new Error("Release commit intent missing");
+  const tag = ctx.release.tag;
+  await options.checkpoint?.("before-tag");
+  await owned(root, token);
+  await checkPreparedFiles(root, ctx);
+  if ((await head(root)) !== ctx.commit)
+    throw new Error("Git HEAD changed before release tagging");
+  const target = async (): Promise<string> =>
+    git(root, ["rev-parse", "--verify", `refs/tags/${tag}^{commit}`]).catch(
+      () => "",
+    );
+  let existing = await target();
+  if (existing && existing !== ctx.commit)
+    throw new Error("Conflicting release tag; it will not be moved");
+  if (!existing) {
+    try {
+      await git(root, ["tag", "--", tag, ctx.commit]);
+    } catch (error) {
+      existing = await target();
+      if (existing !== ctx.commit) throw error;
+    }
+  }
+  await options.checkpoint?.("after-tag");
+  await options.checkpoint?.("before-finalize");
+  await owned(root, token);
+  await checkPreparedFiles(root, ctx);
+  const project = await checkProject(root),
+    { action, actionRaw, runRaw } = await current(root, ctx),
+    plan = readPlan(project.files, action.id, project.records);
+  const endedAt = new Date().toISOString(),
+    fileHashes = { ...ctx.fileHashes },
+    changes: Parameters<typeof applyOperation>[1]["changes"] = [];
+  if (!plan)
+    throw new Error("Release plan is missing; obtain fresh acceptance");
+  const add = (path: string, content: Buffer): void => {
+    changes.push({
+      path,
+      expectedHash: fileHashes[path] ?? null,
+      content: content.toString(),
+    });
+    fileHashes[path] = hash(content);
+  };
+  const next = transition(
+    action,
+    "finalize-release",
+    { plan, commit: ctx.commit, tag },
+    projectLifecycles(project.metadata),
+  ).action;
+  const actionBytes = serializeRecord(
+      parseRecord(ctx.actionPath, actionRaw),
+      next,
+    ),
+    runBytes = serializeRecord(parseRecord(ctx.runPath, runRaw), {
+      ...parseRecord(ctx.runPath, runRaw).data,
+      commit: ctx.commit,
+      outcome: "advanced",
+      toStage: "released",
+      endedAt,
+    });
+  add(ctx.actionPath, actionBytes);
+  add(ctx.runPath, runBytes);
+  const path = `.voidra/releases/${ctx.release.version}.md`,
+    record = project.records.get(path)?.document;
+  if (!record) throw new Error("Release proposal record missing");
+  add(
+    path,
+    serializeRecord(record, {
+      ...record.data,
+      status: "released",
+      date: endedAt,
+    }),
+  );
+  for (const id of action.releaseActions ?? []) {
+    const memberPath = `.voidra/actions/${id}/action.md`,
+      member = project.records.get(memberPath)?.document;
+    if (!member) throw new Error("Release member missing");
+    add(
+      memberPath,
+      serializeRecord(
+        member,
+        releasedMember(schemas.action.parse(member.data), ctx.release.version),
+      ),
+    );
+  }
+  const final: RunContext = {
+    ...ctx,
+    phase: "finalized",
+    actionHash: hash(actionBytes),
+    runHash: hash(runBytes),
+    fileHashes,
+    indexReconciled: false,
+  };
+  await save(root, final, changes, false, options.writeCheckpoint);
+  await options.checkpoint?.("after-finalize");
+  await reconcileIndex(root, final, token);
+}
 const checkpointPath = (run: string) =>
   `.voidra/local/run-checkpoints/${run}.json`;
 async function assertUnlinked(root: string, path: string): Promise<void> {
@@ -162,7 +487,8 @@ export async function runContext(
     await safeGitPath(root, path);
     if (
       path.startsWith(".voidra/") &&
-      !path.startsWith(`.voidra/actions/${ctx.action}/`)
+      !path.startsWith(`.voidra/actions/${ctx.action}/`) &&
+      path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : "")
     )
       throw new Error("Run checkpoint contains another action's files");
   }
@@ -195,6 +521,7 @@ async function save(
   ctx: RunContext,
   changes: Parameters<typeof applyOperation>[1]["changes"] = [],
   allowGlossary = false,
+  writeCheckpoint?: import("voidra").WriteOptions["checkpoint"],
 ): Promise<void> {
   const path = checkpointPath(ctx.run),
     old = await text(root, path);
@@ -226,7 +553,10 @@ async function save(
         },
       ],
     },
-    { allowGlossary },
+    {
+      allowGlossary,
+      ...(writeCheckpoint ? { checkpoint: writeCheckpoint } : {}),
+    },
   );
 }
 async function current(
@@ -392,6 +722,10 @@ export async function startRun(
         actionPath,
         ".voidra/voidra.json",
         ...(action.blockedBy ?? []),
+        ...(action.releaseActions ?? []),
+        ...(action.releaseVersion
+          ? [`.voidra/releases/${action.releaseVersion}.md`]
+          : []),
         ...[...checked.records.values()]
           .filter(
             (r) =>
@@ -450,6 +784,11 @@ export async function startRun(
             path === ".voidra/voidra.json" ||
             path.startsWith(".voidra/profile/") ||
             path.startsWith(".voidra/backlog/") ||
+            (action.releaseVersion &&
+              path === `.voidra/releases/${action.releaseVersion}.md`) ||
+            (action.releaseActions ?? []).some(
+              (id) => path === `.voidra/actions/${id}/action.md`,
+            ) ||
             (path.startsWith(`.voidra/actions/${action.id}/`) &&
               ![actionPath].includes(path) &&
               !path.includes("/runs/")),
@@ -526,15 +865,6 @@ export async function startRun(
     },
   ]);
   if (stale || boundary) return runContext(root, run);
-  if (action.type === "release") {
-    await endWithoutCommit(
-      root,
-      ownerToken,
-      `Not supported yet: ${action.type} at ${action.stage}.`,
-      "unsupported",
-    );
-    return runContext(root, run);
-  }
   return ctx;
 }
 export async function heartbeat(root: string, token: string): Promise<void> {
@@ -596,7 +926,7 @@ export async function prepareResult(
   const { action, actionRaw, runRaw } = await current(root, ctx);
   const project = await checkProject(root),
     plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan" || ["research", "release"].includes(action.type))
+  if (ctx.mode === "plan" || action.type === "research")
     throw new Error("This run cannot prepare an implementation commit");
   if (action.type !== "docs" && !report.reviews)
     throw new Error("Both standards and plan review are required");
@@ -606,7 +936,19 @@ export async function prepareResult(
   )
     throw new Error("Fix both review parts before preparing");
   const rules = projectLifecycles(project.metadata);
-  let next = action;
+  const release =
+    action.type === "release"
+      ? releaseIntent(action, plan?.revision)
+      : undefined;
+  if (
+    release &&
+    JSON.stringify([...report.paths].sort()) !==
+      JSON.stringify([...(action.releaseFiles ?? [])].sort())
+  )
+    throw new Error(
+      "Release paths must match the accepted version/changelog files",
+    );
+  let next = release ? { ...action, status: "ready" as const } : action;
   for (let i = 0; i < 8 && next.stage !== "review"; i++)
     next = transition(next, "advance", plan ? { plan } : {}, rules).action;
   if (next.stage !== "review")
@@ -639,6 +981,7 @@ export async function prepareResult(
   const paths = [
     ...new Set([
       ...report.paths,
+      ...(release ? [`.voidra/releases/${release.version}.md`] : []),
       ...[...project.files.keys()].filter((path) =>
         path.startsWith(`.voidra/actions/${ctx.action}/`),
       ),
@@ -661,6 +1004,11 @@ export async function prepareResult(
           : hash(value)
         : await fileHash(root, path);
   }
+  if (release)
+    for (const member of action.releaseActions ?? []) {
+      const path = `.voidra/actions/${member}/action.md`;
+      fileHashes[path] = await fileHash(root, path);
+    }
   await save(
     root,
     {
@@ -670,6 +1018,7 @@ export async function prepareResult(
       fileHashes,
       actionHash: hash(preparedAction),
       runHash: hash(preparedRun),
+      ...(release ? { release, message: release.message } : {}),
     },
     [
       {
@@ -719,6 +1068,19 @@ async function checkPreparedFiles(
   ctx: RunContext,
 ): Promise<void> {
   await current(root, ctx);
+  if (ctx.release) {
+    const project = await checkProject(root),
+      action = schemas.action.parse(
+        project.records.get(ctx.actionPath)?.document.data,
+      ),
+      plan = readPlan(project.files, ctx.action, project.records),
+      intent = releaseIntent(action, plan?.revision);
+    if (
+      plan?.revision !== ctx.planRevision ||
+      JSON.stringify(intent) !== JSON.stringify(ctx.release)
+    )
+      throw new Error("Release proposal changed; obtain fresh acceptance");
+  }
   for (const [path, expected] of Object.entries(ctx.fileHashes)) {
     await safeGitPath(root, path);
     if ((await fileHash(root, path)) !== expected)
@@ -732,6 +1094,10 @@ export async function commitResult(
   options: RunOptions = {},
 ): Promise<string> {
   const { ctx } = await owned(root, token);
+  if (ctx.release && message !== ctx.release.message)
+    throw new Error(
+      "Commit message differs from the accepted release proposal",
+    );
   if (ctx.mode === "plan") throw new Error("Planning-only runs cannot commit");
   if (/^Voidra-(Action|Run):/m.test(message))
     throw new Error("The runtime owns commit trailers");
@@ -846,6 +1212,7 @@ export async function finalizeResult(
     return;
   }
   await checkPreparedFiles(root, ctx);
+  if (ctx.release) return finalizeRelease(root, ctx, token, options);
   await options.checkpoint?.("before-finalize");
   await owned(root, token);
   const { action, actionRaw, runRaw } = await current(root, ctx);
@@ -940,6 +1307,41 @@ export async function recoverRun(
   options: RunOptions = {},
 ): Promise<RunContext> {
   let ctx = await runContext(root, run);
+  const project = await checkProject(root),
+    pending = [...project.records.values()].filter(
+      (record) =>
+        record.kind === "operation" &&
+        record.document.data.state === "prepared" &&
+        schemas.operation
+          .parse(record.document.data)
+          .changes.some((change) => change.path === checkpointPath(run)),
+    );
+  if (pending.length) {
+    const raw = await text(root, ".voidra/local/run.lock"),
+      lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
+    if (
+      lock &&
+      (lock.run !== run ||
+        lock.action !== ctx.action ||
+        !(await inspectLock(lock)).recoverable)
+    )
+      throw new Error("Run owner is active or belongs to another operation");
+    if (
+      !lock &&
+      ctx.ownerPid &&
+      ctx.ownerHost === hostname() &&
+      (await processIdentity(ctx.ownerPid)) === ctx.ownerProcessStartedAt
+    )
+      throw new Error(
+        "The original owner is still alive; wait before recovery",
+      );
+    for (const record of pending)
+      await recoverOperation(
+        root,
+        schemas.operation.parse(record.document.data).id,
+      );
+    ctx = await runContext(root, run);
+  }
   if (
     (ctx.phase === "finalized" && ctx.indexReconciled) ||
     ["unsupported", "failed", "interrupted"].includes(ctx.phase)
@@ -998,6 +1400,13 @@ export async function recoverRun(
     await checkPreparedFiles(root, ctx);
     await save(root, { ...ctx, phase: "committed", commit: existing });
     await finalizeResult(root, ctx.ownerToken);
+  } else if (
+    ctx.release &&
+    ctx.message &&
+    ["prepared", "commit-pending"].includes(ctx.phase)
+  ) {
+    await commitResult(root, ctx.ownerToken, ctx.message, options);
+    await finalizeResult(root, ctx.ownerToken, options);
   } else {
     await endWithoutCommit(
       root,
@@ -1079,6 +1488,20 @@ export async function publishPlanning(
       outcome: "waiting",
       endedAt: new Date().toISOString(),
       toStage: action.stage,
+      ...(action.type === "release"
+        ? {
+            consumedRecords: [
+              ...new Set([
+                ...schemas.run.parse(parseRecord(ctx.runPath, runRaw).data)
+                  .consumedRecords,
+                ...(action.releaseActions ?? []),
+                ...(action.releaseVersion
+                  ? [`.voidra/releases/${action.releaseVersion}.md`]
+                  : []),
+              ]),
+            ],
+          }
+        : {}),
       planningOnly: changesOutside.length === 0,
     },
     input.summary ?? `Planning stopped at ${result.gate}.\n`,
@@ -1158,7 +1581,19 @@ export async function guardRun(
     plan = readPlan(project.files, action.id, project.records);
   if (ctx.mode === "plan")
     throw new Error("Planning-only runs cannot edit implementation files");
-  if (!["implement", "verify"].includes(action.stage ?? ""))
+  const release =
+    action.type === "release" && action.stage === "review"
+      ? releaseIntent(action, plan?.revision)
+      : undefined;
+  if (
+    release &&
+    (ctx.planRevision !== plan?.revision ||
+      paths.some((path) => !action.releaseFiles?.includes(path)))
+  )
+    throw new Error(
+      "Release scope changed; obtain fresh acceptance before editing",
+    );
+  if (!release && !["implement", "verify"].includes(action.stage ?? ""))
     throw new Error("This stage cannot edit code");
   if (
     rules[action.type].planGate &&

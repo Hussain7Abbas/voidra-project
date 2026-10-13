@@ -1,0 +1,10 @@
+[
+  {
+    "name": "release-plan",
+    "project": "fixtures/releases/release-plan/project"
+  },
+  {
+    "name": "release-tagged",
+    "project": "fixtures/releases/release-tagged/project"
+  }
+]

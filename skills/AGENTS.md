@@ -12,3 +12,5 @@ Extends [root instructions](../AGENTS.md). Skills are project-local agent instru
 - ADR proposals and implementation require all three criteria: hard to reverse, surprising without context and a real trade-off. Preserve existing ADR naming or use date and title. Planning never writes accepted ADRs; approved implementation may write them. Add only settled glossary terms and preserve existing meanings. Knowledge goldens are deterministic examples and do not count as real-agent evidence.
 
 Keep the sibling CLAUDE.md containing only `@AGENTS.md` and a trailing newline.
+
+- voidra-release creates/queues local Release work; Go plans and stops at Review before committing/tagging. Plan mode never finalizes. Runtime owns commit/tag recovery and completed-member updates. Keep the Release guide self-contained in Go/Plan and generated intake scripts/references current.

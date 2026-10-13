@@ -9,6 +9,7 @@ for (const [skill, entry, script] of [
   ["voidra-go", "cli-entry.ts", "runtime.mjs"],
   ["voidra-plan", "cli-entry.ts", "runtime.mjs"],
   ["voidra-init", "init-cli.ts", "init.mjs"],
+  ["voidra-release", "release-cli.ts", "release.mjs"],
   ["voidra-architect-general", "architecture-cli.ts", "architecture.mjs"],
 ]) {
   const output = resolve(root, `skills/${skill}/scripts/${script}`);
@@ -35,6 +36,12 @@ for (const [skill, entry, script] of [
       path: resolve(root, `skills/${skill}/references/format.md`),
       bytes: await readFile(
         resolve(root, "skills/shared/references/format.md"),
+      ),
+    },
+    {
+      path: resolve(root, `skills/${skill}/references/third-party-notices.txt`),
+      bytes: await readFile(
+        resolve(root, "skills/voidra-go/references/third-party-notices.txt"),
       ),
     },
   );
@@ -83,6 +90,7 @@ for (const name of [
   "discovery.md",
   "plan.md",
   "research.md",
+  "release.md",
   "third-party-notices.txt",
 ]) {
   const bytes = await readFile(

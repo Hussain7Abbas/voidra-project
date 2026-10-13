@@ -1,9 +1,14 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron } from "@playwright/test";
 import { expect, it } from "vitest";
-import { checkProject, parseRecord, serializeRecord } from "voidra";
+import {
+  checkProject,
+  createReleaseAction,
+  parseRecord,
+  serializeRecord,
+} from "voidra";
 import type { BridgeRequest, BridgeResponse } from "../src/shared/bridge.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
 
@@ -29,6 +34,23 @@ it("creates and replays a release through the real validated bridge without chan
     ),
   );
   const member = await readFile(join(root, path));
+  const otherPath = ".voidra/actions/act-000001/action.md";
+  await mkdir(join(root, ".voidra/actions/act-000001"), { recursive: true });
+  await writeFile(
+    join(root, otherPath),
+    serializeRecord(
+      parseRecord(otherPath, "---\n{}\n---\n"),
+      {
+        id: "act-000001",
+        title: "Other completed work",
+        type: "docs",
+        stage: "done",
+        status: "complete",
+        doneBy: "agent",
+      },
+      "Other work.\n",
+    ),
+  );
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (pair): pair is [string, string] =>
@@ -56,12 +78,12 @@ it("creates and replays a release through the real validated bridge without chan
     const before = await invoke({ command: "workspace" });
     if (!before.ok || before.data.kind !== "workspace")
       throw new Error("Workspace missing");
-    expect(before.data.workspace.releaseCandidates).toHaveLength(1);
+    expect(before.data.workspace.releaseCandidates).toHaveLength(2);
     const created = await invoke({
       command: "create-release",
-      actions: before.data.workspace.releaseCandidates.map(
-        ({ id, revision }) => ({ id, revision }),
-      ),
+      actions: before.data.workspace.releaseCandidates
+        .filter((candidate) => candidate.id === "act-000000")
+        .map(({ id, revision }) => ({ id, revision })),
     });
     if (!created.ok || created.data.kind !== "workspace")
       throw new Error(JSON.stringify(created));
@@ -73,10 +95,16 @@ it("creates and replays a release through the real validated bridge without chan
       status: "ready",
       releaseActions: ["act-000000"],
     });
-    expect(created.data.workspace.releaseCandidates).toEqual([]);
+    expect(created.data.workspace.releaseCandidates).toHaveLength(1);
     expect(created.data.workspace.editing.undo.label).toBe("Create release");
     const revision = created.data.workspace.editing.undo.revision;
     if (!revision) throw new Error("Undo revision missing");
+    const other = await createReleaseAction(root, {
+      actions: created.data.workspace.releaseCandidates.map(
+        ({ id, revision }) => ({ id, revision }),
+      ),
+      by: "Outside actor",
+    });
     const undone = await invoke({ command: "undo", revision });
     if (!undone.ok || undone.data.kind !== "workspace")
       throw new Error(JSON.stringify(undone));
@@ -86,6 +114,9 @@ it("creates and replays a release through the real validated bridge without chan
       ),
     ).toBe(false);
     expect(undone.data.workspace.releaseCandidates).toHaveLength(1);
+    expect(
+      undone.data.workspace.actions.some((action) => action.data.id === other),
+    ).toBe(true);
     const redo = undone.data.workspace.editing.redo.revision;
     if (!redo) throw new Error("Redo revision missing");
     const redone = await invoke({ command: "redo", revision: redo });

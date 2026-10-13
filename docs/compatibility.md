@@ -39,3 +39,5 @@ The scanner uses the TypeScript parser's comment ranges, not raw string matching
 5. Remove the old form in a later documented format version after its supported date and migration path are satisfied. Unsupported readers continue to refuse writes.
 
 No app or validator repairs or migrates files silently. Breaking format changes require an explicit version transition and an available migration path.
+
+P12 releasedIn membership preserves human checklist semantics. Human work never acquires an agent stage. Structured proposals bind version/changelog paths and commit message; legacy forms remain readable.

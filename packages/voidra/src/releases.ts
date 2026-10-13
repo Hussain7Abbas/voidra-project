@@ -8,6 +8,7 @@ import {
   type ProjectInspection,
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
+import type { Action } from "./schemas.ts";
 import { schemas } from "./schemas.ts";
 import { applyOperation } from "./writer.ts";
 
@@ -18,6 +19,7 @@ export interface ReleaseCandidate {
 }
 export function releaseCandidates(
   project: ProjectInspection,
+  ignoreAction?: string,
 ): ReleaseCandidate[] {
   const reserved = new Set<string>();
   for (const record of project.records.values()) {
@@ -25,6 +27,7 @@ export function releaseCandidates(
       const action = schemas.action.parse(record.document.data);
       if (
         action.type === "release" &&
+        action.id !== ignoreAction &&
         !["cancelled", "released"].includes(action.stage ?? "")
       )
         for (const member of action.releaseActions ?? []) reserved.add(member);
@@ -33,6 +36,8 @@ export function releaseCandidates(
       record.kind === "release" &&
       (record.document.data.status === "released" ||
         (record.document.data.status === "draft" &&
+          !record.document.data.supersededByVersion &&
+          !(ignoreAction && record.document.data.action === ignoreAction) &&
           project.records.get(
             `.voidra/actions/${record.document.data.action}/action.md`,
           )?.document.data.stage !== "cancelled"))
@@ -55,6 +60,7 @@ export function releaseCandidates(
       return action.type !== "release" &&
         actionComplete(action) &&
         action.stage !== "released" &&
+        !action.releasedIn &&
         !reserved.has(action.id)
         ? [
             {
@@ -67,6 +73,20 @@ export function releaseCandidates(
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }
+export function releasedMember(action: Action, version: string): Action {
+  const checked = schemas.release.shape.version.parse(version);
+  if (
+    !actionComplete(action) ||
+    action.type === "release" ||
+    action.stage === "cancelled"
+  )
+    throw new Error("Only completed work can become Released");
+  return {
+    ...action,
+    ...(action.doneBy === "agent" ? { stage: "released" as const } : {}),
+    releasedIn: checked,
+  };
+}
 const selection = z.strictObject({
   actions: z
     .array(
@@ -77,6 +97,7 @@ const selection = z.strictObject({
     )
     .min(1),
   by: z.string().trim().min(1),
+  queue: z.boolean().optional(),
 });
 export async function createReleaseAction(
   root: string,
@@ -122,6 +143,8 @@ export async function createReleaseAction(
   // A private token serializes simultaneous selections; public action membership is authoritative.
   const tokenPath = ".voidra/local/release-selection.json",
     oldToken = project.files.get(tokenPath);
+  const queuePath = ".voidra/local/pending-actions.md",
+    queue = project.records.get(queuePath)?.document;
   await applyOperation(root, {
     changes: [
       {
@@ -168,6 +191,25 @@ export async function createReleaseAction(
         expectedHash: oldToken ? hash(oldToken) : null,
         content: `${JSON.stringify({ action: id })}\n`,
       },
+      ...(input.queue
+        ? [
+            {
+              path: queuePath,
+              expectedHash: queue ? hash(queue.raw) : null,
+              content: serializeRecord(
+                queue ?? parseRecord(queuePath, "---\n{}\n---\n"),
+                {
+                  ...(queue?.data ?? {}),
+                  queuedBy: input.by,
+                  queuedAt: new Date().toISOString(),
+                },
+                [id, ...(queue?.body.match(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? [])]
+                  .map((action, index) => `${index + 1}. [ ] ${action}`)
+                  .join("\n") + "\n",
+              ).toString(),
+            },
+          ]
+        : []),
       { path: ".voidra/local/run.lock", expectedHash: null, content: null },
       {
         path: ".voidra/local/planning.lock",

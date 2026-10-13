@@ -115,7 +115,11 @@ export function ProjectReleases({
         <article className="card action-detail" key={release.path}>
           <div className="flex items-center gap-2">
             <h2>{release.data.version}</h2>
-            <span className="badge">{release.data.status}</span>
+            <span className="badge">
+              {release.data.supersededByVersion
+                ? "Superseded"
+                : release.data.status}
+            </span>
           </div>
           {release.data.date && (
             <p className="text-sm text-muted">

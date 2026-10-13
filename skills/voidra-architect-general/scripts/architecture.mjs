@@ -27362,6 +27362,9 @@ var actionSchema = object2({
   releaseActions: external_exports.array(id("act")).min(1).optional(),
   releaseVersion: version2.optional(),
   releaseTag: text.optional(),
+  releaseFiles: external_exports.array(text).optional(),
+  releaseMessage: text.optional(),
+  releasedIn: version2.optional(),
   completedBySlices: external_exports.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date5.optional(),
@@ -27464,6 +27467,7 @@ var schemas = {
   }),
   release: object2({
     version: version2,
+    supersededByVersion: version2.optional(),
     action: id("act").optional(),
     actions: external_exports.array(id("act")),
     status: external_exports.enum(["draft", "released"]),
@@ -27780,7 +27784,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27826,6 +27830,8 @@ function readPlan(files, id2, records) {
           actions: action.releaseActions,
           version: version3,
           tag: action.releaseTag ?? null,
+          paths: action.releaseFiles ?? null,
+          message: action.releaseMessage ?? null,
           record: record2 ? { data, body: record2.body } : null
         })
       )
@@ -28077,6 +28083,23 @@ function inspectFiles(files, options = {}) {
   }
   const releaseClaims = /* @__PURE__ */ new Map();
   for (const [id2, { action: a, file: file2 }] of actions) {
+    if (a.releasedIn) {
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Release membership requires voidra \u2265 0.2.0"
+        );
+      const record2 = records.get(`.voidra/releases/${a.releasedIn}.md`);
+      if (record2?.kind !== "release" || record2.document.data.status !== "released" || !schemas.release.parse(record2.document.data).actions.includes(id2))
+        add(
+          "release-membership",
+          file2,
+          "releasedIn",
+          "Released membership requires its completed release record"
+        );
+    }
     if (a.releaseActions) {
       if (!extendedActions)
         add(
@@ -28238,7 +28261,7 @@ function inspectFiles(files, options = {}) {
     if (kind === "release")
       for (const id2 of schemas.release.parse(d).actions) {
         reference(id2, file2, "actions");
-        if (d.status === "released" && actions.get(id2)?.action.stage !== "released")
+        if (d.status === "released" && !(actions.get(id2)?.action.stage === "released" || actions.get(id2)?.action.doneBy === "you" && actions.get(id2)?.action.releasedIn === d.version))
           add("release-actions", file2, "actions", `${id2} is not released`);
       }
     if (kind === "queue") {
@@ -28869,7 +28892,8 @@ var selection = external_exports.strictObject({
       revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
     })
   ).min(1),
-  by: external_exports.string().trim().min(1)
+  by: external_exports.string().trim().min(1),
+  queue: external_exports.boolean().optional()
 });
 
 // packages/voidra/src/templates.ts
@@ -29060,7 +29084,12 @@ var checkpointSchema = external_exports.looseObject({
   commit: external_exports.string().optional(),
   message: external_exports.string().optional(),
   indexBefore: external_exports.string().optional(),
-  indexReconciled: external_exports.boolean().optional()
+  indexReconciled: external_exports.boolean().optional(),
+  release: external_exports.strictObject({
+    version: schemas.release.shape.version,
+    tag: external_exports.string().min(1),
+    message: external_exports.string().min(1)
+  }).optional()
 });
 var reportSchema = external_exports.strictObject({
   summary: external_exports.string().min(1),
@@ -29075,6 +29104,22 @@ var reportSchema = external_exports.strictObject({
   checks: external_exports.array(
     external_exports.strictObject({ name: external_exports.string().min(1), passed: external_exports.boolean() })
   )
+});
+var releasePlanSchema = external_exports.strictObject({
+  version: schemas.release.shape.version,
+  tag: external_exports.string().min(1),
+  message: external_exports.string().min(1),
+  paths: external_exports.array(external_exports.string().min(1)),
+  notes: external_exports.string().min(1),
+  requirements: external_exports.string().min(1),
+  blueprint: external_exports.string().min(1),
+  acceptance: external_exports.string().min(1),
+  actions: external_exports.array(
+    external_exports.strictObject({
+      id: schemas.action.shape.id,
+      revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+    })
+  ).min(1).optional()
 });
 var checkpointPath = (run) => `.voidra/local/run-checkpoints/${run}.json`;
 async function assertUnlinked(root, path) {
@@ -29109,7 +29154,7 @@ async function runContext(root, run) {
     throw new Error("Run checkpoint identity changed");
   for (const path of ctx.paths) {
     await safeGitPath(root, path);
-    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`))
+    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
       throw new Error("Run checkpoint contains another action's files");
   }
   return ctx;

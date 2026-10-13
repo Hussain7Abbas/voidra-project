@@ -74,3 +74,5 @@ The scanner excludes `.next`, e2e/results directories, and the desktop's exporte
 The root development dependency links the current workspace `voidra` CLI. After `make check` or a package build, `npx --offline --yes voidra@0 version` and `npx --offline --yes voidra@0 check .` use the candidate for this repository’s dogfooding. The npm public baseline remains 0.1.0 until P15 publication; real-agent temporary projects still install the genuine freshly packed candidate archive.
 
 Undo engine tests compile native fixture scripts with the same inline source-map convention as the desktop and run them with Electron's Node runtime. The coverage input includes only `.cache/undo-native-*/scenario.cjs` before remapping; production coverage gates are unchanged. Keep those ignored bundles until coverage reporting finishes; the next engine test run clears old bundles. Direct stripped-TypeScript subprocess coverage remains excluded.
+
+CI allows 20 minutes for the expanded real-Git/native/Electron suite; P11 measured 12m40s before P12 recovery and workflow cases. Individual test timeouts and coverage gates stay unchanged. Authenticated agent checks still run only locally.

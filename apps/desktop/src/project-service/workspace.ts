@@ -855,11 +855,13 @@ export class ProjectWorkspace {
             ? [...planFiles]
             : [];
         })(),
-        effectiveStage: project.diagnostics.some(
-          (d) => d.file === action.path && d.code === "stale-approval",
-        )
-          ? "plan"
-          : data.stage,
+        effectiveStage: data.releasedIn
+          ? "released"
+          : project.diagnostics.some(
+                (d) => d.file === action.path && d.code === "stale-approval",
+              )
+            ? "plan"
+            : data.stage,
 
         timeline:
           data.doneBy === "agent"

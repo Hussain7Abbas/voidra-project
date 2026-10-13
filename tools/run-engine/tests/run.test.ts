@@ -88,11 +88,17 @@ it("persists consumption before work, owns one lock, commits once and finishes a
     await rm(root, { recursive: true, force: true });
   }
 });
-it("records unsupported work and failures without a commit or advancing the action", async () => {
+it("starts Release planning and records failures without a commit or advancing the action", async () => {
   const root = await fixture("release");
   try {
     const result = await startRun(root, "claude-code", process.pid);
-    expect(result?.phase).toBe("unsupported");
+    expect(result?.phase).toBe("started");
+    if (!result) throw new Error("Release planning missing");
+    await failRun(
+      root,
+      result.ownerToken,
+      "Complete the release proposal before finalization.",
+    );
     expect((await checkProject(root)).diagnostics).toEqual([]);
     expect(
       execFileSync("git", ["rev-list", "--count", "HEAD"], {

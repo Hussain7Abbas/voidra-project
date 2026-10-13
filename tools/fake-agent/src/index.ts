@@ -4,9 +4,11 @@ import { fileURLToPath } from "node:url";
 import {
   commitResult,
   finalizeResult,
+  guardRun,
   initializeExisting,
   prepareResult,
   publishPlanning,
+  publishReleasePlan,
   publishResearch,
   startRun,
 } from "@voidra/run-engine";
@@ -125,11 +127,78 @@ export async function runFakeAgent(
     return { run: ctx.run, scenario };
   }
   const action = parseRecord(
-      ctx.actionPath,
-      await readFile(join(root, ctx.actionPath)),
-    ),
-    before = await readFile(join(root, "README.md"), "utf8");
+    ctx.actionPath,
+    await readFile(join(root, ctx.actionPath)),
+  );
   const data = schemas.action.parse(action.data);
+  if (scenario === "success" && data.type === "release") {
+    if (data.stage === "plan") {
+      await publishReleasePlan(root, ctx.ownerToken, {
+        version: "0.2.0",
+        tag: "v0.2.0",
+        message: "chore(release): 0.2.0",
+        paths: ["package.json", "CHANGELOG.md"],
+        notes:
+          "## Notes\nCompleted fixture documentation.\n" +
+          (data.reviewDecision?.feedback
+            ? "\nClarified: This release is local only; nothing is published.\n"
+            : ""),
+        requirements:
+          "## Goal\nRelease fixture work as 0.2.0.\n## Out of scope\nPublishing.\n",
+        blueprint:
+          "## Approach\nBump package.json and prepend CHANGELOG.md, preserving its earlier section.\n## Testing seams\nRead the version/changelog, validate files and inspect local Git.\n## Proposed ADRs\nNone.\n",
+        acceptance:
+          "- Version 0.2.0 and the original changelog section remain.\n- One local commit/tag marks selected work Released.\n",
+      });
+    } else {
+      await guardRun(root, ctx.ownerToken, data.releaseFiles);
+      const file = join(root, "package.json"),
+        value = JSON.parse(await readFile(file, "utf8")) as Record<
+          string,
+          unknown
+        >;
+      await writeFile(
+        file,
+        `${JSON.stringify({ ...value, version: data.releaseVersion }, null, 2)}\n`,
+      );
+      const changelog = join(root, "CHANGELOG.md"),
+        prior = await readFile(changelog, "utf8");
+      await writeFile(
+        changelog,
+        prior.replace(
+          "# Changelog",
+          "# Changelog\n\n## 0.2.0\n- Completed fixture documentation.",
+        ),
+      );
+      if (
+        (JSON.parse(await readFile(file, "utf8")) as { version?: string })
+          .version !== data.releaseVersion ||
+        !(await readFile(changelog, "utf8")).endsWith(
+          prior.slice("# Changelog".length),
+        )
+      )
+        throw new Error("Scripted version/changelog readback failed");
+      await prepareResult(root, ctx.ownerToken, {
+        summary: "Scripted version/changelog boundary verified.",
+        paths: data.releaseFiles ?? [],
+        checks: [
+          { name: "Version and changelog fixture readback", passed: true },
+        ],
+        reviews: {
+          standards: {
+            passed: true,
+            summary: "Fixture conventions preserved.",
+          },
+          plan: { passed: true, summary: "Scripted accepted release scope." },
+        },
+      });
+      if (!data.releaseMessage) throw new Error("Release message missing");
+      await commitResult(root, ctx.ownerToken, data.releaseMessage);
+      await finalizeResult(root, ctx.ownerToken);
+    }
+    return { run: ctx.run, scenario };
+  }
+  const before = await readFile(join(root, "README.md"), "utf8");
   if (scenario === "success" && data.type === "research") {
     await publishResearch(root, ctx.ownerToken, {
       findings: "The scripted fixture uses a local README boundary.",

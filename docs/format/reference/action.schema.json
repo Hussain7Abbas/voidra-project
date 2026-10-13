@@ -98,6 +98,21 @@
       "type": "string",
       "minLength": 1
     },
+    "releaseFiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "releaseMessage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "releasedIn": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
     "completedBySlices": {
       "type": "boolean"
     },

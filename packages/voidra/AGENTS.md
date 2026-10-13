@@ -21,3 +21,5 @@ Update the corresponding [format page](../../docs/format/Intro.md), API docs and
 - `knowledge.ts` collects source-linked planning decisions and creates guarded assumption-revisit actions without changing the answer. `documents.ts` reads only root glossary and repository Markdown docs, refuses symlink components and bounds UTF-8 reads. Keep SQLite and UI projections outside the package; report unreadable ADRs rather than silently hiding them.
 
 - `releases.ts` derives eligible selections and creates source-guarded Release actions, reserving work with canonical membership plus a private concurrency token. Structured Release review fingerprints include selected IDs, version/tag and proposal notes; guard the record and member bytes at acceptance. Final status/date bookkeeping must preserve the approved proposal. Legacy forms remain readable.
+
+- releasedMember preserves completed human checklists with releasedIn instead of an agent stage. Structured proposal fingerprints include declared version/changelog paths and commit message. Read the private selection token for expected-hash guarding; it is serialization bookkeeping, not canonical membership.

@@ -171,7 +171,13 @@ export class UndoHistory {
       this.root,
       {
         prepared: async (operation) => {
-          const changes = operation.changes.filter((c) => c.before !== c.after);
+          // The selection token is serialization bookkeeping, not an undoable decision.
+          const changes = operation.changes.filter(
+            (c) =>
+              c.before !== c.after &&
+              c.path !== ".voidra/local/release-selection.json",
+          );
+          if (!changes.length) return;
           if (changes.some((c) => !historyPath(c.path)))
             throw new Error(
               "App history cannot write source or recovery files",

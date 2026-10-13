@@ -27363,6 +27363,9 @@ var actionSchema = object2({
   releaseActions: external_exports.array(id("act")).min(1).optional(),
   releaseVersion: version2.optional(),
   releaseTag: text.optional(),
+  releaseFiles: external_exports.array(text).optional(),
+  releaseMessage: text.optional(),
+  releasedIn: version2.optional(),
   completedBySlices: external_exports.boolean().optional(),
   createdBy: text.optional(),
   createdAt: date5.optional(),
@@ -27465,6 +27468,7 @@ var schemas = {
   }),
   release: object2({
     version: version2,
+    supersededByVersion: version2.optional(),
     action: id("act").optional(),
     actions: external_exports.array(id("act")),
     status: external_exports.enum(["draft", "released"]),
@@ -27884,7 +27888,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27930,6 +27934,8 @@ function readPlan(files, id2, records) {
           actions: action.releaseActions,
           version: version3,
           tag: action.releaseTag ?? null,
+          paths: action.releaseFiles ?? null,
+          message: action.releaseMessage ?? null,
           record: record2 ? { data, body: record2.body } : null
         })
       )
@@ -28181,6 +28187,23 @@ function inspectFiles(files, options = {}) {
   }
   const releaseClaims = /* @__PURE__ */ new Map();
   for (const [id2, { action: a, file: file2 }] of actions) {
+    if (a.releasedIn) {
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Release membership requires voidra \u2265 0.2.0"
+        );
+      const record2 = records.get(`.voidra/releases/${a.releasedIn}.md`);
+      if (record2?.kind !== "release" || record2.document.data.status !== "released" || !schemas.release.parse(record2.document.data).actions.includes(id2))
+        add(
+          "release-membership",
+          file2,
+          "releasedIn",
+          "Released membership requires its completed release record"
+        );
+    }
     if (a.releaseActions) {
       if (!extendedActions)
         add(
@@ -28342,7 +28365,7 @@ function inspectFiles(files, options = {}) {
     if (kind === "release")
       for (const id2 of schemas.release.parse(d).actions) {
         reference(id2, file2, "actions");
-        if (d.status === "released" && actions.get(id2)?.action.stage !== "released")
+        if (d.status === "released" && !(actions.get(id2)?.action.stage === "released" || actions.get(id2)?.action.doneBy === "you" && actions.get(id2)?.action.releasedIn === d.version))
           add("release-actions", file2, "actions", `${id2} is not released`);
       }
     if (kind === "queue") {
@@ -28876,6 +28899,25 @@ async function applyOperation(root, input2, options = {}, migration = false) {
     await release();
   }
 }
+async function recoverOperation(root, id2, options = {}) {
+  const resolved = await realpath(root);
+  await assertVersion(resolved, true);
+  if (!/^op-[0-9a-hjkmnp-tv-z]{6}$/.test(id2))
+    fail("operation", id2, "Invalid operation ID");
+  const release = await acquire(resolved, options, true);
+  try {
+    const operation = await readJournal(resolved, id2);
+    const wanted = options.rollback ? "rolled-back" : "committed";
+    if (operation.state !== "prepared") {
+      if (operation.state !== wanted)
+        fail("operation", id2, `Operation already ${operation.state}`);
+      return { id: id2, state: wanted, alreadyCompleted: true };
+    }
+    return await finish(resolved, operation, options, options.rollback);
+  } finally {
+    await release();
+  }
+}
 
 // packages/voidra/src/documents.ts
 var MAX_DOCUMENT_BYTES = 256 * 1024;
@@ -29006,6 +29048,46 @@ var queueInput = external_exports.strictObject({
 });
 
 // packages/voidra/src/releases.ts
+function releaseCandidates(project, ignoreAction) {
+  const reserved = /* @__PURE__ */ new Set();
+  for (const record2 of project.records.values()) {
+    if (record2.kind === "action") {
+      const action = schemas.action.parse(record2.document.data);
+      if (action.type === "release" && action.id !== ignoreAction && !["cancelled", "released"].includes(action.stage ?? ""))
+        for (const member of action.releaseActions ?? []) reserved.add(member);
+    }
+    if (record2.kind === "release" && (record2.document.data.status === "released" || record2.document.data.status === "draft" && !record2.document.data.supersededByVersion && !(ignoreAction && record2.document.data.action === ignoreAction) && project.records.get(
+      `.voidra/actions/${record2.document.data.action}/action.md`
+    )?.document.data.stage !== "cancelled"))
+      for (const member of schemas.release.parse(record2.document.data).actions)
+        reserved.add(member);
+  }
+  return [...project.records.values()].flatMap((record2) => {
+    if (record2.kind !== "action") return [];
+    if (project.diagnostics.some(
+      (d) => d.file === record2.document.file && ["identity", "duplicate-id"].includes(d.code)
+    ))
+      return [];
+    const action = schemas.action.parse(record2.document.data);
+    return action.type !== "release" && actionComplete(action) && action.stage !== "released" && !action.releasedIn && !reserved.has(action.id) ? [
+      {
+        id: action.id,
+        title: action.title,
+        revision: hash2(record2.document.raw)
+      }
+    ] : [];
+  }).sort((a, b) => a.id.localeCompare(b.id));
+}
+function releasedMember(action, version3) {
+  const checked = schemas.release.shape.version.parse(version3);
+  if (!actionComplete(action) || action.type === "release" || action.stage === "cancelled")
+    throw new Error("Only completed work can become Released");
+  return {
+    ...action,
+    ...action.doneBy === "agent" ? { stage: "released" } : {},
+    releasedIn: checked
+  };
+}
 var selection = external_exports.strictObject({
   actions: external_exports.array(
     external_exports.strictObject({
@@ -29013,7 +29095,8 @@ var selection = external_exports.strictObject({
       revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
     })
   ).min(1),
-  by: external_exports.string().trim().min(1)
+  by: external_exports.string().trim().min(1),
+  queue: external_exports.boolean().optional()
 });
 
 // packages/voidra/src/templates.ts
@@ -29718,7 +29801,12 @@ var checkpointSchema = external_exports.looseObject({
   commit: external_exports.string().optional(),
   message: external_exports.string().optional(),
   indexBefore: external_exports.string().optional(),
-  indexReconciled: external_exports.boolean().optional()
+  indexReconciled: external_exports.boolean().optional(),
+  release: external_exports.strictObject({
+    version: schemas.release.shape.version,
+    tag: external_exports.string().min(1),
+    message: external_exports.string().min(1)
+  }).optional()
 });
 var reportSchema = external_exports.strictObject({
   summary: external_exports.string().min(1),
@@ -29734,6 +29822,264 @@ var reportSchema = external_exports.strictObject({
     external_exports.strictObject({ name: external_exports.string().min(1), passed: external_exports.boolean() })
   )
 });
+function releaseIntent(action, revision) {
+  if (action.type !== "release" || !["review", "released"].includes(action.stage ?? "") || action.reviewDecision?.decision !== "accepted" || action.reviewDecision.revision !== revision || !action.releaseActions?.length || !action.releaseFiles || !action.releaseVersion || !action.releaseTag || !action.releaseMessage)
+    throw new Error("Release requires a complete, unchanged accepted proposal");
+  return {
+    version: action.releaseVersion,
+    tag: action.releaseTag,
+    message: action.releaseMessage
+  };
+}
+var releasePlanSchema = external_exports.strictObject({
+  version: schemas.release.shape.version,
+  tag: external_exports.string().min(1),
+  message: external_exports.string().min(1),
+  paths: external_exports.array(external_exports.string().min(1)),
+  notes: external_exports.string().min(1),
+  requirements: external_exports.string().min(1),
+  blueprint: external_exports.string().min(1),
+  acceptance: external_exports.string().min(1),
+  actions: external_exports.array(
+    external_exports.strictObject({
+      id: schemas.action.shape.id,
+      revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+    })
+  ).min(1).optional()
+});
+async function publishReleasePlan(root, token, raw) {
+  const report = releasePlanSchema.parse(raw), { ctx } = await owned(root, token), { action } = await current(root, ctx);
+  if (ctx.phase !== "started" || action.type !== "release" || action.stage !== "plan")
+    throw new Error("Release proposals require an owned Plan run");
+  await assertPlanningEffects(root, ctx);
+  if (/^Voidra-(Action|Run):/m.test(report.message) || report.tag.startsWith("-"))
+    throw new Error("Invalid release message or tag");
+  await git2(root, ["check-ref-format", `refs/tags/${report.tag}`]);
+  if (await git2(root, ["rev-parse", "--verify", `refs/tags/${report.tag}`]).catch(
+    () => ""
+  ))
+    throw new Error("The proposed tag already exists");
+  if (new Set(report.paths).size !== report.paths.length)
+    throw new Error("Duplicate release path");
+  for (const path of report.paths) {
+    await safeGitPath(root, path);
+    if (path.startsWith(".voidra/"))
+      throw new Error("Version/changelog paths must be repository files");
+  }
+  const project = await checkProject(root), candidates = new Map(
+    releaseCandidates(project, action.id).map((candidate) => [
+      candidate.id,
+      candidate
+    ])
+  );
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (hash2(project.files.get(path) ?? "") !== expected)
+      throw new Error(`Consumed record changed: ${path}`);
+  const selected = report.actions ?? (action.releaseActions ?? []).map((id2) => {
+    const candidate = candidates.get(id2);
+    if (!candidate)
+      throw new Error("Selected release work is no longer eligible");
+    return { id: id2, revision: candidate.revision };
+  });
+  if (!selected.length || new Set(selected.map((member) => member.id)).size !== selected.length)
+    throw new Error("Choose completed, unreleased work once");
+  for (const member of selected)
+    if (candidates.get(member.id)?.revision !== member.revision)
+      throw new Error("Release selection changed or is ineligible");
+  const recordPath = `.voidra/releases/${report.version}.md`, prior = project.records.get(recordPath)?.document;
+  if (prior && (prior.data.action !== action.id || prior.data.status === "released"))
+    throw new Error("This version belongs to another release");
+  const next = {
+    ...action,
+    releaseActions: selected.map((member) => member.id),
+    releaseVersion: report.version,
+    releaseTag: report.tag,
+    releaseFiles: report.paths,
+    releaseMessage: report.message,
+    title: `Release ${report.version}`
+  };
+  const changes = [];
+  for (const [file2, body] of Object.entries({
+    "requirements.md": report.requirements,
+    "blueprint.md": report.blueprint,
+    "acceptance.md": report.acceptance
+  })) {
+    const path = `.voidra/actions/${action.id}/${file2}`, old = project.records.get(path)?.document;
+    changes.push({
+      path,
+      expectedHash: old ? hash2(old.raw) : null,
+      content: serializeRecord(
+        old ?? parseRecord(path, "---\n{}\n---\n"),
+        { ...old?.data ?? {}, action: action.id },
+        body
+      ).toString()
+    });
+  }
+  changes.push({
+    path: recordPath,
+    expectedHash: prior ? hash2(prior.raw) : null,
+    content: serializeRecord(
+      prior ?? parseRecord(recordPath, "---\n{}\n---\n"),
+      {
+        ...prior?.data ?? {},
+        version: report.version,
+        action: action.id,
+        actions: next.releaseActions,
+        tag: report.tag,
+        status: "draft"
+      },
+      report.notes
+    ).toString()
+  });
+  if (action.releaseVersion && action.releaseVersion !== report.version) {
+    const oldPath = `.voidra/releases/${action.releaseVersion}.md`, old = project.records.get(oldPath)?.document;
+    if (old?.data.action === action.id && old.data.status === "draft")
+      changes.push({
+        path: oldPath,
+        expectedHash: hash2(old.raw),
+        content: serializeRecord(old, {
+          ...old.data,
+          supersededByVersion: report.version
+        }).toString()
+      });
+  }
+  for (const member of selected) {
+    const path = `.voidra/actions/${member.id}/action.md`;
+    changes.push({
+      path,
+      expectedHash: member.revision,
+      content: project.files.get(path)?.toString() ?? null
+    });
+  }
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (!changes.some((change) => change.path === path))
+      changes.push({
+        path,
+        expectedHash: expected,
+        content: project.files.get(path)?.toString() ?? null
+      });
+  const overlay = new Map(project.files);
+  for (const change of changes) {
+    if (change.content === null) overlay.delete(change.path);
+    else overlay.set(change.path, Buffer.from(change.content));
+  }
+  overlay.set(
+    ctx.actionPath,
+    serializeRecord(
+      parseRecord(ctx.actionPath, project.files.get(ctx.actionPath)),
+      next
+    )
+  );
+  const plan = readPlan(overlay, action.id);
+  if (!plan) throw new Error("Release plan is incomplete");
+  let reviewed = next;
+  for (let index = 0; index < 8 && reviewed.stage !== "review"; index++)
+    reviewed = transition(
+      reviewed,
+      "advance",
+      { plan },
+      projectLifecycles(project.metadata)
+    ).action;
+  if (reviewed.stage !== "review")
+    throw new Error("Release proposal did not reach Review");
+  await finishAtGate(
+    root,
+    token,
+    reviewed,
+    "Release proposal ready for exact Review acceptance. No code, commit or tag was changed.\n",
+    changes
+  );
+}
+async function finalizeRelease(root, ctx, token, options) {
+  if (!ctx.release || !ctx.commit)
+    throw new Error("Release commit intent missing");
+  const tag = ctx.release.tag;
+  await options.checkpoint?.("before-tag");
+  await owned(root, token);
+  await checkPreparedFiles(root, ctx);
+  if (await head2(root) !== ctx.commit)
+    throw new Error("Git HEAD changed before release tagging");
+  const target = async () => git2(root, ["rev-parse", "--verify", `refs/tags/${tag}^{commit}`]).catch(
+    () => ""
+  );
+  let existing = await target();
+  if (existing && existing !== ctx.commit)
+    throw new Error("Conflicting release tag; it will not be moved");
+  if (!existing) {
+    try {
+      await git2(root, ["tag", "--", tag, ctx.commit]);
+    } catch (error62) {
+      existing = await target();
+      if (existing !== ctx.commit) throw error62;
+    }
+  }
+  await options.checkpoint?.("after-tag");
+  await options.checkpoint?.("before-finalize");
+  await owned(root, token);
+  await checkPreparedFiles(root, ctx);
+  const project = await checkProject(root), { action, actionRaw, runRaw } = await current(root, ctx), plan = readPlan(project.files, action.id, project.records);
+  const endedAt = (/* @__PURE__ */ new Date()).toISOString(), fileHashes = { ...ctx.fileHashes }, changes = [];
+  if (!plan)
+    throw new Error("Release plan is missing; obtain fresh acceptance");
+  const add = (path2, content) => {
+    changes.push({
+      path: path2,
+      expectedHash: fileHashes[path2] ?? null,
+      content: content.toString()
+    });
+    fileHashes[path2] = hash2(content);
+  };
+  const next = transition(
+    action,
+    "finalize-release",
+    { plan, commit: ctx.commit, tag },
+    projectLifecycles(project.metadata)
+  ).action;
+  const actionBytes = serializeRecord(
+    parseRecord(ctx.actionPath, actionRaw),
+    next
+  ), runBytes = serializeRecord(parseRecord(ctx.runPath, runRaw), {
+    ...parseRecord(ctx.runPath, runRaw).data,
+    commit: ctx.commit,
+    outcome: "advanced",
+    toStage: "released",
+    endedAt
+  });
+  add(ctx.actionPath, actionBytes);
+  add(ctx.runPath, runBytes);
+  const path = `.voidra/releases/${ctx.release.version}.md`, record2 = project.records.get(path)?.document;
+  if (!record2) throw new Error("Release proposal record missing");
+  add(
+    path,
+    serializeRecord(record2, {
+      ...record2.data,
+      status: "released",
+      date: endedAt
+    })
+  );
+  for (const id2 of action.releaseActions ?? []) {
+    const memberPath = `.voidra/actions/${id2}/action.md`, member = project.records.get(memberPath)?.document;
+    if (!member) throw new Error("Release member missing");
+    add(
+      memberPath,
+      serializeRecord(
+        member,
+        releasedMember(schemas.action.parse(member.data), ctx.release.version)
+      )
+    );
+  }
+  const final = {
+    ...ctx,
+    phase: "finalized",
+    actionHash: hash2(actionBytes),
+    runHash: hash2(runBytes),
+    fileHashes,
+    indexReconciled: false
+  };
+  await save(root, final, changes, false, options.writeCheckpoint);
+  await options.checkpoint?.("after-finalize");
+  await reconcileIndex(root, final, token);
+}
 var checkpointPath = (run) => `.voidra/local/run-checkpoints/${run}.json`;
 async function assertUnlinked(root, path) {
   let current2 = root;
@@ -29787,7 +30133,7 @@ async function runContext(root, run) {
     throw new Error("Run checkpoint identity changed");
   for (const path of ctx.paths) {
     await safeGitPath(root, path);
-    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`))
+    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
       throw new Error("Run checkpoint contains another action's files");
   }
   return ctx;
@@ -29804,7 +30150,7 @@ async function owned(root, token) {
   if (ctx.ownerToken !== token) throw new Error("Run checkpoint owner differs");
   return { ctx, lock, lockRaw };
 }
-async function save(root, ctx, changes = [], allowGlossary = false) {
+async function save(root, ctx, changes = [], allowGlossary = false, writeCheckpoint) {
   const path = checkpointPath(ctx.run), old = await text4(root, path);
   if (!changes.some((change) => change.path === ".voidra/local/run.lock")) {
     const lockRaw = await text4(root, ".voidra/local/run.lock");
@@ -29832,7 +30178,10 @@ async function save(root, ctx, changes = [], allowGlossary = false) {
         }
       ]
     },
-    { allowGlossary }
+    {
+      allowGlossary,
+      ...writeCheckpoint ? { checkpoint: writeCheckpoint } : {}
+    }
   );
 }
 async function current(root, ctx) {
@@ -29947,6 +30296,8 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
         actionPath,
         ".voidra/voidra.json",
         ...action.blockedBy ?? [],
+        ...action.releaseActions ?? [],
+        ...action.releaseVersion ? [`.voidra/releases/${action.releaseVersion}.md`] : [],
         ...[...checked.records.values()].filter(
           (r) => r.kind === "profile" || r.kind === "idea" || r.document.file.startsWith(`.voidra/actions/${actionId}/`) && [
             "questions",
@@ -29989,7 +30340,9 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     priorWork,
     inputHashes: Object.fromEntries(
       [...checked.files].filter(
-        ([path]) => path === ".voidra/voidra.json" || path.startsWith(".voidra/profile/") || path.startsWith(".voidra/backlog/") || path.startsWith(`.voidra/actions/${action.id}/`) && ![actionPath].includes(path) && !path.includes("/runs/")
+        ([path]) => path === ".voidra/voidra.json" || path.startsWith(".voidra/profile/") || path.startsWith(".voidra/backlog/") || action.releaseVersion && path === `.voidra/releases/${action.releaseVersion}.md` || (action.releaseActions ?? []).some(
+          (id2) => path === `.voidra/actions/${id2}/action.md`
+        ) || path.startsWith(`.voidra/actions/${action.id}/`) && ![actionPath].includes(path) && !path.includes("/runs/")
       ).map(([path, bytes]) => [path, hash2(bytes)])
     ),
     baseTags: await git2(root, [
@@ -30054,15 +30407,6 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     }
   ]);
   if (stale || boundary) return runContext(root, run);
-  if (action.type === "release") {
-    await endWithoutCommit(
-      root,
-      ownerToken,
-      `Not supported yet: ${action.type} at ${action.stage}.`,
-      "unsupported"
-    );
-    return runContext(root, run);
-  }
   return ctx;
 }
 async function heartbeat(root, token) {
@@ -30110,14 +30454,19 @@ async function prepareResult(root, token, input2) {
   await guardRun(root, token, report.paths);
   const { action, actionRaw, runRaw } = await current(root, ctx);
   const project = await checkProject(root), plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan" || ["research", "release"].includes(action.type))
+  if (ctx.mode === "plan" || action.type === "research")
     throw new Error("This run cannot prepare an implementation commit");
   if (action.type !== "docs" && !report.reviews)
     throw new Error("Both standards and plan review are required");
   if (report.reviews && (!report.reviews.standards.passed || !report.reviews.plan.passed))
     throw new Error("Fix both review parts before preparing");
   const rules = projectLifecycles(project.metadata);
-  let next = action;
+  const release = action.type === "release" ? releaseIntent(action, plan?.revision) : void 0;
+  if (release && JSON.stringify([...report.paths].sort()) !== JSON.stringify([...action.releaseFiles ?? []].sort()))
+    throw new Error(
+      "Release paths must match the accepted version/changelog files"
+    );
+  let next = release ? { ...action, status: "ready" } : action;
   for (let i = 0; i < 8 && next.stage !== "review"; i++)
     next = transition(next, "advance", plan ? { plan } : {}, rules).action;
   if (next.stage !== "review")
@@ -30157,6 +30506,7 @@ Plan: ${report.reviews.plan.summary}
   const paths = [
     .../* @__PURE__ */ new Set([
       ...report.paths,
+      ...release ? [`.voidra/releases/${release.version}.md`] : [],
       ...[...project.files.keys()].filter(
         (path) => path.startsWith(`.voidra/actions/${ctx.action}/`)
       ),
@@ -30169,6 +30519,11 @@ Plan: ${report.reviews.plan.summary}
     const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text4(root, path);
     fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : await fileHash(root, path);
   }
+  if (release)
+    for (const member of action.releaseActions ?? []) {
+      const path = `.voidra/actions/${member}/action.md`;
+      fileHashes[path] = await fileHash(root, path);
+    }
   await save(
     root,
     {
@@ -30177,7 +30532,8 @@ Plan: ${report.reviews.plan.summary}
       paths,
       fileHashes,
       actionHash: hash2(preparedAction),
-      runHash: hash2(preparedRun)
+      runHash: hash2(preparedRun),
+      ...release ? { release, message: release.message } : {}
     },
     [
       {
@@ -30214,6 +30570,13 @@ async function fileHash(root, path) {
 }
 async function checkPreparedFiles(root, ctx) {
   await current(root, ctx);
+  if (ctx.release) {
+    const project = await checkProject(root), action = schemas.action.parse(
+      project.records.get(ctx.actionPath)?.document.data
+    ), plan = readPlan(project.files, ctx.action, project.records), intent = releaseIntent(action, plan?.revision);
+    if (plan?.revision !== ctx.planRevision || JSON.stringify(intent) !== JSON.stringify(ctx.release))
+      throw new Error("Release proposal changed; obtain fresh acceptance");
+  }
   for (const [path, expected] of Object.entries(ctx.fileHashes)) {
     await safeGitPath(root, path);
     if (await fileHash(root, path) !== expected)
@@ -30222,6 +30585,10 @@ async function checkPreparedFiles(root, ctx) {
 }
 async function commitResult(root, token, message, options = {}) {
   const { ctx } = await owned(root, token);
+  if (ctx.release && message !== ctx.release.message)
+    throw new Error(
+      "Commit message differs from the accepted release proposal"
+    );
   if (ctx.mode === "plan") throw new Error("Planning-only runs cannot commit");
   if (/^Voidra-(Action|Run):/m.test(message))
     throw new Error("The runtime owns commit trailers");
@@ -30325,6 +30692,7 @@ async function finalizeResult(root, token, options = {}) {
     return;
   }
   await checkPreparedFiles(root, ctx);
+  if (ctx.release) return finalizeRelease(root, ctx, token, options);
   await options.checkpoint?.("before-finalize");
   await owned(root, token);
   const { action, actionRaw, runRaw } = await current(root, ctx);
@@ -30399,6 +30767,24 @@ async function failRun(root, token, summary) {
 }
 async function recoverRun(root, run, options = {}) {
   let ctx = await runContext(root, run);
+  const project = await checkProject(root), pending = [...project.records.values()].filter(
+    (record2) => record2.kind === "operation" && record2.document.data.state === "prepared" && schemas.operation.parse(record2.document.data).changes.some((change) => change.path === checkpointPath(run))
+  );
+  if (pending.length) {
+    const raw2 = await text4(root, ".voidra/local/run.lock"), lock2 = raw2 ? schemas.lock.parse(JSON.parse(raw2)) : null;
+    if (lock2 && (lock2.run !== run || lock2.action !== ctx.action || !(await inspectLock(lock2)).recoverable))
+      throw new Error("Run owner is active or belongs to another operation");
+    if (!lock2 && ctx.ownerPid && ctx.ownerHost === hostname5() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
+      throw new Error(
+        "The original owner is still alive; wait before recovery"
+      );
+    for (const record2 of pending)
+      await recoverOperation(
+        root,
+        schemas.operation.parse(record2.document.data).id
+      );
+    ctx = await runContext(root, run);
+  }
   if (ctx.phase === "finalized" && ctx.indexReconciled || ["unsupported", "failed", "interrupted"].includes(ctx.phase))
     return ctx;
   const raw = await text4(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
@@ -30444,6 +30830,9 @@ async function recoverRun(root, run, options = {}) {
     await checkPreparedFiles(root, ctx);
     await save(root, { ...ctx, phase: "committed", commit: existing });
     await finalizeResult(root, ctx.ownerToken);
+  } else if (ctx.release && ctx.message && ["prepared", "commit-pending"].includes(ctx.phase)) {
+    await commitResult(root, ctx.ownerToken, ctx.message, options);
+    await finalizeResult(root, ctx.ownerToken, options);
   } else {
     await endWithoutCommit(
       root,
@@ -30508,6 +30897,15 @@ async function publishPlanning(root, token, raw) {
       outcome: "waiting",
       endedAt: (/* @__PURE__ */ new Date()).toISOString(),
       toStage: action.stage,
+      ...action.type === "release" ? {
+        consumedRecords: [
+          .../* @__PURE__ */ new Set([
+            ...schemas.run.parse(parseRecord(ctx.runPath, runRaw).data).consumedRecords,
+            ...action.releaseActions ?? [],
+            ...action.releaseVersion ? [`.voidra/releases/${action.releaseVersion}.md`] : []
+          ])
+        ]
+      } : {},
       planningOnly: changesOutside.length === 0
     },
     input2.summary ?? `Planning stopped at ${result2.gate}.
@@ -30567,7 +30965,12 @@ async function guardRun(root, token, paths = []) {
   const { ctx } = await owned(root, token), { action } = await current(root, ctx), project = await checkProject(root), rules = projectLifecycles(project.metadata), plan = readPlan(project.files, action.id, project.records);
   if (ctx.mode === "plan")
     throw new Error("Planning-only runs cannot edit implementation files");
-  if (!["implement", "verify"].includes(action.stage ?? ""))
+  const release = action.type === "release" && action.stage === "review" ? releaseIntent(action, plan?.revision) : void 0;
+  if (release && (ctx.planRevision !== plan?.revision || paths.some((path) => !action.releaseFiles?.includes(path))))
+    throw new Error(
+      "Release scope changed; obtain fresh acceptance before editing"
+    );
+  if (!release && !["implement", "verify"].includes(action.stage ?? ""))
     throw new Error("This stage cannot edit code");
   if (rules[action.type].planGate && (!plan || !action.planApproval || Object.entries(plan.hashes).some(
     ([name, value]) => action.planApproval?.hashes[name] !== value
@@ -30863,7 +31266,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     if (command === "help" || command === "--help")
       return {
         code: 0,
-        value: "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
+        value: "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
       };
     if (command === "start") {
       const agent = need("--agent");
@@ -30937,6 +31340,14 @@ async function runRuntime(args, cwd = process.cwd()) {
       );
       await prepareResult(root, need("--token"), report);
       return { code: 0, value: { prepared: true } };
+    }
+    if (command === "release-plan") {
+      await publishReleasePlan(
+        root,
+        need("--token"),
+        JSON.parse(await readFile7(resolve3(root, need("--report")), "utf8"))
+      );
+      return { code: 0, value: { gate: "review" } };
     }
     if (command === "commit")
       return {

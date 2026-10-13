@@ -15,6 +15,7 @@ import {
   prepareResult,
   publishHumanBlocker,
   publishPlanning,
+  publishReleasePlan,
   publishResearch,
   type RunContext,
   recoverRun,
@@ -72,7 +73,7 @@ export async function runRuntime(
       return {
         code: 0,
         value:
-          "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
+          "voidra-go runtime: start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
       };
     if (command === "start") {
       const agent = need("--agent");
@@ -160,6 +161,14 @@ export async function runRuntime(
       );
       await prepareResult(root, need("--token"), report);
       return { code: 0, value: { prepared: true } };
+    }
+    if (command === "release-plan") {
+      await publishReleasePlan(
+        root,
+        need("--token"),
+        JSON.parse(await readFile(resolve(root, need("--report")), "utf8")),
+      );
+      return { code: 0, value: { gate: "review" } };
     }
     if (command === "commit")
       return {

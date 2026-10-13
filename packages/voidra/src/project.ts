@@ -144,6 +144,7 @@ export async function readProjectFiles(
       (fileKind(path) ||
         path === ".voidra/README.md" ||
         path === ".voidra/.gitignore" ||
+        path === ".voidra/local/release-selection.json" ||
         (path.endsWith(".md") && !path.startsWith(".voidra/local/")))
     )
       files.set(path, await readFile(join(root, path)));
@@ -203,6 +204,8 @@ export function readPlan(
           actions: action.releaseActions,
           version,
           tag: action.releaseTag ?? null,
+          paths: action.releaseFiles ?? null,
+          message: action.releaseMessage ?? null,
           record: record ? { data, body: record.body } : null,
         }),
       ),
@@ -499,6 +502,27 @@ export function inspectFiles(
   }
   const releaseClaims = new Map<string, string>();
   for (const [id, { action: a, file }] of actions) {
+    if (a.releasedIn) {
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          metaPath,
+          "requiredVoidra",
+          "Release membership requires voidra ≥ 0.2.0",
+        );
+      const record = records.get(`.voidra/releases/${a.releasedIn}.md`);
+      if (
+        record?.kind !== "release" ||
+        record.document.data.status !== "released" ||
+        !schemas.release.parse(record.document.data).actions.includes(id)
+      )
+        add(
+          "release-membership",
+          file,
+          "releasedIn",
+          "Released membership requires its completed release record",
+        );
+    }
     if (a.releaseActions) {
       if (!extendedActions)
         add(
@@ -721,7 +745,11 @@ export function inspectFiles(
         reference(id, file, "actions");
         if (
           d.status === "released" &&
-          actions.get(id)?.action.stage !== "released"
+          !(
+            actions.get(id)?.action.stage === "released" ||
+            (actions.get(id)?.action.doneBy === "you" &&
+              actions.get(id)?.action.releasedIn === d.version)
+          )
         )
           add("release-actions", file, "actions", `${id} is not released`);
       }

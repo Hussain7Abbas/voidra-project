@@ -232,6 +232,7 @@ export const workspaceSchema = z.strictObject({
         data: z.looseObject({
           version: z.string(),
           action: z.string().optional(),
+          supersededByVersion: z.string().optional(),
           actions: z.array(z.string()),
           status: z.enum(["draft", "released"]),
           tag: z.string().optional(),
@@ -272,6 +273,7 @@ export const workspaceSchema = z.strictObject({
         releaseActions: z.array(z.string()).optional(),
         releaseVersion: z.string().optional(),
         releaseTag: z.string().optional(),
+        releasedIn: z.string().optional(),
         planFeedback: z
           .looseObject({ feedback: z.string(), by: z.string(), at: z.string() })
           .optional(),
