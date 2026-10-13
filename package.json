@@ -12,8 +12,8 @@
   "scripts": {
     "lint": "biome check . && node tools/run-engine/scripts/lint-skills.ts",
     "format": "biome check --write .",
-    "typecheck": "tsc -b && pnpm --filter voidra-project exec next typegen && tsc -p apps/desktop/tsconfig.json",
-    "build": "tsc -b tsconfig.json packages/voidra/tsconfig.json && pnpm --filter voidra-project build",
+    "typecheck": "pnpm --filter voidra build && tsc -b && pnpm --filter voidra-project exec next typegen && tsc -p apps/desktop/tsconfig.json",
+    "build": "tsc -b packages/voidra/tsconfig.json tsconfig.json && pnpm --filter voidra-project build",
     "test": "pnpm --filter voidra build && pnpm --filter voidra-project build && vitest run --coverage",
     "test:watch": "vitest",
     "deprecations": "node tools/standards/src/deprecations-cli.ts",

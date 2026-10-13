@@ -8,7 +8,7 @@ Use Node **24.13.0** (`.node-version` / `.nvmrc`) and pnpm **10.30.3** (`package
 
 Run `make setup`, then `make check`. `make help` lists supported commands. The Makefile resolves its own root, so `make -f /absolute/path/to/voidra-project/Makefile check` also works from elsewhere. The desktop uses a static renderer with no server port; `make dev` starts the app.
 
-`make check` runs Biome, strict workspace/renderer typechecking, Vitest with V8 coverage, the deprecation scanner and the generated-reference check. `make build` compiles tooling, the npm package and desktop renderer/process bundles; `make clean` removes that output, desktop packaging/test artifacts and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
+`make check` builds the public format package before checking workspace imports, then runs Biome, strict workspace/renderer typechecking, Vitest with V8 coverage, the deprecation scanner and the generated-reference check. `make build` compiles tooling, the npm package and desktop renderer/process bundles; `make clean` removes that output, desktop packaging/test artifacts and coverage reports. `make format` applies Biome formatting and safe fixes. `make test-watch` watches tests without the coverage run.
 
 ## Version pins
 
