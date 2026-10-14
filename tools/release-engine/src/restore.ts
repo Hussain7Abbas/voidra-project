@@ -140,8 +140,12 @@ export async function restoreAssets(
     return null;
   }
   const parsed = manifestSchema.parse(JSON.parse(manifest.toString()));
-  if (parsed.source !== source || parsed.tag !== tag)
-    throw Error("Existing release source mismatch");
+  if (
+    parsed.source !== source ||
+    parsed.tag !== tag ||
+    parsed.notes.trim() !== (await selectNotes(root, version)).trim()
+  )
+    throw Error("Existing release source/notes mismatch");
   for (const file of [
     ...parsed.files.map((file) => file.name),
     "CHECKSUMS.txt",

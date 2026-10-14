@@ -70,4 +70,5 @@ Every story is accepted, and a test release proves the whole pipeline.
 
 ## Hand-off
 
-- Show the icon directions for your approval before building the DMG.
+- D24 delegates the icon decision; the [recorded agent review](../docs/icon-review.md) accepts the connected V without claiming a personal human review.
+- Implementation and local checks are prepared. Resume from the actual npm account sign-in/2FA checkpoint in [evidence](../docs/verification/p15.md), then configure the registered workflow, verify matching CI and run the retained v0.2.0 test-tag failure/retry/provenance proofs. The implementing agent performs the commands and publication steps; the human provides only the required account interaction.

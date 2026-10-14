@@ -2,7 +2,7 @@ import { cpSync, readFileSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { stageRelease } from "../src/release.ts";
+import { manifestBytes, stageRelease } from "../src/release.ts";
 import { loadStage, restoreAssets } from "../src/restore.ts";
 import { fixture } from "./helpers.ts";
 
@@ -98,6 +98,17 @@ test("complete published assets restore after CI artifact expiration; partial dr
         )
       )?.source,
     ).toBe(original.source);
+    await writeFile(
+      join(original.directory, "release-manifest.json"),
+      manifestBytes({ ...original, notes: "Outside release notes\n" }),
+    );
+    await expect(
+      restoreAssets(root, join(root, "changed-notes"), "v0.2.0", {}, execute),
+    ).rejects.toThrow(/notes mismatch/);
+    await writeFile(
+      join(original.directory, "release-manifest.json"),
+      manifestBytes(original),
+    );
     partial = true;
     await expect(
       restoreAssets(root, join(root, "partial"), "v0.2.0", {}, execute),
