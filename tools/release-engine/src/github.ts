@@ -12,6 +12,7 @@ const releaseSchema = z.object({
     z.object({ id: z.number().int().positive(), name: z.string() }),
   ),
 });
+type GitHubRelease = z.infer<typeof releaseSchema>;
 export class GitHubReleaseRemote implements GitHubRemote {
   readonly stage: StagedRelease;
   readonly env: NodeJS.ProcessEnv;
@@ -35,7 +36,7 @@ export class GitHubReleaseRemote implements GitHubRemote {
   command(args: string[]): Buffer {
     return this.execute(args);
   }
-  async release() {
+  async release(): Promise<GitHubRelease | null> {
     try {
       return releaseSchema.parse(
         JSON.parse(
@@ -46,10 +47,46 @@ export class GitHubReleaseRemote implements GitHubRemote {
         ),
       );
     } catch (error) {
-      if (error instanceof Error && error.message.includes("HTTP 404"))
+      if (!(error instanceof Error && error.message.includes("HTTP 404")))
+        throw error;
+    }
+    // The tag endpoint exposes published releases; CLI lookup also finds drafts.
+    let lookup: { apiUrl: string; tagName: string };
+    try {
+      lookup = z
+        .object({ apiUrl: z.string(), tagName: z.literal(this.stage.tag) })
+        .parse(
+          JSON.parse(
+            this.command([
+              "release",
+              "view",
+              this.stage.tag,
+              "--repo",
+              RELEASE_REPOSITORY,
+              "--json",
+              "apiUrl,tagName",
+            ]).toString(),
+          ),
+        );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("release not found"))
         return null;
       throw error;
     }
+    const prefix = `https://api.github.com/repos/${RELEASE_REPOSITORY}/releases/`,
+      id = lookup.apiUrl.startsWith(prefix)
+        ? lookup.apiUrl.slice(prefix.length)
+        : "";
+    if (!/^[1-9]\d*$/.test(id))
+      throw Error("Draft release endpoint is invalid");
+    return releaseSchema.parse(
+      JSON.parse(
+        this.command([
+          "api",
+          `repos/${RELEASE_REPOSITORY}/releases/${id}`,
+        ]).toString(),
+      ),
+    );
   }
   async source(): Promise<string> {
     let object = JSON.parse(

@@ -388,10 +388,24 @@ test("the GitHub adapter uses checked tags/drafts/assets and never overwrites a 
     const assets = new Map<string, Buffer>();
     const remote = new GitHubReleaseRemote(stage, {}, (args) => {
       requests.push(args);
+      if (args[0] === "release" && args[1] === "view") {
+        if (!exists) throw Error("release not found");
+        return Buffer.from(
+          JSON.stringify({
+            apiUrl:
+              "https://api.github.com/repos/Hussain7Abbas/voidra-project/releases/1",
+            tagName: stage.tag,
+          }),
+        );
+      }
       if (args[0] === "api") {
         const path = args[1] ?? "";
-        if (path.endsWith("/releases/tags/v0.2.0")) {
-          if (!exists) throw Error("HTTP 404");
+        if (
+          path.endsWith("/releases/tags/v0.2.0") ||
+          path.endsWith("/releases/1")
+        ) {
+          if (!exists || (draft && path.includes("/releases/tags/")))
+            throw Error("HTTP 404");
           return Buffer.from(
             JSON.stringify({
               id: 1,
@@ -444,9 +458,58 @@ test("the GitHub adapter uses checked tags/drafts/assets and never overwrites a 
       "--prerelease",
     );
     expect(requests.some((args) => args.includes("--clobber"))).toBe(false);
+    expect(
+      requests.some((args) => args[0] === "release" && args[1] === "view"),
+    ).toBe(true);
     expect(await readFile(join(root, "stage/release-notes.md"), "utf8")).toBe(
       stage.notes,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("draft lookup confines release identity and preserves API and permission failures", async () => {
+  const { GitHubReleaseRemote } = await import("../src/github.ts"),
+    root = await fixture();
+  try {
+    const stage = await stageRelease(root, join(root, "stage"), "v0.2.0", [
+      "app.dmg",
+      "voidra-0.2.0.tgz",
+    ]);
+    for (const lookup of [
+      {
+        apiUrl: "https://api.github.com/repos/other/project/releases/1",
+        tagName: stage.tag,
+      },
+      {
+        apiUrl:
+          "https://api.github.com/repos/Hussain7Abbas/voidra-project/releases/1?outside=yes",
+        tagName: stage.tag,
+      },
+      {
+        apiUrl:
+          "https://api.github.com/repos/Hussain7Abbas/voidra-project/releases/1",
+        tagName: "v9.0.0",
+      },
+    ]) {
+      const remote = new GitHubReleaseRemote(stage, {}, (args) => {
+        if (args[0] === "api" && args[1]?.includes("releases/tags"))
+          throw Error("HTTP 404");
+        if (args[0] === "release" && args[1] === "view")
+          return Buffer.from(JSON.stringify(lookup));
+        throw Error("Unexpected external request");
+      });
+      await expect(remote.release()).rejects.toThrow(/endpoint|Invalid/i);
+    }
+    for (const status of ["HTTP 503", "HTTP 403"]) {
+      const remote = new GitHubReleaseRemote(stage, {}, (args) => {
+        if (status === "HTTP 503") throw Error(status);
+        if (args[0] === "api") throw Error("HTTP 404");
+        throw Error(status);
+      });
+      await expect(remote.release()).rejects.toThrow(status);
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

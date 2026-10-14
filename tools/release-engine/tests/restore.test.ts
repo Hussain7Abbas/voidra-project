@@ -65,10 +65,21 @@ test("complete published assets restore after CI artifact expiration; partial dr
       absent = false;
     const execute = (args: string[]): Buffer => {
       const path = args[1] ?? "";
+      if (args[0] === "release" && args[1] === "view") {
+        if (absent) throw Error("release not found");
+        return Buffer.from(
+          JSON.stringify({
+            apiUrl:
+              "https://api.github.com/repos/Hussain7Abbas/voidra-project/releases/1",
+            tagName: original.tag,
+          }),
+        );
+      }
       if (path.includes("actions/artifacts"))
         return Buffer.from(JSON.stringify({ artifacts: [] }));
-      if (path.includes("releases/tags")) {
-        if (absent) throw Error("HTTP 404");
+      if (path.includes("releases/tags") || path.endsWith("releases/1")) {
+        if (absent || (partial && path.includes("releases/tags")))
+          throw Error("HTTP 404");
         return Buffer.from(
           JSON.stringify({
             id: 1,

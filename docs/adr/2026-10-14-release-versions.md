@@ -19,3 +19,7 @@ A retry uses the original tag and matching existing artifacts. It never moves a 
 ## Sources and limits
 
 [Semantic Versioning](https://semver.org/), [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/), [npm trust CLI](https://docs.npmjs.com/cli/v11/commands/npm-trust/) and [GitHub workflow dispatch](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow). Installed npm 11.6.2 lacks trust configuration. The isolated npm 11.21.0 command supports it and is compatible with pinned Node 24.13.0; current npm 12.2.0 requires a newer Node patch, so global toolchain upgrades are unnecessary. Official account authentication, trust creation and authenticated read-back are now verified for the exact registered workflow. No successful OIDC publication is claimed yet.
+
+## Original-stage publisher repair
+
+The live 0.2.2 retry exposes a private GitHub adapter error: the published-tag endpoint returns 404 for the existing draft. The repair uses checked CLI discovery and numeric-ID metadata. Under D24, repair the matching unpublished draft from the retained 2b760cc stage only: its DMG, npm archive, notes, checksums and skills/source identity remain unchanged. This does not publish newer product bytes or move a tag. The original workflow can then reconcile the public checkpoint and continue its own failure/retry/OIDC proof; the corrected private publisher is included in future source. Record the repair separately from those exact-tag workflow results.
