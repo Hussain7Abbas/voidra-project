@@ -67,7 +67,9 @@ for (const theme of ["light", "dark"] as const)
         }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.getByLabel("Check for app updates", { exact: true }).uncheck();
       await expect(
         page.getByRole("region", { name: "Update available", exact: true }),

@@ -156,6 +156,7 @@ async function aiContext(window: number, intent: AiIntent): Promise<AiContext> {
   return response.context;
 }
 const opening = new Map<string, Promise<BrowserWindow>>();
+const customTitlebars = new Map<number, boolean>();
 async function createWindow(root: string | null): Promise<BrowserWindow> {
   if (root === null) return createWindowOnce(root);
   const inProgress = opening.get(root);
@@ -182,7 +183,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
       }
     }
   }
-  const theme = (await store.read()).theme;
+  const { theme, customTitlebar } = await store.read();
   const dark = resolveTheme(theme, nativeTheme.shouldUseDarkColors) === "dark";
   const window = new BrowserWindow({
     width: 1200,
@@ -190,6 +191,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     minWidth: 700,
     minHeight: 550,
     show: false,
+    frame: !customTitlebar,
     title: root ? `Voidra Project — ${root}` : "Voidra Project",
     backgroundColor: dark ? "#171820" : "#f7f7fb",
     webPreferences: {
@@ -202,6 +204,12 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     },
   });
   registry.register(window.id, root);
+  customTitlebars.set(window.id, customTitlebar);
+  const windowChanged = (): void => notify(window.id, { type: "changed" });
+  window.on("maximize", windowChanged);
+  window.on("unmaximize", windowChanged);
+  window.on("enter-full-screen", windowChanged);
+  window.on("leave-full-screen", windowChanged);
   window.on("focus", () => updateEditMenu(window.id));
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
@@ -210,6 +218,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
   );
   window.on("closed", () => {
     ai.close(window.id);
+    customTitlebars.delete(window.id);
     registry.remove(window.id);
     const stopped = services.get(window.id)?.dispose();
     if (stopped) {
@@ -340,6 +349,7 @@ async function start(): Promise<void> {
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "snapshot") {
           const service = services.get(window.id);
+          const settings = await store.read();
           if (service?.state === "ready")
             try {
               projects.set(window.id, await service.status());
@@ -349,10 +359,16 @@ async function start(): Promise<void> {
             data: {
               kind: "snapshot",
               appVersion: app.getVersion(),
-              updatesEnabled: (await store.read()).updatesEnabled,
+              updatesEnabled: settings.updatesEnabled,
               update: updates.notice,
-              skillsOffer: !(await store.read()).skillsOfferSeen,
-              theme: (await store.read()).theme,
+              skillsOffer: !settings.skillsOfferSeen,
+              theme: settings.theme,
+              customTitlebar: settings.customTitlebar,
+              window: {
+                customTitlebar: customTitlebars.get(window.id) ?? false,
+                maximized: window.isMaximized() || window.isFullScreen(),
+                platform: process.platform,
+              },
               project: projects.get(window.id) ?? null,
               recents: await store.list(),
               serviceState: service?.state ?? null,
@@ -529,6 +545,20 @@ async function start(): Promise<void> {
           await store.setTheme(request.theme);
           nativeTheme.themeSource = request.theme;
           broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "set-custom-titlebar") {
+          await store.setCustomTitlebar(request.enabled);
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "window-control") {
+          if (request.action === "close")
+            setImmediate(() => {
+              if (!window.isDestroyed()) window.close();
+            });
+          else if (request.action === "minimize") window.minimize();
+          else if (window.isFullScreen()) window.setFullScreen(false);
+          else if (window.isMaximized()) window.unmaximize();
+          else window.maximize();
           response = { ok: true, data: { kind: "changed" } };
         } else if (
           request.command === "service-status" ||

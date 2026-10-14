@@ -38,5 +38,6 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [P15 — Packaging and updates](p15.md).
 
-- [P17 — v1 release](p17.md): candidate verification and remaining account/physical release gates.
-- [P17 human VoiceOver checklist](p17-voiceover.md): prepared candidate and the actual manual pass still required.
+- [P17 — v1 release](p17.md): published v1, real-agent checks and downloaded-app verification.
+- [P17 human VoiceOver checklist](p17-voiceover.md): user-reported manual pass in both themes.
+- [Desktop appearance follow-up](desktop-appearance.md): independent scrolling, settings tabs and custom/native titlebars after v1.

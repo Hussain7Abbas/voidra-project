@@ -145,7 +145,9 @@ test.afterEach(async () => {
 for (const theme of ["light", "dark"])
   test(`M1 create, queue, reject, rework and accept in ${theme}`, async () => {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "General", exact: true }).click();
     await page.keyboard.press("Escape");
     await axe();
     await queue();

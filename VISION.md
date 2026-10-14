@@ -194,7 +194,8 @@ Voidra sends only the text a feature needs: your notes, the profile and action t
 - **Releases.** Past releases and the button to start a new one.
 - **Decisions and assumptions.** One searchable index of answered questions, approved plans, ADRs and assumptions, each linked to where it lives.
 - **Glossary.** A read-only view of `GLOSSARY.md`. Terms change through actions.
-- **Settings.** OpenRouter key and model, the install and update status of skills for each agent, and the app version.
+- **Settings.** General contains the OpenRouter key and model, skill installation and update settings, and the app version. Appearance contains the theme and a custom titlebar switch, on by default. The custom titlebar has styled close, minimize and maximize/restore controls, with a Settings icon at the opposite end. Titlebar changes apply to newly opened windows.
+- **Window layout.** The main area and sidebar scroll independently, with scrollbars when their contents overflow; the titlebar and workspace toolbar stay in view.
 
 ## 13. `.voidra/` layout (draft)
 

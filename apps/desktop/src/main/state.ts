@@ -21,6 +21,7 @@ const settingsSchema = z.looseObject({
   recents: z.array(recentSchema),
   skillsOfferSeen: z.boolean().default(false),
   updatesEnabled: z.boolean().default(true),
+  customTitlebar: z.boolean().default(true),
 });
 type Settings = z.infer<typeof settingsSchema>;
 export function resolveTheme(
@@ -53,6 +54,7 @@ export class AppStore {
           recents: [],
           skillsOfferSeen: false,
           updatesEnabled: true,
+          customTitlebar: true,
         };
       throw error;
     }
@@ -86,6 +88,11 @@ export class AppStore {
   setTheme(theme: ThemePreference): Promise<void> {
     return this.mutate((settings) => {
       settings.theme = themeSchema.parse(theme);
+    });
+  }
+  setCustomTitlebar(enabled: boolean): Promise<void> {
+    return this.mutate((settings) => {
+      settings.customTitlebar = z.boolean().parse(enabled);
     });
   }
   dismissSkillsOffer(): Promise<void> {

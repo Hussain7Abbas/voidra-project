@@ -45,7 +45,9 @@ test.afterEach(async () => {
 for (const theme of ["light", "dark"] as const)
   test(`keyboard, project windows, missing folders and axe in ${theme}`, async () => {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "General", exact: true }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await axe(page);
     await page.keyboard.press("Escape");
@@ -150,7 +152,9 @@ for (const theme of ["light", "dark"] as const)
   });
 test("persisted theme is present before the first renderer document", async () => {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Appearance", { exact: true }).selectOption("dark");
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  await page.getByLabel("Theme", { exact: true }).selectOption("dark");
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await application.close();
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -170,7 +174,9 @@ test("persisted theme is present before the first renderer document", async () =
     await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
   ).toBe("rgb(23, 24, 32)");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Appearance", { exact: true }).selectOption("system");
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  await page.getByLabel("Theme", { exact: true }).selectOption("system");
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page.keyboard.press("Escape");
   const expected = await page.evaluate(() =>
     matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
@@ -182,7 +188,9 @@ for (const theme of ["light", "dark"] as const)
     const folder = join(root, "planned");
     await mkdir(join(folder, ".voidra"), { recursive: true });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("tab", { name: "General", exact: true }).click();
     await page.keyboard.press("Escape");
     await application.evaluate(({ dialog }, path) => {
       dialog.showOpenDialog = async () => ({

@@ -14,6 +14,7 @@ it("persists theme and canonical recent folders; reports moved folders", async (
     await mkdir(second);
     const store = new AppStore(join(root, "settings.json"));
     expect((await store.read()).theme).toBe("system");
+    expect((await store.read()).customTitlebar).toBe(true);
     expect((await store.read()).skillsOfferSeen).toBe(false);
     await store.dismissSkillsOffer();
     expect(
@@ -60,8 +61,14 @@ it("serializes simultaneous settings edits and preserves unknown fields", async 
       }),
     );
     const store = new AppStore(file);
-    await Promise.all([store.setTheme("dark"), store.setTheme("light")]);
+    expect((await store.read()).customTitlebar).toBe(true);
+    await Promise.all([
+      store.setTheme("dark"),
+      store.setCustomTitlebar(false),
+      store.setTheme("light"),
+    ]);
     expect((await store.read()).theme).toBe("light");
+    expect((await new AppStore(file).read()).customTitlebar).toBe(false);
     expect(JSON.parse(await readFile(file, "utf8")).future).toEqual({
       keep: true,
     });
@@ -89,6 +96,9 @@ it("rejects arbitrary IPC calls and verifies typed responses", () => {
     { command: "open", path: "/arbitrary" },
     { command: "theme", theme: "pink" },
     { command: "snapshot", extra: true },
+    { command: "set-custom-titlebar", enabled: "false" },
+    { command: "window-control", action: "destroy" },
+    { command: "window-control", action: "close", windowId: 42 },
   ])
     expect(requestSchema.safeParse(input).success).toBe(false);
   expect(

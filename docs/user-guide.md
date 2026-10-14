@@ -84,7 +84,9 @@ Read the root glossary and repository Markdown documents in the app’s read-onl
 
 ## Settings and optional AI
 
-Choose light, dark or system appearance in **Settings**. The app supports keyboard operation; dialogs expose labeled controls and close with Escape where appropriate.
+Settings has **General** and **Appearance** tabs. General contains optional AI, coding-agent skills, update checks and the app version. Appearance contains the light, dark or system theme and **Custom titlebar**, enabled by default. Its styled window controls close, minimize and maximize/restore the window; the Settings icon is at the opposite end. Turn the switch off to use the operating system's titlebar. The preference is saved immediately and applies when you reopen the window; existing windows and unfinished edits stay open.
+
+The sidebar and main area scroll independently when their content overflows, with standard scrollbars. The titlebar and workspace toolbar remain visible. The app supports keyboard operation; use Left/Right or Home/End to move between settings tabs, Space to change the switch, and Escape to close dialogs where appropriate.
 
 OpenRouter suggestions are optional. Store your key in Settings, test the connection, and review the displayed request preview before sending. Suggestions fill editable drafts; they do not save, approve or run work automatically. The key remains in main-process encrypted storage and is not returned to the renderer. Planning requests exclude source code, repository documents, private local files and unknown fields. Read [AI behavior and privacy](architecture/ai.md) for the exact contract.
 

@@ -53,7 +53,9 @@ async function axe() {
 }
 async function theme(value: string) {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Appearance", { exact: true }).selectOption(value);
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  await page.getByLabel("Theme", { exact: true }).selectOption(value);
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page.keyboard.press("Escape");
 }
 test.afterEach(async () => {

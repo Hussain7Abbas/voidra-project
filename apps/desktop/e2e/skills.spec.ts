@@ -36,7 +36,9 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Review skill installation", exact: true })
         .click();
-      await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.getByText("Coding agent skills", { exact: true }).click();
       await page
         .getByRole("button", {

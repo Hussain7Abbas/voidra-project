@@ -689,6 +689,14 @@ export const requestSchema = z.discriminatedUnion("command", [
     path: z.string().min(1),
   }),
   z.strictObject({ command: z.literal("set-theme"), theme: themeSchema }),
+  z.strictObject({
+    command: z.literal("set-custom-titlebar"),
+    enabled: z.boolean(),
+  }),
+  z.strictObject({
+    command: z.literal("window-control"),
+    action: z.enum(["close", "minimize", "toggle-maximize"]),
+  }),
   z.strictObject({ command: z.literal("service-status") }),
   z.strictObject({ command: z.literal("service-retry") }),
 ]);
@@ -705,6 +713,15 @@ export const snapshotSchema = z.strictObject({
   skillsOffer: z.boolean().default(true),
   kind: z.literal("snapshot"),
   theme: themeSchema,
+  customTitlebar: z.boolean().default(true),
+  window: z
+    .strictObject({
+      customTitlebar: z.boolean(),
+      maximized: z.boolean(),
+      platform: z.string(),
+    })
+    .nullable()
+    .default(null),
   project: projectSchema.nullable(),
   recents: z.array(recentViewSchema),
   serviceState: serviceStateSchema.nullable(),

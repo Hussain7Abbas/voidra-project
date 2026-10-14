@@ -38,8 +38,10 @@ import {
   useWorkspace,
 } from "./project-profile.tsx";
 import { ProjectReleases } from "./project-releases.tsx";
+import { SettingsTabs } from "./settings-tabs.tsx";
 import { SkillSettingsPanel } from "./skill-settings.tsx";
 import { SyncSuggestion } from "./sync-suggestion.tsx";
+import { TitlebarSetting } from "./titlebar-setting.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -49,6 +51,7 @@ import { Spinner } from "./ui/spinner.tsx";
 import { ToastProvider, useToast } from "./ui/toast.tsx";
 import { UpdateNotice } from "./update-notice.tsx";
 import { UpdateSettings } from "./update-settings.tsx";
+import { WindowTitlebar } from "./window-titlebar.tsx";
 export async function request(
   input: BridgeRequest,
 ): Promise<Extract<BridgeResponse, { ok: true }>["data"]> {
@@ -164,298 +167,319 @@ function Shell() {
     { label: "Releases", icon: Package },
   ];
   return (
-    <div className="desktop-shell">
+    <div
+      className={`desktop-app ${data?.window?.customTitlebar ? "has-custom-titlebar" : ""}`}
+    >
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <aside
-        className={`sidebar ${menu ? "sidebar-open" : ""}`}
-        aria-label="Project navigation"
-      >
-        <div className="brand">
-          <span className="brand-mark">
-            <Layers size={22} strokeWidth={1.75} aria-hidden />
-          </span>
-          <div>
-            <strong>Voidra</strong>
-            <span className="brand-subtitle">PROJECT</span>
+      {data?.window?.customTitlebar && (
+        <WindowTitlebar
+          state={data.window}
+          title={data.project?.name ?? "Voidra Project"}
+          onSettings={() => setSettings(true)}
+          onControl={(action) => {
+            void act({ command: "window-control", action });
+          }}
+        />
+      )}
+      <div className="desktop-shell">
+        <aside
+          className={`sidebar ${menu ? "sidebar-open" : ""}`}
+          aria-label="Project navigation"
+        >
+          <div className="brand">
+            <span className="brand-mark">
+              <Layers size={22} strokeWidth={1.75} aria-hidden />
+            </span>
+            <div>
+              <strong>Voidra</strong>
+              <span className="brand-subtitle">PROJECT</span>
+            </div>
           </div>
-        </div>
-        <div className="project-switcher">
-          <Button
-            className="switcher-trigger"
-            aria-expanded={switcher}
-            aria-controls="project-list"
-            onClick={() => {
-              setSwitcher(!switcher);
-              void snapshot.refetch();
-            }}
-            icon={<FolderOpen size={18} aria-hidden />}
-          >
-            {data?.project?.name ?? "Choose a project"}
-            <ChevronDown size={16} aria-hidden />
-          </Button>
-          {switcher && (
-            <section
-              id="project-list"
-              className="switcher-list"
-              aria-label="Recent projects"
-            >
-              <p className="eyebrow">Recent projects</p>
-              {data?.recents.length ? (
-                data.recents.map((recent) => (
-                  <div key={recent.path} className="recent-row">
-                    <Button
-                      variant="ghost"
-                      disabled={recent.missing || busy}
-                      onClick={() => {
-                        void act({ command: "open-recent", path: recent.path });
-                        setSwitcher(false);
-                      }}
-                    >
-                      {recent.name}
-                    </Button>
-                    {recent.missing && (
-                      <>
-                        <span className="text-warning text-xs">Missing</span>
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void act({
-                              command: "locate-recent",
-                              path: recent.path,
-                            })
-                          }
-                        >
-                          Locate
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      aria-label={`Remove ${recent.name} from recents`}
-                      onClick={() => setRemove(recent.path)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted">
-                  Your opened folders will appear here.
-                </p>
-              )}
-              <Button
-                className="mt-3 w-full"
-                onClick={open}
-                icon={<FolderOpen size={16} aria-hidden />}
-              >
-                Open another folder
-              </Button>
-            </section>
-          )}
-        </div>
-        <nav aria-label="Project pages">
-          <ul className="navigation">
-            {navigation.map((item, index) => (
-              <li key={item.label}>
-                <button
-                  type="button"
-                  aria-label={item.label}
-                  className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
-                  disabled={
-                    hasPlanning
-                      ? ![
-                          "Actions",
-                          "Run",
-                          "Profile",
-                          "Backlog",
-                          "Waiting for you",
-                          "Decisions",
-                          "Glossary",
-                          "Releases",
-                        ].includes(item.label)
-                      : index !== 0
-                  }
-                  onClick={() => {
-                    setSelectedAction(null);
-                    setNavigationEpoch((value) => value + 1);
-                    setNavigationTarget(
-                      item.label === "Releases"
-                        ? "releases"
-                        : item.label === "Decisions"
-                          ? "decisions"
-                          : item.label === "Glossary"
-                            ? "glossary"
-                            : item.label === "Waiting for you"
-                              ? "inbox"
-                              : item.label === "Run"
-                                ? "run"
-                                : item.label === "Backlog"
-                                  ? "backlog"
-                                  : item.label === "Profile"
-                                    ? "profile"
-                                    : "actions",
-                    );
-                    setMenu(false);
-                  }}
-                  aria-current={
-                    (
-                      hasPlanning
-                        ? item.label ===
-                          (navigationTarget === "inbox"
-                            ? "Waiting for you"
-                            : navigationTarget === "run"
-                              ? "Run"
-                              : navigationTarget === "decisions"
-                                ? "Decisions"
-                                : navigationTarget === "releases"
-                                  ? "Releases"
-                                  : navigationTarget === "glossary"
-                                    ? "Glossary"
-                                    : navigationTarget === "profile"
-                                      ? "Profile"
-                                      : navigationTarget === "backlog"
-                                        ? "Backlog"
-                                        : "Actions")
-                        : index === 0
-                    )
-                      ? "page"
-                      : undefined
-                  }
-                >
-                  <item.icon size={18} strokeWidth={1.75} aria-hidden />
-                  {item.label}
-                  {item.label === "Waiting for you" && (
-                    <span
-                      className="badge"
-                      role="status"
-                      aria-label={`${waitingCount} waiting items`}
-                    >
-                      {waitingCount}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="sidebar-footer">
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            icon={<Settings size={18} aria-hidden />}
-            onClick={() => setSettings(true)}
-          >
-            Settings
-          </Button>
-          <span className="version">
-            Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
-          </span>
-        </div>
-      </aside>
-      <div className="workspace">
-        <header className="workspace-topbar">
-          <div className="flex items-center gap-2">
+          <div className="project-switcher">
             <Button
-              variant="ghost"
-              iconOnly
-              aria-label="Toggle sidebar"
-              className="sidebar-toggle"
-              onClick={() => setMenu(!menu)}
-              icon={<PanelLeft size={18} aria-hidden />}
-            />
-            <span className="text-muted text-sm">
-              {data?.project?.name ?? "Your workspace"}
+              className="switcher-trigger"
+              aria-expanded={switcher}
+              aria-controls="project-list"
+              onClick={() => {
+                setSwitcher(!switcher);
+                void snapshot.refetch();
+              }}
+              icon={<FolderOpen size={18} aria-hidden />}
+            >
+              {data?.project?.name ?? "Choose a project"}
+              <ChevronDown size={16} aria-hidden />
+            </Button>
+            {switcher && (
+              <section
+                id="project-list"
+                className="switcher-list"
+                aria-label="Recent projects"
+              >
+                <p className="eyebrow">Recent projects</p>
+                {data?.recents.length ? (
+                  data.recents.map((recent) => (
+                    <div key={recent.path} className="recent-row">
+                      <Button
+                        variant="ghost"
+                        disabled={recent.missing || busy}
+                        onClick={() => {
+                          void act({
+                            command: "open-recent",
+                            path: recent.path,
+                          });
+                          setSwitcher(false);
+                        }}
+                      >
+                        {recent.name}
+                      </Button>
+                      {recent.missing && (
+                        <>
+                          <span className="text-warning text-xs">Missing</span>
+                          <Button
+                            variant="ghost"
+                            onClick={() =>
+                              void act({
+                                command: "locate-recent",
+                                path: recent.path,
+                              })
+                            }
+                          >
+                            Locate
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="ghost"
+                        aria-label={`Remove ${recent.name} from recents`}
+                        onClick={() => setRemove(recent.path)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted">
+                    Your opened folders will appear here.
+                  </p>
+                )}
+                <Button
+                  className="mt-3 w-full"
+                  onClick={open}
+                  icon={<FolderOpen size={16} aria-hidden />}
+                >
+                  Open another folder
+                </Button>
+              </section>
+            )}
+          </div>
+          <nav aria-label="Project pages">
+            <ul className="navigation">
+              {navigation.map((item, index) => (
+                <li key={item.label}>
+                  <button
+                    type="button"
+                    aria-label={item.label}
+                    className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                    disabled={
+                      hasPlanning
+                        ? ![
+                            "Actions",
+                            "Run",
+                            "Profile",
+                            "Backlog",
+                            "Waiting for you",
+                            "Decisions",
+                            "Glossary",
+                            "Releases",
+                          ].includes(item.label)
+                        : index !== 0
+                    }
+                    onClick={() => {
+                      setSelectedAction(null);
+                      setNavigationEpoch((value) => value + 1);
+                      setNavigationTarget(
+                        item.label === "Releases"
+                          ? "releases"
+                          : item.label === "Decisions"
+                            ? "decisions"
+                            : item.label === "Glossary"
+                              ? "glossary"
+                              : item.label === "Waiting for you"
+                                ? "inbox"
+                                : item.label === "Run"
+                                  ? "run"
+                                  : item.label === "Backlog"
+                                    ? "backlog"
+                                    : item.label === "Profile"
+                                      ? "profile"
+                                      : "actions",
+                      );
+                      setMenu(false);
+                    }}
+                    aria-current={
+                      (
+                        hasPlanning
+                          ? item.label ===
+                            (navigationTarget === "inbox"
+                              ? "Waiting for you"
+                              : navigationTarget === "run"
+                                ? "Run"
+                                : navigationTarget === "decisions"
+                                  ? "Decisions"
+                                  : navigationTarget === "releases"
+                                    ? "Releases"
+                                    : navigationTarget === "glossary"
+                                      ? "Glossary"
+                                      : navigationTarget === "profile"
+                                        ? "Profile"
+                                        : navigationTarget === "backlog"
+                                          ? "Backlog"
+                                          : "Actions")
+                          : index === 0
+                      )
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    <item.icon size={18} strokeWidth={1.75} aria-hidden />
+                    {item.label}
+                    {item.label === "Waiting for you" && (
+                      <span
+                        className="badge"
+                        role="status"
+                        aria-label={`${waitingCount} waiting items`}
+                      >
+                        {waitingCount}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="sidebar-footer">
+            {!data?.window?.customTitlebar && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                icon={<Settings size={18} aria-hidden />}
+                onClick={() => setSettings(true)}
+              >
+                Settings
+              </Button>
+            )}
+            <span className="version">
+              Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
             </span>
           </div>
-          <EditHistory
-            editing={workspace.data?.editing}
-            onChange={() => query.invalidateQueries()}
-          />
-          <span className="workspace-status">
-            <span className="status-dot" />
-            {data?.serviceState === "ready"
-              ? "Local project"
-              : "Local workspace"}
-          </span>
-        </header>
-        <main
-          id="main"
-          tabIndex={-1}
-          className="main-content"
-          data-app-ready={Boolean(data)}
-        >
-          <UpdateNotice />
-          {data?.skillsOffer && (
-            <section
-              aria-label="Coding agent setup"
-              className="service-notice mb-5"
-            >
-              <p>
-                Install Voidra’s bundled skills for Claude Code and Codex when
-                you are ready.
-              </p>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  onClick={() => {
-                    setSettings(true);
-                    void act({ command: "skills-dismiss-offer" });
-                  }}
-                >
-                  Review skill installation
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => void act({ command: "skills-dismiss-offer" })}
-                >
-                  Dismiss skill setup
+        </aside>
+        <div className="workspace">
+          <header className="workspace-topbar">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                iconOnly
+                aria-label="Toggle sidebar"
+                className="sidebar-toggle"
+                onClick={() => setMenu(!menu)}
+                icon={<PanelLeft size={18} aria-hidden />}
+              />
+              <span className="text-muted text-sm">
+                {data?.project?.name ?? "Your workspace"}
+              </span>
+            </div>
+            <EditHistory
+              editing={workspace.data?.editing}
+              onChange={() => query.invalidateQueries()}
+            />
+            <span className="workspace-status">
+              <span className="status-dot" />
+              {data?.serviceState === "ready"
+                ? "Local project"
+                : "Local workspace"}
+            </span>
+          </header>
+          <main
+            id="main"
+            tabIndex={-1}
+            className="main-content"
+            data-app-ready={Boolean(data)}
+          >
+            <UpdateNotice />
+            {data?.skillsOffer && (
+              <section
+                aria-label="Coding agent setup"
+                className="service-notice mb-5"
+              >
+                <p>
+                  Install Voidra’s bundled skills for Claude Code and Codex when
+                  you are ready.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    onClick={() => {
+                      setSettings(true);
+                      void act({ command: "skills-dismiss-offer" });
+                    }}
+                  >
+                    Review skill installation
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      void act({ command: "skills-dismiss-offer" })
+                    }
+                  >
+                    Dismiss skill setup
+                  </Button>
+                </div>
+              </section>
+            )}
+            {data?.serviceState && data?.serviceState !== "ready" && (
+              <div
+                className="service-notice"
+                role="alert"
+                aria-label="Project connection"
+              >
+                <p>
+                  {data?.serviceState === "failed"
+                    ? "The project connection stopped."
+                    : "The project connection stopped. Reconnecting…"}
+                </p>
+                <Button onClick={() => void act({ command: "service-retry" })}>
+                  Reconnect
                 </Button>
               </div>
-            </section>
-          )}
-          {data?.serviceState && data?.serviceState !== "ready" && (
-            <div
-              className="service-notice"
-              role="alert"
-              aria-label="Project connection"
-            >
-              <p>
-                {data?.serviceState === "failed"
-                  ? "The project connection stopped."
-                  : "The project connection stopped. Reconnecting…"}
-              </p>
-              <Button onClick={() => void act({ command: "service-retry" })}>
-                Reconnect
-              </Button>
-            </div>
-          )}
+            )}
 
-          <SyncSuggestion data={workspace.data} />
-          {snapshot.isPending ? (
-            <div className="loading-state">
-              <Spinner label="Loading workspace" />
-              <p>Opening your workspace…</p>
-            </div>
-          ) : snapshot.isError ? (
-            <ErrorState
-              error={snapshot.error}
-              onRetry={() => void snapshot.refetch()}
-            />
-          ) : (
-            <Content
-              data={data as Snapshot}
-              hasPlanning={hasPlanning}
-              open={open}
-              busy={busy}
-              navigationEpoch={navigationEpoch}
-              navigationTarget={navigationTarget}
-              selectedAction={selectedAction}
-              onAction={showAction}
-              onProfile={showProfile}
-            />
-          )}
-        </main>
+            <SyncSuggestion data={workspace.data} />
+            {snapshot.isPending ? (
+              <div className="loading-state">
+                <Spinner label="Loading workspace" />
+                <p>Opening your workspace…</p>
+              </div>
+            ) : snapshot.isError ? (
+              <ErrorState
+                error={snapshot.error}
+                onRetry={() => void snapshot.refetch()}
+              />
+            ) : (
+              <Content
+                data={data as Snapshot}
+                hasPlanning={hasPlanning}
+                open={open}
+                busy={busy}
+                navigationEpoch={navigationEpoch}
+                navigationTarget={navigationTarget}
+                selectedAction={selectedAction}
+                onAction={showAction}
+                onProfile={showProfile}
+              />
+            )}
+          </main>
+        </div>
       </div>
       <Dialog
         open={settings}
@@ -464,28 +488,53 @@ function Shell() {
         description="Make this workspace feel like yours."
         footer={<Button onClick={() => setSettings(false)}>Done</Button>}
       >
-        <Field label="Appearance" hint="System follows your Mac’s appearance.">
-          <select
-            className="input"
-            value={data?.theme ?? "system"}
-            onChange={(event) =>
-              void act(
-                {
-                  command: "set-theme",
-                  theme: event.target.value as ThemePreference,
-                },
-                "Appearance saved",
-              )
-            }
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </Field>
-        <AiSettingsPanel />
-        <SkillSettingsPanel />
-        <UpdateSettings />
+        <SettingsTabs
+          general={
+            <>
+              <AiSettingsPanel />
+              <SkillSettingsPanel />
+              <UpdateSettings />
+            </>
+          }
+          appearance={
+            <div className="space-y-6">
+              <Field label="Theme" hint="System follows your Mac’s appearance.">
+                <select
+                  className="input"
+                  value={data?.theme ?? "system"}
+                  onChange={(event) =>
+                    void act(
+                      {
+                        command: "set-theme",
+                        theme: event.target.value as ThemePreference,
+                      },
+                      "Appearance saved",
+                    )
+                  }
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </Field>
+              <TitlebarSetting
+                enabled={data?.customTitlebar ?? true}
+                disabled={busy || !data}
+                onChange={(enabled) =>
+                  act(
+                    { command: "set-custom-titlebar", enabled },
+                    "Titlebar preference saved",
+                  )
+                }
+              />
+              {data && data.customTitlebar !== data.window?.customTitlebar && (
+                <p role="status" className="text-sm text-muted">
+                  Reopen this window to apply your titlebar preference.
+                </p>
+              )}
+            </div>
+          }
+        />
       </Dialog>
       <ConfirmDialog
         open={remove !== null}

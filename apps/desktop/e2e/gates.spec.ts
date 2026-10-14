@@ -35,7 +35,9 @@ for (const theme of ["light", "dark"] as const)
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+      await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
       async function axe() {
         expect(

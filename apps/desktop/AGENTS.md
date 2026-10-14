@@ -20,6 +20,8 @@ Extends [root instructions](../../AGENTS.md). Desktop package name is `voidra-pr
 
 Keep [desktop architecture](../../docs/architecture/desktop.md), [design system](../../docs/design-system.md) and evidence current. `CLAUDE.md` only imports these instructions.
 
+- Keep the shell bounded to the window height, with independent sidebar/main overflow and a fixed titlebar/workspace toolbar. Settings has keyboard-operable General/Appearance tabs. Custom titlebar defaults on; snapshots separate its saved preference from each window's actual mode, and changes apply to new windows. Renderer window controls are a fixed validated action set targeting only the sender's own window; keep controls outside the titlebar drag region.
+
 - Failed workspace mutations send a refresh event after the error response so stale revisions reload even if the watcher coalesces an edit. Preserve hash guards and bytes; failed reads must not trigger a refresh loop.
 
 - The Run picker uses package eligibility from the snapshot. Queue replacement carries displayed queue/action hashes through the validated bridge; Profile draft activation remains an explicit action-page decision. Keep reorder controls keyboard operable and state live.

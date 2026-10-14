@@ -382,9 +382,15 @@
     animation-duration: 0ms;
   }
 }
+.desktop-app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
 .desktop-shell {
   display: flex;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
 }
 .sidebar {
   width: 16rem;
@@ -394,6 +400,12 @@
   display: flex;
   flex-direction: column;
   padding: 2rem 1rem 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.sidebar > * {
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -441,10 +453,8 @@
   flex: 1;
 }
 .switcher-list {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 0;
-  width: min(26rem, calc(100vw - 2rem));
+  margin-top: 0.5rem;
+  width: 100%;
   padding: 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -515,9 +525,13 @@
 .workspace {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .workspace-topbar {
   height: 4.5rem;
+  flex: none;
   border-bottom: 1px solid var(--border);
   padding: 0 2.5rem;
   display: flex;
@@ -539,8 +553,12 @@
 }
 .main-content {
   padding: 3rem 2.5rem;
-  max-width: 72rem;
-  margin: 0 auto;
+  padding-inline: max(2.5rem, calc((100% - 67rem) / 2));
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 .main-content:focus {
   outline: none;
@@ -670,11 +688,102 @@
     z-index: 20;
     box-shadow: var(--shadow);
   }
+  .has-custom-titlebar .sidebar.sidebar-open {
+    top: 3rem;
+  }
   .sidebar-toggle {
     display: inline-flex;
   }
   .welcome-card {
     flex-direction: column;
+  }
+}
+
+.window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: none;
+  height: 3rem;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  app-region: drag;
+  user-select: none;
+}
+.window-titlebar button {
+  app-region: no-drag;
+}
+.window-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.window-controls {
+  display: flex;
+  flex: none;
+  gap: 0.25rem;
+}
+.window-titlebar .window-close:hover {
+  background: var(--error);
+  color: var(--paper);
+}
+.settings-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+.settings-tabs button {
+  padding: 0.5rem 1rem;
+  border-radius: var(--control-radius);
+  font-weight: 600;
+}
+.settings-tabs [aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.switch-input {
+  appearance: none;
+  display: block;
+  width: 2.75rem;
+  height: 1.5rem;
+  padding: 0.125rem;
+  border: 1px solid var(--muted);
+  border-radius: 999px;
+  background: var(--wash);
+  cursor: pointer;
+}
+.switch-input::before {
+  content: "";
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.switch-input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.switch-input:checked::before {
+  transform: translateX(1.25rem);
+  background: var(--on-accent);
+}
+.switch-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (forced-colors: active) {
+  .switch-input {
+    appearance: auto;
+  }
+  .switch-input::before {
+    content: none;
   }
 }
 

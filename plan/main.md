@@ -114,15 +114,19 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | D25 | P06 prepares voidra 0.2.0 for new planning APIs and aggregate validation. Format stays 1 and new forms advertise the minimum reader. npm requires an authenticator code; registry publication remains P15. Earlier real-agent fixtures install the genuine locally packed candidate so npx uses the same validated CLI as the app. | Agent decision under D24, 2026-10-13 |
 | D26 | Product releases align app, library/reader and skills to one canonical X.Y.Z with exact matching CLI commands; format/template versions remain independent. Retain the 0.2.0 pipeline preview as a GitHub prerelease/npm next version; v1 uses 1.0.0/latest. Preserve separate publication checkpoints and retry immutable original source. See the [version ADR](../docs/adr/2026-10-14-release-versions.md). | Agent decision under D24, 2026-10-14 |
 | D27 | Preserve the failed immutable v0.2.0 candidate tag and publish its corrected source as the 0.2.1 pipeline preview. The old tag passed the Release workflow's quality/66 desktop cases but failed CI DMG metadata before publication; source fixes require a new identifier under D26. GitHub/npm remain separate checkpoints; v1 stays 1.0.0. | Agent decision under D24, 2026-10-14 |
-
 | D28 | Preserve immutable v0.2.1 and use corrected 0.2.2 for the P15 pipeline proof. Its app correctly reports/installs 0.2.1, while two hosted desktop assertions hardcode 0.2.0; correcting tagged tests requires new source. New-tag preflight must pass the full desktop suite after quality before tagging. v1 remains 1.0.0. | Agent decision under D24, 2026-10-14 |
+| D29 | Accept the P17 v1 large-project startup gap under D24: final quiet 1000-action opens average 2.183s/max 2.458s against P09’s proposed 2s target; retain all earlier samples including the 3.689s outlier. Interactive filter/detail averages remain ~83/111ms. This is an accepted measured gap for v1, not a claim of meeting the budget; retain idea-0g353s and the 2s improvement target. | Agent decision under D24, 2026-10-14 |
+| D30 | Add independent main/sidebar scrolling with scrollbars as needed, General/Appearance settings tabs, and an enabled-by-default custom titlebar with styled window controls and Settings at the opposite end. Apply the saved native/custom frame preference to newly opened windows to preserve unfinished edits. This is a source follow-up; immutable v1.0.0 artifacts stay unchanged. | You, 2026-10-15 (requested UI behavior); window-reopen behavior is an implementation choice reported in chat |
 
 ### Open
 
 None. O1–O4 were answered on 2026-10-11 and became D16–D19.
-| D29 | Accept the P17 v1 large-project startup gap under D24: final quiet 1000-action opens average 2.183s/max 2.458s against P09’s proposed 2s target; retain all earlier samples including the 3.689s outlier. Interactive filter/detail averages remain ~83/111ms. This is an accepted measured gap for v1, not a claim of meeting the budget; retain idea-0g353s and the 2s improvement target. | Agent decision under D24, 2026-10-14 |
 
 ## Architecture overview
+
+### Post-v1 UI follow-up
+
+The 2026-10-15 user request (D30) adds independent window-height sidebar/main scrolling and General/Appearance settings tabs. Appearance saves the theme and custom-titlebar preference, default true; custom close/minimize/maximize controls target only their own window, with Settings at the opposite side. Scope is the desktop shell, preference storage/bridge, focused native/UI tests and matching documentation. Acceptance requires real independent overflow, no page-level scrolling, keyboard-operable tabs/switch, persistence across launch and actual custom/native window frames. Verification is recorded in [the UI follow-up evidence](../docs/verification/desktop-appearance.md); P00–P17 and the published v1 remain completed.
 
 ### Repository layout
 
