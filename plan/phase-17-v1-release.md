@@ -2,7 +2,7 @@
 
 > **Milestone:** M4 (completes it) · **Needs:** P10–P16 · **Status:** see [main.md](main.md)
 
-P17 is in progress: the user reported the VoiceOver pass in both themes on 2026-10-15. Claude access was verified on 2026-10-15 and the complete final candidate matrix now passes audited checks for both agents. Independent candidate/Codex checks are complete; publication and the final downloaded-v1 DMG check are the remaining work. See [evidence](../docs/verification/p17.md) and the [prepared checklist](../docs/verification/p17-voiceover.md).
+P17 is **Done (2026-10-15)**. The full candidate matrix, user-reported VoiceOver pass, exact-source local/CI regression, live GitHub/npm/skills publication and actual downloaded-app clean install pass. Immutable v1 source is f519aec. The retained CI timeout is tracked separately as act-n2ey21; see [evidence](../docs/verification/p17.md) and the [human result](../docs/verification/p17-voiceover.md).
 
 ## Outcome
 
