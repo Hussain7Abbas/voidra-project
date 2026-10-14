@@ -12,6 +12,7 @@ import {
   projectSchema,
   type WorkspaceRequest,
   type WorkspaceSnapshot,
+  workspaceEdits,
   workspaceSchema,
 } from "../shared/bridge.ts";
 
@@ -154,7 +155,10 @@ export class ProjectService {
         },
         ["commit-planning", "recover-planning"].includes(input.command)
           ? 60000
-          : 5000,
+          : input.command !== "workspace" &&
+              Object.hasOwn(workspaceEdits, input.command)
+            ? 30000
+            : 5000,
       );
       this.pending.set(id, { resolve, reject, timer });
       child.postMessage({ requestId: id, ...input });

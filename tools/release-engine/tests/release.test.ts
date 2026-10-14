@@ -31,9 +31,36 @@ test("alignment updates only version fields and declares one matching source whi
       reference,
       "Run `npx --offline --yes voidra@0.2.0 check .`.\n",
     );
+    await mkdir(join(root, "fixtures/newer-format"), { recursive: true });
+    const compatibility = join(root, "fixtures/newer-format/expected.json");
+    await writeFile(
+      compatibility,
+      JSON.stringify({
+        exitCode: 1,
+        future: { keep: true },
+        diagnostics: [
+          {
+            code: "newer-format",
+            message: "Project needs voidra ≥ 9.0.0; this package is 0.2.0",
+          },
+          { code: "other", message: "Keep this diagnostic unchanged." },
+        ],
+      }),
+    );
     await alignVersions(root, "0.3.0");
     expect(await readFile(reference, "utf8")).toContain("voidra@0.3.0 check");
     expect((await readAlignment(root)).version).toBe("0.3.0");
+    expect(JSON.parse(await readFile(compatibility, "utf8"))).toEqual({
+      exitCode: 1,
+      future: { keep: true },
+      diagnostics: [
+        {
+          code: "newer-format",
+          message: "Project needs voidra ≥ 9.0.0; this package is 0.3.0",
+        },
+        { code: "other", message: "Keep this diagnostic unchanged." },
+      ],
+    });
     expect(
       JSON.parse(
         await readFile(join(root, "apps/desktop/package.json"), "utf8"),

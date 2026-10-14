@@ -93,6 +93,9 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Create Release action", exact: true })
         .click();
       await expect(
+        page.getByText("Release action created", { exact: true }),
+      ).toBeVisible({ timeout: 30000 });
+      await expect(
         page.getByRole("heading", { name: "New release", exact: true }),
       ).toBeVisible();
       await expect(
@@ -146,6 +149,21 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("button", { name: "Undo Create release", exact: true }),
       ).toBeEnabled({ timeout: 10000 });
       expect((await checkProject(root)).diagnostics).toEqual([]);
+    } catch (error) {
+      const page = app.windows()[0];
+      if (page)
+        console.error("Release selection failure", {
+          alerts: await page.getByRole("alert").allTextContents(),
+          dialogs: await page.getByRole("dialog").allTextContents(),
+          actions: [...(await checkProject(root)).records.values()]
+            .filter((record) => record.kind === "action")
+            .map(({ document }) => ({
+              id: document.data.id,
+              type: document.data.type,
+              stage: document.data.stage,
+            })),
+        });
+      throw error;
     } finally {
       await app.close();
       await rm(temp, { recursive: true, force: true });
@@ -225,6 +243,9 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Create Release action", exact: true })
         .click();
       await expect(
+        page.getByText("Release action created", { exact: true }),
+      ).toBeVisible({ timeout: 30000 });
+      await expect(
         page.getByRole("heading", { name: "New release", exact: true }),
       ).toBeVisible();
       await expect(
@@ -277,7 +298,7 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByText("Sent back for changes", { exact: true }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30000 });
       await expect(page.locator(".action-meta")).toContainText("Plan");
       await run();
       await expect(
@@ -289,7 +310,7 @@ for (const theme of ["light", "dark"] as const)
       await page.getByRole("button", { name: "Accept", exact: true }).click();
       await expect(
         page.getByText("Action accepted", { exact: true }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30000 });
       await expect(page.locator(".action-meta")).toContainText("Review");
       expect(git(["rev-parse", "HEAD"])).toBe(head);
       expect(git(["tag", "--list"])).toBe("");
@@ -323,6 +344,15 @@ for (const theme of ["light", "dark"] as const)
         (await new AxeBuilder({ page }).setLegacyMode(true).analyze())
           .violations,
       ).toEqual([]);
+    } catch (error) {
+      const page = app.windows()[0];
+      if (page)
+        console.error("Release loop failure", {
+          alerts: await page.getByRole("alert").allTextContents(),
+          dialogs: await page.getByRole("dialog").allTextContents(),
+          stage: await page.locator(".action-meta").allTextContents(),
+        });
+      throw error;
     } finally {
       await app.close();
       await rm(temp, { recursive: true, force: true });

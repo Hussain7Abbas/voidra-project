@@ -554,7 +554,7 @@ export class ProjectWorkspace {
       requiredVoidra: PACKAGE_VERSION,
       project: { id: createId("prj"), name: basename(this.root) },
       template: null,
-      createdWith: "voidra-project/0.1.0",
+      createdWith: `voidra-project/${PACKAGE_VERSION}`,
     });
     await applyOperation(this.root, {
       changes: [

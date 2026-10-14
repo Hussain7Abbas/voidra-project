@@ -48,6 +48,11 @@ it("creates minimal planning files through the app, leaves code untouched and pu
       window.voidra.invoke({ command: "create-voidra" }),
     );
     expect(created.ok).toBe(true);
+    const version = await app.evaluate(({ app }) => app.getVersion());
+    expect(
+      JSON.parse(await readFile(join(root, ".voidra/voidra.json"), "utf8"))
+        .createdWith,
+    ).toBe(`voidra-project/${version}`);
     expect((await checkProject(root)).diagnostics).toEqual([]);
     expect(await readdir(root)).toEqual([".voidra", "code.ts"]);
     expect(await readFile(join(root, "code.ts"), "utf8")).toBe(

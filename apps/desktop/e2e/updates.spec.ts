@@ -53,6 +53,10 @@ for (const theme of ["light", "dark"] as const)
     try {
       let page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
+      const version = await app.evaluate(({ app }) => app.getVersion());
+      await expect(page.locator(".version")).toHaveText(
+        `Voidra Project · ${version}`,
+      );
       await expect(
         page.getByRole("region", { name: "Update available", exact: true }),
       ).toContainText("Fixture release notes.");

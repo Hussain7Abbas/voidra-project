@@ -144,6 +144,34 @@ export async function alignVersions(
     }
   }
   for (const path of await skillPaths(root)) await references(dirname(path));
+  const compatibilityPath = "fixtures/newer-format/expected.json",
+    compatibility = await readFile(
+      await safePath(root, compatibilityPath),
+      "utf8",
+    ).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    });
+  if (compatibility !== null) {
+    const snapshot = JSON.parse(compatibility) as {
+      diagnostics: Array<{ code: string; message: string }>;
+    };
+    if (!Array.isArray(snapshot.diagnostics))
+      throw Error("Compatibility snapshot diagnostics are invalid");
+    snapshot.diagnostics = snapshot.diagnostics.map((diagnostic) =>
+      diagnostic.code === "newer-format"
+        ? {
+            ...diagnostic,
+            message: diagnostic.message.replace(
+              /(; this package is )\d+\.\d+\.\d+$/,
+              `$1${version}`,
+            ),
+          }
+        : diagnostic,
+    );
+    files.set(compatibilityPath, compatibility);
+    next.set(compatibilityPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+  }
   for (const [path, text] of next)
     if (files.get(path) !== text) {
       const full = await safePath(root, path),

@@ -18,7 +18,7 @@ Preview DMGs are published to [GitHub Releases](https://github.com/Hussain7Abbas
 
 The app is unsigned. On the first open, macOS may block it; use **System Settings → Privacy & Security → Open Anyway** after attempting to open the copied app, then confirm. Read [Apple’s guidance](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac). Updates are downloaded from the release page and installed by you; automatic checks can be disabled in Settings.
 
-The public `voidra` baseline is still [0.1.0](https://www.npmjs.com/package/voidra/v/0.1.0) until trusted publication succeeds. Current developer/real-agent checks use the genuine locally packed 0.2.0 candidate; no matching registry publication is claimed yet.
+The public `voidra` baseline is still [0.1.0](https://www.npmjs.com/package/voidra/v/0.1.0) until trusted publication succeeds. Current developer/real-agent checks use the genuine locally packed matching candidate; no matching registry publication is claimed yet.
 
 ## Development
 

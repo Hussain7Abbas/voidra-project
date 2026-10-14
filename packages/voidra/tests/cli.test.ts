@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 import { runCli } from "../src/cli.ts";
 import { hash } from "../src/lifecycle.ts";
+import { PACKAGE_VERSION } from "../src/versions.ts";
 import { materialize } from "./helpers.ts";
 
 const bin = resolve("packages/voidra/dist/cli-entry.js");
@@ -128,7 +129,7 @@ it("approves the displayed revision through the built CLI and public command API
   ]);
   expect(approved.exitCode, approved.stderr).toBe(0);
   expect((await runCli(["id", "q"])).exitCode).toBe(0);
-  expect((await runCli(["version"])).stdout).toBe("0.2.0\n");
+  expect((await runCli(["version"])).stdout).toBe(`${PACKAGE_VERSION}\n`);
   const child = spawnSync(
     process.execPath,
     [

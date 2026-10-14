@@ -152,6 +152,7 @@ for (const theme of ["light", "dark"] as const)
         { id, revision: displayed ?? "" },
       );
       expect(stale.ok).toBe(false);
+      await expect(page.getByText("Outside edit")).toBeVisible();
       await page
         .getByRole("button", { name: "Approve plan", exact: true })
         .click();

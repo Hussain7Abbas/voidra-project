@@ -349,7 +349,9 @@ function Shell() {
           >
             Settings
           </Button>
-          <span className="version">Voidra Project · 0.1.0</span>
+          <span className="version">
+            Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
+          </span>
         </div>
       </aside>
       <div className="workspace">
