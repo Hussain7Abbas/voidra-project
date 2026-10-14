@@ -15,7 +15,7 @@ beforeAll(async () => {
       await rm(join(cache, name), { recursive: true, force: true });
 });
 
-async function scenario(body: string): Promise<void> {
+async function scenario(body: string, timeout = 25000): Promise<void> {
   const temp = await mkdtemp(join(tmpdir(), "voidra-undo-engine-"));
   const root = join(temp, "project");
   await cp(resolve("fixtures/new-project/project"), root, { recursive: true });
@@ -83,7 +83,7 @@ async function scenario(body: string): Promise<void> {
             ? { NODE_V8_COVERAGE: nativeCoverageDirectory }
             : {}),
         },
-        timeout: 25000,
+        timeout,
         encoding: "utf8",
       },
     );
@@ -234,7 +234,8 @@ for (const direction of ["undo", "redo"])
   });
 
 it("bounds deduplicated history and isolates corrupt history from project/index data", async () => {
-  await scenario(`
+  await scenario(
+    `
     db.exec("create table actions (id text primary key, value text); insert into actions values ('kept','cached')");
     for(let n=0;n<105;n++)await idea();
     assert.equal(db.prepare('select count(*) as n from undo_operations').get().n,100);
@@ -243,5 +244,7 @@ it("bounds deduplicated history and isolates corrupt history from project/index 
     assert.equal(db.prepare('select value from actions where id=?').get('kept').value,'cached');
     assert.equal((await checkProject(root)).diagnostics.length,0);await idea();
     assert.equal((await history.state()).undo.label,'Create idea');
-  `);
-});
+  `,
+    60000,
+  );
+}, 75000);

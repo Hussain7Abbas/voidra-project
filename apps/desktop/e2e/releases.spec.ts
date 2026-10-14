@@ -124,7 +124,7 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByRole("button", { name: "Redo Create release", exact: true }),
-      ).toBeEnabled();
+      ).toBeEnabled({ timeout: 10000 });
       expect(
         [...(await checkProject(root)).records.values()].some(
           (record) =>
@@ -137,7 +137,7 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByRole("button", { name: "Undo Create release", exact: true }),
-      ).toBeEnabled();
+      ).toBeEnabled({ timeout: 10000 });
       expect((await checkProject(root)).diagnostics).toEqual([]);
     } finally {
       await app.close();

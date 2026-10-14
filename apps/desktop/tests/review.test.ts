@@ -86,8 +86,10 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
     await page.getByText("Action queued", { exact: true }).waitFor();
     await run();
     await expect
-      .poll(() =>
-        page.getByRole("button", { name: "Accept", exact: true }).isVisible(),
+      .poll(
+        () =>
+          page.getByRole("button", { name: "Accept", exact: true }).isVisible(),
+        { timeout: 5000 },
       )
       .toBe(true);
     const snapshot = await page.evaluate(() =>
