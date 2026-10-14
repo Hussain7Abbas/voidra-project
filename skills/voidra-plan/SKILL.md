@@ -5,7 +5,7 @@ description: Run only queued Voidra Discovery and planning stages, proposing
   repository instructions, HEAD and tags; stop before implementation.
 license: AGPL-3.0-or-later
 metadata:
-  version: "0.2.2"
+  version: "1.0.0"
   format-version: "1"
 ---
 
@@ -17,4 +17,4 @@ For Release at Plan, use only the Plan section of [local releases](references/re
 
 Write only `.voidra/` and settled-term additions to the root GLOSSARY.md through the helper during Discovery. Preserve all existing glossary bytes. Make no source or instruction writes, commits, amendments, tags or pushes. The helper compares source snapshots, HEAD and tags and refuses implementation preparation/commits in plan mode. A glossary symlink escape is refused. Never alter locks, checkpoints or journals by hand or approve your own plan.
 
-Validate every completed write/group with `npx --yes voidra@0.2.2 check .`; inspect diagnostic paths and stop on structural errors or this action's stale gate. If interrupted, use explicit runtime recovery and stop. On failure, record its reason with `fail`. Report actual evidence, dispatched architecture skill and gate reached. User instructions take precedence.
+Validate every completed write/group with `npx --yes voidra@1.0.0 check .`; inspect diagnostic paths and stop on structural errors or this action's stale gate. If interrupted, use explicit runtime recovery and stop. On failure, record its reason with `fail`. Report actual evidence, dispatched architecture skill and gate reached. User instructions take precedence.

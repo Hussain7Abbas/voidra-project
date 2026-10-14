@@ -4,6 +4,7 @@ Voidra is an open-source desktop app for planning and tracking projects built wi
 
 P00 supplies repository tooling and policies. P01 publishes the format package and CLI; validation and publication are recorded in its evidence. P02 adds the secure desktop shell and its design system. P03–P09 complete the core loop and reach M2; this repository now tracks its own ideas and bugs in `.voidra/`. P10 completes persistent app undo; P11 completes decisions, assumptions and read-only repository docs/glossary. P12 completes releases and Sync with full local/CI and real-agent evidence. P13 completes optional editable AI suggestions; P14 completes offline skill installation and guarded distribution. P15 completes live packaging/publication recovery for preview 0.2.2, with final v1 verification remaining in P17. P16 records the future v2 designs without implementing them.
 
+- [User guide](user-guide.md): creating projects, running skills, decisions, recovery and settings.
 - [Development](development.md): setup, commands, pins, coverage and the scanner.
 - [Format specification](format/Intro.md): record types, versions, file I/O and CLI contract.
 - [Compatibility](compatibility.md): the required `.voidra/` evolution policy.

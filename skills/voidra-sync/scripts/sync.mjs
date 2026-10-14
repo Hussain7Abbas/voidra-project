@@ -27684,7 +27684,7 @@ import { join } from "node:path";
 
 // packages/voidra/src/versions.ts
 var FORMAT_VERSION = 1;
-var PACKAGE_VERSION = "0.2.2";
+var PACKAGE_VERSION = "1.0.0";
 function upgradePrototype(files) {
   const upgraded = new Map(files);
   const raw = files.get(".voidra/voidra.json");

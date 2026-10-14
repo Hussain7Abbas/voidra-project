@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "requiredVoidra": "0.2.2",
+  "requiredVoidra": "1.0.0",
   "project": {
     "id": "prj-000000",
     "name": "Example"

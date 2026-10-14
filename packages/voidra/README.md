@@ -3,9 +3,9 @@
 The shared file-format package for [Voidra Project](https://github.com/Hussain7Abbas/voidra-project). It reads and validates `.voidra/` records, enforces lifecycle gates, and provides recoverable writes. It runs without Electron or the desktop app. Requires Node 24.13.0 or later; licensed AGPL-3.0-or-later.
 
 ```sh
-npx voidra@0.1.0 check ./project
-npx voidra@0.1.0 check ./project --json
-npx voidra@0.1.0 --help
+npx voidra@1.0.0 check ./project
+npx voidra@1.0.0 check ./project --json
+npx voidra@1.0.0 --help
 ```
 
 Exit codes: 0 for success, 1 for project/I/O/conflict problems, 2 for usage errors. A folder without `.voidra/voidra.json` is reported as missing a Voidra project. Checks never edit or repair files.

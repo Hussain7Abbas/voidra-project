@@ -36,4 +36,4 @@ At least two slices are required. The helper creates linked Feature children, ch
 
 ## Examples and validation
 
-Repository golden projects cover Discovery, seams/ADR, slices and Bootstrap; distributed skills use this procedure and their local generated format reference. Verify every real proposal with `npx --yes voidra@0.2.2 check .`, inspect allowed paths, and report its question/plan/slice gate. No code, commits or tags are permitted.
+Repository golden projects cover Discovery, seams/ADR, slices and Bootstrap; distributed skills use this procedure and their local generated format reference. Verify every real proposal with `npx --yes voidra@1.0.0 check .`, inspect allowed paths, and report its question/plan/slice gate. No code, commits or tags are permitted.

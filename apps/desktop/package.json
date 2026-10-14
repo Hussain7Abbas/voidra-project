@@ -1,6 +1,6 @@
 {
   "name": "voidra-project",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "private": true,
   "description": "Voidra Project desktop application",
   "type": "module",

@@ -81,7 +81,7 @@ node <skill-directory>/scripts/init.mjs --template general <<'JSON'
   "glossary": "# Draft glossary\n\nGreeting: the text exported by src/app.ts.\n"
 }
 JSON
-npx --yes voidra@0.2.2 check .
+npx --yes voidra@1.0.0 check .
 ```
 
 This illustrates the general template's report shape, not universal answers. Read the selected template and provide all its questions. Keys are `<block>.<question>`; text/choice answers are strings, multiple choices/lists are arrays and unknown answers are null. Each source must name an existing, unlinked project file. Do not use a path outside the project. Optional flags are `--project FOLDER`, `--template ID`, and `--report FILE` instead of stdin; `--help` prints usage. Stdin avoids leaving a report file in the project.

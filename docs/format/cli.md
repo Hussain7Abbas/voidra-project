@@ -11,9 +11,9 @@
 Read the project and the revision before approving its current plan:
 
 ```sh
-npx voidra@0.2.2 check ./project --json
-npx voidra@0.2.2 plan act-000000 --project ./project --json
-npx voidra@0.2.2 approve act-000000 --project ./project --by "You" --revision "<revision returned by plan>"
+npx voidra@1.0.0 check ./project --json
+npx voidra@1.0.0 plan act-000000 --project ./project --json
+npx voidra@1.0.0 approve act-000000 --project ./project --by "You" --revision "<revision returned by plan>"
 ```
 
 An `apply` manifest creates a new glossary only when the caller also passes `--glossary`:

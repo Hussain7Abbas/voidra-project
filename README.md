@@ -4,10 +4,11 @@
 
 An open-source desktop app for planning and tracking software projects built with AI coding agents. Voidra keeps plans and progress in Markdown under `.voidra/`, while Claude Code or Codex implements actions through skills and human approval gates.
 
-**Feature-complete preview.** The desktop supports profiles, all action types, question/approval gates, queue execution, a board, releases/Sync, searchable decisions, undo/redo, protected skill installation and optional editable OpenRouter suggestions. Preview distribution is verified; final v1 release and human VoiceOver verification remain P17. See the [phase index](plan/main.md#phase-index) for actual progress.
+**1.0.0 candidate.** The desktop supports profiles, all action types, question/approval gates, queue execution, a board, releases/Sync, searchable decisions, undo/redo, protected skill installation and optional editable OpenRouter suggestions. Preview distribution is verified; final v1 checks, Claude Code account coverage and human VoiceOver verification remain P17. See the [phase index](plan/main.md#phase-index) for actual progress.
 
 - [Vision](VISION.md): product behavior and scope.
 - [Implementation plan](plan/main.md): phases, decisions and verification evidence.
+- [User guide](docs/user-guide.md): project setup, skills, questions, reviews, recovery and settings.
 - [Documentation](docs/intro.md): development, compatibility and architecture.
 - [Glossary](GLOSSARY.md): shared terms.
 - [Agent instructions](AGENTS.md): the phase workflow and development rules.
