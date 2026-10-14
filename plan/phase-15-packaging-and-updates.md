@@ -73,4 +73,4 @@ Every story is accepted, and a test release proves the whole pipeline.
 ## Hand-off
 
 - D24 delegates the icon decision; the [recorded agent review](../docs/icon-review.md) accepts the connected V without claiming a personal human review.
-- Implementation and local checks are prepared. npm trusted-publisher creation and authenticated read-back are complete. Resume the rejected-edit refresh follow-up in [evidence](../docs/verification/p15.md), verify matching full checks, then run the corrected v0.2.2 test-tag failure/retry/provenance proofs under D28; retain the earlier immutable v0.2.0/v0.2.1 source tags. The implementing agent performs the commands and publication steps; the human provides only the required account interaction.
+- P15 is Done on 2026-10-14. The retained v0.2.2 preview verifies GitHub, OIDC npm provenance and exact-tag skills, both controlled recovery stops and immutable retry. Failed v0.2.0/v0.2.1 tags remain preserved. Continue P17 from the [complete evidence](../docs/verification/p15.md).
