@@ -28,4 +28,6 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [P11: Decisions and documents](p11.md) — decision search, assumption revisits, read-only glossary/docs and ADR examples; full local and CI checks pass.
 
-- [P12: Releases and Sync](p12.md) — Release/Sync helpers, recovery, UI and authenticated-agent matrix verified locally; complete-source CI pending.
+- [P12: Releases and Sync](p12.md) — complete Release/Sync helpers, recovery, UI, real-agent matrix and full CI.
+
+- [P16: V2 designs](p16.md) — all 15 future items, source-linked proposals and delegated review; no v2 implementation.

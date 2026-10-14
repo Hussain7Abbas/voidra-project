@@ -6,7 +6,7 @@
 - [Repository foundation](repository-foundation.md): the implemented P00 tooling and its boundaries.
 - [Planned runtime architecture](../../plan/main.md#architecture-overview): proposed app, service, format package and skills, to be built in later phases.
 
-P16 adds the v2 design documents after the v1 core is built. No v2 directory or placeholder documents are created yet.
+[V2 design index](v2/Intro.md) covers all 15 future items with built-v1 evidence, compatibility impact and dependencies. These are designs only; no v2 feature is implemented.
 
 - [Desktop](desktop.md): secure static renderer, windows, bridge and project services.
 
@@ -24,4 +24,4 @@ P16 adds the v2 design documents after the v1 core is built. No v2 directory or 
 
 - [Decisions and documents](knowledge.md): FTS search, assumption revisits, read-only glossary/docs and ADR rules.
 
-- [Releases and outside work](releases-sync.md): completed-work selection and exact proposals; standalone finalization/Sync in progress.
+- [Releases and outside work](releases-sync.md): Release selection/history, exact proposals, standalone commit/tag recovery and protected outside-work Sync.

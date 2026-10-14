@@ -1,6 +1,6 @@
 # General template and architecture proposals
 
-[Architecture index](Intro.md) · [Template review](../templates/general-review.md) · [Template format](../format/Template.md)
+[Architecture index](Intro.md) · [Template review](../templates/general-review.md) · [Template format](../format/template.md)
 
 General 1.0.0 captures nine blocks and seventeen questions. Only the goal is required at manual intake. Open and inferred answers remain visibly unresolved. The approved revision is recorded as delegated approval under D24, not a claim of personal user review.
 

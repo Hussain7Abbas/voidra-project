@@ -2,7 +2,7 @@
 
 Voidra is an open-source desktop app for planning and tracking projects built with AI coding agents. Its [vision](../VISION.md) defines the product, the [implementation plan](../plan/main.md) tracks delivery, and the [root instructions](../AGENTS.md) define the development workflow.
 
-P00 supplies repository tooling and policies. P01 publishes the format package and CLI; validation and publication are recorded in its evidence. P02 adds the secure desktop shell and its design system. P03–P09 complete the core loop and reach M2; this repository now tracks its own ideas and bugs in `.voidra/`. P10 completes persistent app undo; P11 completes decisions, assumptions and read-only repository docs/glossary. P12 is implementing releases and Sync.
+P00 supplies repository tooling and policies. P01 publishes the format package and CLI; validation and publication are recorded in its evidence. P02 adds the secure desktop shell and its design system. P03–P09 complete the core loop and reach M2; this repository now tracks its own ideas and bugs in `.voidra/`. P10 completes persistent app undo; P11 completes decisions, assumptions and read-only repository docs/glossary. P12 completes releases and Sync with full local/CI and real-agent evidence. P16 records the future v2 designs without implementing them.
 
 - [Development](development.md): setup, commands, pins, coverage and the scanner.
 - [Format specification](format/Intro.md): record types, versions, file I/O and CLI contract.
@@ -19,3 +19,5 @@ P00 supplies repository tooling and policies. P01 publishes the format package a
 - [General template review](templates/general-review.md): general profile questions and delegated P05 review evidence.
 
 - [Agent workflows and observed differences](agents.md): shared standalone skills, sandboxed checks and actual CLI behavior.
+
+- [V2 design index](architecture/v2/Intro.md): all 15 approved future-scope items, grounded in built v1 code and evidence.

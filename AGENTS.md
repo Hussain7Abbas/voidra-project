@@ -12,7 +12,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `tools/run-engine/`: standalone run ownership, durable Git recovery, skill linking and artifact generation. Follow its [local instructions](tools/run-engine/AGENTS.md).
 - `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
-- `docs/`: development, compatibility, architecture, ADRs and verification evidence. Start at [the index](docs/intro.md).
+- `docs/`: development, compatibility, architecture, ADRs and verification evidence; `docs/architecture/v2/` holds source-linked future designs governed by its [local instructions](docs/architecture/v2/AGENTS.md). Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
 - `.github/workflows/ci.yml`: the macOS frozen-install and `make check` pipeline. CI never runs authenticated coding agents.
 - Root config: pinned pnpm and Node, strict TypeScript, Biome, Vitest and the Makefile. Native Electron modules still require Electron-specific rebuilding in P02; matching Node major versions alone is insufficient.
