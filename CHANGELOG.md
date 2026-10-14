@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+Preview of the feature-complete Apple Silicon app and matching library/skills. Skill installation checks compare against the running app version across updates, and new release tags require the full desktop suite as well as quality checks. Includes the packaging, guarded-edit and version-reporting corrections from the retained earlier candidates. Final v1 verification remains P17.
+
 ## 0.2.1
 
-Preview of the feature-complete Apple Silicon desktop app and matching library/skills. This candidate corrects the retained, unpublished 0.2.0 tag: disable inferred packaging publishers, allow bounded workspace edits to complete, refresh after rejected edits, and report the actual app/creator version. Exact approval guards, private-file boundaries and unsigned installation remain unchanged. Final v1 verification remains P17.
+Candidate tag retained; hosted skill-installation assertions still expected the previous version, preventing publication. This candidate corrects the retained, unpublished 0.2.0 tag: disable inferred packaging publishers, allow bounded workspace edits to complete, refresh after rejected edits, and report the actual app/creator version. Exact approval guards, private-file boundaries and unsigned installation remain unchanged. Final v1 verification remains P17.
 
 ## 0.2.0
 

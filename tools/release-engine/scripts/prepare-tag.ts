@@ -88,6 +88,7 @@ try {
           .digest("hex"),
       );
     execFileSync("make", ["check"], { cwd: root, env, stdio: "inherit" });
+    execFileSync("make", ["e2e"], { cwd: root, env, stdio: "inherit" });
     if (
       git(["rev-parse", "HEAD"]) !== startingHead ||
       git(["status", "--porcelain", "--untracked-files=all"])

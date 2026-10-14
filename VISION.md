@@ -167,7 +167,7 @@ The skills adapt proven techniques from [mattpocock/skills](https://github.com/m
 
 Every `.voidra/` folder records its format version and its template version, so newer apps and skills can migrate older projects instead of breaking them.
 
-Each product release aligns the app, `voidra` library/reader and bundled skills to one `X.Y.Z` version; skill validation commands use that matching library. Format and template versions remain independent. The 0.x previews use GitHub prereleases and npm's `next` tag; v1 uses 1.0.0 and `latest`. GitHub, npm and skill publication have separate recovery checkpoints, so a partial publication preserves completed destinations and retries the original source. The failed v0.2.0 candidate tag is preserved; its corrected P15 pipeline preview uses 0.2.1, with v1 still 1.0.0 (D27).
+Each product release aligns the app, `voidra` library/reader and bundled skills to one `X.Y.Z` version; skill validation commands use that matching library. Format and template versions remain independent. The 0.x previews use GitHub prereleases and npm's `next` tag; v1 uses 1.0.0 and `latest`. GitHub, npm and skill publication have separate recovery checkpoints, so a partial publication preserves completed destinations and retries the original source. The failed v0.2.0 and v0.2.1 candidate tags are preserved; the corrected P15 pipeline preview uses 0.2.2, with v1 still 1.0.0 (D28).
 
 ## 11. AI inside the app
 

@@ -27,6 +27,7 @@ for (const theme of ["light", "dark"] as const)
       });
     let app = await launch();
     try {
+      const version = await app.evaluate(({ app }) => app.getVersion());
       let page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
       await expect(
@@ -48,7 +49,7 @@ for (const theme of ["light", "dark"] as const)
           name: "Claude Code voidra-go",
           exact: true,
         }),
-      ).toContainText("Installed 0.2.0");
+      ).toContainText(`Installed ${version}`);
       await page
         .getByRole("button", {
           name: "Install voidra-go for Codex",
@@ -57,7 +58,7 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByRole("article", { name: "Codex voidra-go", exact: true }),
-      ).toContainText("Installed 0.2.0");
+      ).toContainText(`Installed ${version}`);
       const path = join(home, ".claude/skills/voidra-go/SKILL.md");
       await writeFile(path, `${await readFile(path, "utf8")}My hand edit.\n`);
       await page
@@ -123,7 +124,7 @@ for (const theme of ["light", "dark"] as const)
       await page.getByText("Coding agent skills", { exact: true }).click();
       await expect(
         page.getByRole("article", { name: "Codex voidra-go", exact: true }),
-      ).toContainText("Installed 0.2.0");
+      ).toContainText(`Installed ${version}`);
     } finally {
       await app.close();
       await rm(temp, { recursive: true, force: true });
