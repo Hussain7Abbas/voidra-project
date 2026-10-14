@@ -1,0 +1,14 @@
+{
+  "rewrite": {
+    "title": "Export offline notes",
+    "description": "Export notes into local JSON documents."
+  },
+  "profile": { "value": "Save and reopen notes offline." },
+  "followup": { "questions": ["Which devices need offline support?"] },
+  "summary": {
+    "text": "Documentation changed and is waiting for review; no release is recorded."
+  },
+  "release-notes": {
+    "text": "## Notes\n- Completed offline-note documentation.\nThis is a draft; nothing was published."
+  }
+}

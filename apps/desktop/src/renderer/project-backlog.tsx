@@ -8,6 +8,7 @@ import {
   type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
 import { actionLabels } from "./action-labels.ts";
+import { AiSuggestionButton } from "./ai-suggestion.tsx";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { Button } from "./ui/button.tsx";
@@ -280,6 +281,21 @@ export function ProjectBacklog() {
             void save();
           }}
         >
+          <AiSuggestionButton
+            label="Improve with AI"
+            intent={{
+              feature: "rewrite",
+              notes: [title, description].filter(Boolean).join("\n"),
+              target: promoting ? "action" : "idea",
+            }}
+            disabled={busy}
+            onApply={(suggestion) => {
+              if (suggestion.feature === "rewrite") {
+                setTitle(suggestion.title);
+                setDescription(suggestion.description);
+              }
+            }}
+          />
           <Field label="Title">
             <input
               className="input"

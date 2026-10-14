@@ -25,6 +25,7 @@ import type {
   Snapshot,
   ThemePreference,
 } from "../shared/bridge.ts";
+import { AiSettingsPanel } from "./ai-settings.tsx";
 import { DocumentViewerProvider } from "./document-viewer.tsx";
 import { EditHistory } from "./edit-history.tsx";
 import { inboxItems } from "./inbox.ts";
@@ -52,7 +53,7 @@ export async function request(
   if (!response.ok) throw new Error(response.error.message);
   return response.data;
 }
-function useSnapshot() {
+export function useSnapshot() {
   return useQuery({
     queryKey: ["snapshot"],
     queryFn: async () => {
@@ -118,7 +119,8 @@ function Shell() {
     () =>
       window.voidra.subscribe((event) => {
         if (event.type === "settings") setSettings(true);
-        else if (event.type !== "edit-history") void query.invalidateQueries();
+        else if (event.type !== "edit-history" && event.type !== "ai-progress")
+          void query.invalidateQueries();
       }),
     [query],
   );
@@ -448,6 +450,7 @@ function Shell() {
             <option value="dark">Dark</option>
           </select>
         </Field>
+        <AiSettingsPanel />
       </Dialog>
       <ConfirmDialog
         open={remove !== null}

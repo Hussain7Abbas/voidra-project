@@ -50,10 +50,13 @@ export function Dialog({
     <dialog
       ref={ref}
       closedby={closeDisabled ? "none" : "any"}
-      onClose={onClose}
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         if (!closeDisabled) onClose();
       }}

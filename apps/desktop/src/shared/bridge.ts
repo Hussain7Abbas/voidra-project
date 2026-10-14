@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  aiContextSchema,
+  aiIntentSchema,
+  aiReplySchemas,
+  aiRequestSchemas,
+} from "./ai.ts";
 export const actionTypeSchema = z.enum([
   "feature",
   "bug",
@@ -115,6 +121,7 @@ export const knowledgeEntrySchema = z.strictObject({
   state: z.enum(["recorded", "pending", "stale"]),
 });
 export const knowledgeDataSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("ai-context"), context: aiContextSchema }),
   z.strictObject({
     kind: z.literal("decisions"),
     items: z.array(knowledgeEntrySchema),
@@ -136,6 +143,7 @@ export const knowledgeDataSchema = z.discriminatedUnion("kind", [
 export type KnowledgeData = z.infer<typeof knowledgeDataSchema>;
 export type KnowledgeEntry = z.infer<typeof knowledgeEntrySchema>;
 export const knowledgeRequestSchema = z.discriminatedUnion("command", [
+  z.strictObject({ command: z.literal("ai-context"), intent: aiIntentSchema }),
   knowledgeSearchSchema.extend({ command: z.literal("search-decisions") }),
   z.strictObject({
     command: z.literal("read-document"),
@@ -631,6 +639,7 @@ export const workspaceEdits = {
   "create-action": "Create action",
 } satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  ...aiRequestSchemas,
   ...knowledgeRequestSchema.options,
   z.strictObject({
     command: z.literal("open-document-editor"),
@@ -690,6 +699,9 @@ export const snapshotSchema = z.strictObject({
   project: projectSchema.nullable(),
   recents: z.array(recentViewSchema),
   serviceState: serviceStateSchema.nullable(),
+  ai: z
+    .strictObject({ configured: z.boolean(), model: z.string().nullable() })
+    .default({ configured: false, model: null }),
 });
 export const responseSchema = z.discriminatedUnion("ok", [
   z.strictObject({
@@ -709,6 +721,7 @@ export const responseSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion("kind", [
+      ...aiReplySchemas,
       ...knowledgeDataSchema.options,
       snapshotSchema,
       z.strictObject({
@@ -731,6 +744,11 @@ export type BridgeResponse = z.infer<typeof responseSchema>;
 export type ProjectInfo = z.infer<typeof projectSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export const eventSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("ai-progress"),
+    id: z.string().uuid(),
+    characters: z.number().int().nonnegative(),
+  }),
   z.strictObject({
     type: z.literal("edit-history"),
     direction: z.enum(["undo", "redo"]),

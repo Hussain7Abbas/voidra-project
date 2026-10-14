@@ -61,6 +61,7 @@ import {
   workspaceEdits,
   workspaceSchema,
 } from "../shared/bridge.ts";
+import { collectAiContext } from "./ai-context.ts";
 import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
@@ -182,6 +183,18 @@ export class ProjectWorkspace {
       : this.applyRequest(request);
   }
   async query(request: KnowledgeRequest): Promise<KnowledgeData> {
+    if (request.command === "ai-context") {
+      const project = await checkProject(this.root),
+        catalog = await readTemplates(this.templatesDirectory);
+      if (project.metadata && blockingPlanningDiagnostics(project).length)
+        throw new Error(
+          "Resolve planning-file problems before requesting AI suggestions",
+        );
+      return {
+        kind: "ai-context",
+        context: collectAiContext(project, catalog.templates, request.intent),
+      };
+    }
     if (request.command === "read-document")
       return {
         kind: "document",

@@ -25,3 +25,5 @@
 - [Decisions and documents](knowledge.md): FTS search, assumption revisits, read-only glossary/docs and ADR rules.
 
 - [Releases and outside work](releases-sync.md): Release selection/history, exact proposals, standalone commit/tag recovery and protected outside-work Sync.
+
+- [Optional AI](ai.md): encrypted settings, public-context privacy, streaming and editable suggestions.

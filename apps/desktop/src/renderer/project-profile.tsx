@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import type { TemplateView } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { ProfileAiControls } from "./profile-ai.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -338,18 +339,34 @@ export function ProjectOnboarding({ name }: { name: string }) {
               <p className="text-muted mb-6">{block.help}</p>
               <div className="space-y-6">
                 {block.questions.map((question) => (
-                  <AnswerControl
-                    key={question.id}
-                    name={`${block.id}.${question.id}`}
-                    question={question}
-                    value={answers[`${block.id}.${question.id}`] ?? null}
-                    onChange={(value) =>
-                      setAnswers((a) => ({
-                        ...a,
-                        [`${block.id}.${question.id}`]: value,
-                      }))
-                    }
-                  />
+                  <div key={question.id} className="space-y-3">
+                    <AnswerControl
+                      key={question.id}
+                      name={`${block.id}.${question.id}`}
+                      question={question}
+                      value={answers[`${block.id}.${question.id}`] ?? null}
+                      onChange={(value) =>
+                        setAnswers((a) => ({
+                          ...a,
+                          [`${block.id}.${question.id}`]: value,
+                        }))
+                      }
+                    />
+                    <ProfileAiControls
+                      template={template.id}
+                      templateVersion={template.version}
+                      block={block.id}
+                      answer={question.id}
+                      value={answers[`${block.id}.${question.id}`] ?? null}
+                      disabled={busy}
+                      onChange={(value) =>
+                        setAnswers((current) => ({
+                          ...current,
+                          [`${block.id}.${question.id}`]: value,
+                        }))
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             </section>
@@ -545,6 +562,15 @@ export function ProjectProfile() {
               question={question}
               value={value}
               onChange={setValue}
+            />
+            <ProfileAiControls
+              template={template?.id ?? "general"}
+              templateVersion={template?.version ?? "1.0.0"}
+              block={current.data.block}
+              answer={answer.id}
+              value={value}
+              onChange={setValue}
+              disabled={busy}
             />
             {error && (
               <p role="alert" className="text-danger">

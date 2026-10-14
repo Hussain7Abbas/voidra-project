@@ -10,10 +10,12 @@ import {
   type MenuItemConstructorOptions,
   nativeTheme,
   protocol,
+  safeStorage,
   session,
   shell,
 } from "electron";
 import { projectDocumentPath } from "voidra";
+import type { AiContext, AiIntent } from "../shared/ai.ts";
 import {
   type BridgeEvent,
   type BridgeResponse,
@@ -24,6 +26,9 @@ import {
   responseSchema,
   type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
+import { AiService } from "./ai-service.ts";
+import { AiSettings } from "./ai-settings.ts";
+import { OpenRouterClient } from "./openrouter.ts";
 import {
   APP_ORIGIN,
   contentPolicy,
@@ -92,6 +97,38 @@ const broadcast = (): void => {
   for (const id of registry.ids()) notify(id, { type: "changed" });
 };
 const store = new AppStore(join(app.getPath("userData"), "settings.json"));
+const aiSettings = new AiSettings(
+  join(app.getPath("userData"), "ai-settings.json"),
+  {
+    available: () => safeStorage.isAsyncEncryptionAvailable(),
+    encrypt: (value) => safeStorage.encryptStringAsync(value),
+    decrypt: (value) => safeStorage.decryptStringAsync(value),
+  },
+);
+const aiEndpoint = !app.isPackaged
+  ? process.env.VOIDRA_TEST_OPENROUTER_URL
+  : undefined;
+if (
+  aiEndpoint &&
+  !["127.0.0.1", "localhost", "[::1]"].includes(new URL(aiEndpoint).hostname)
+)
+  throw new Error("The test OpenRouter endpoint must be local");
+const ai = new AiService(aiSettings, new OpenRouterClient(aiEndpoint));
+async function aiContext(window: number, intent: AiIntent): Promise<AiContext> {
+  if (intent.feature === "rewrite")
+    return {
+      feature: intent.feature,
+      notes: intent.notes,
+      target: intent.target,
+      sources: [],
+    };
+  const service = services.get(window);
+  if (!service) throw new Error("Open a project first");
+  const response = await service.query({ command: "ai-context", intent });
+  if (response.kind !== "ai-context")
+    throw new Error("AI context is unavailable");
+  return response.context;
+}
 const opening = new Map<string, Promise<BrowserWindow>>();
 async function createWindow(root: string | null): Promise<BrowserWindow> {
   if (root === null) return createWindowOnce(root);
@@ -146,6 +183,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     event.preventDefault(),
   );
   window.on("closed", () => {
+    ai.close(window.id);
     registry.remove(window.id);
     const stopped = services.get(window.id)?.dispose();
     if (stopped) {
@@ -288,8 +326,80 @@ async function start(): Promise<void> {
               project: projects.get(window.id) ?? null,
               recents: await store.list(),
               serviceState: service?.state ?? null,
+              ai: await aiSettings
+                .configured()
+                .catch(() => ({ configured: false, model: null })),
             },
           };
+        } else if (request.command === "ai-settings") {
+          response = {
+            ok: true,
+            data: { kind: "ai-settings", preferences: await ai.status() },
+          };
+        } else if (
+          request.command === "ai-set-key" ||
+          request.command === "ai-remove-key" ||
+          request.command === "ai-set-model"
+        ) {
+          if (request.command === "ai-set-key") await ai.setKey(request.key);
+          else if (request.command === "ai-remove-key") await ai.removeKey();
+          else {
+            if (
+              !(await ai.models()).some((model) => model.id === request.model)
+            )
+              throw new Error(
+                "Choose a model from the current OpenRouter list",
+              );
+            await ai.setModel(request.model);
+          }
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "ai-models") {
+          response = {
+            ok: true,
+            data: { kind: "ai-models", models: await ai.models() },
+          };
+        } else if (request.command === "ai-test") {
+          response = {
+            ok: true,
+            data: { kind: "ai-connected", ...(await ai.test()) },
+          };
+        } else if (request.command === "ai-preview") {
+          response = {
+            ok: true,
+            data: {
+              kind: "ai-preview",
+              ...(await ai.preview(await aiContext(window.id, request.intent))),
+            },
+          };
+        } else if (request.command === "ai-generate") {
+          const context = await aiContext(window.id, request.intent);
+          response = {
+            ok: true,
+            data: {
+              kind: "ai-suggestion",
+              suggestion: await ai.generate(
+                window.id,
+                request.id,
+                context,
+                request.revision,
+                (characters) => {
+                  if (!window.isDestroyed())
+                    notify(window.id, {
+                      type: "ai-progress",
+                      id: request.id,
+                      characters,
+                    });
+                },
+              ),
+            },
+          };
+        } else if (request.command === "ai-cancel") {
+          ai.cancel(window.id, request.id);
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "copy-ai-text") {
+          clipboard.writeText(request.text);
+          response = { ok: true, data: { kind: "changed" } };
         } else if (isKnowledgeRequest(request)) {
           const service = services.get(window.id);
           if (!service) throw new Error("Open a project first");

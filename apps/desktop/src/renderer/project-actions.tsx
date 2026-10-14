@@ -6,6 +6,7 @@ import { type ActionType, actionTypeSchema } from "../shared/bridge.ts";
 import { filterActionViews, groupActionViews } from "./action-filters.ts";
 import { ActionQuestions, PlanGate } from "./action-gates.tsx";
 import { actionLabels } from "./action-labels.ts";
+import { AiSuggestionButton } from "./ai-suggestion.tsx";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { PlanningCommit } from "./planning-commit.tsx";
@@ -69,6 +70,7 @@ export function ProjectActions({
     [description, setDescription] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [aiSummaries, setAiSummaries] = useState<Record<string, string>>({});
   if (workspace.isPending) return <Spinner label="Loading planning records" />;
   if (workspace.isError)
     return (
@@ -556,6 +558,27 @@ export function ProjectActions({
         {current.data.type === "release" && current.data.releaseActions && (
           <section className="card action-detail">
             <h2>Release proposal</h2>
+            {current.effectiveStage === "plan" && (
+              <AiSuggestionButton
+                label="Draft release notes with AI"
+                intent={{
+                  feature: "release-notes",
+                  notes: "",
+                  action: current.data.id,
+                }}
+                disabled={!recordEditable}
+                onApply={(suggestion) => {
+                  if (suggestion.feature === "release-notes") {
+                    setEditBody(
+                      `${current.body}\n## Draft release notes\n${suggestion.text}\n`,
+                    );
+                    setEditRevision(current.editRevision);
+                    setError("");
+                    setEditMode("description");
+                  }
+                }}
+              />
+            )}
             {current.data.releaseVersion && (
               <p>Version: {current.data.releaseVersion}</p>
             )}
@@ -944,6 +967,32 @@ export function ProjectActions({
         </Dialog>
         <section className="card action-detail" aria-label="Run results">
           <h2>Run results</h2>
+          {!!current.runs.length && (
+            <AiSuggestionButton
+              label="Summarize run with AI"
+              intent={{
+                feature: "summary",
+                notes: "",
+                action: current.data.id,
+              }}
+              onApply={(suggestion) => {
+                if (suggestion.feature === "summary")
+                  setAiSummaries((currentSummaries) => ({
+                    ...currentSummaries,
+                    [current.data.id]: suggestion.text,
+                  }));
+              }}
+            />
+          )}
+          {aiSummaries[current.data.id] && (
+            <aside
+              className="rounded-lg border border-line p-3 mt-3"
+              aria-label="AI summary draft"
+            >
+              <p className="font-semibold">AI summary draft</p>
+              <SafeMarkdown body={aiSummaries[current.data.id] ?? ""} />
+            </aside>
+          )}
           {current.runs.length ? (
             current.runs.map((run) => (
               <article key={run.path}>
@@ -1343,6 +1392,21 @@ export function ProjectActions({
               onChange={(e) => setAssignee(e.target.value)}
             />
           </Field>
+          <AiSuggestionButton
+            label="Improve with AI"
+            intent={{
+              feature: "rewrite",
+              notes: [title, description].filter(Boolean).join("\n"),
+              target: "action",
+            }}
+            disabled={busy}
+            onApply={(suggestion) => {
+              if (suggestion.feature === "rewrite") {
+                setTitle(suggestion.title);
+                setDescription(suggestion.description);
+              }
+            }}
+          />
           <Field label="Title">
             <input
               className="input"
