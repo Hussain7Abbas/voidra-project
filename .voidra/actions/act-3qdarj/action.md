@@ -3,8 +3,8 @@
   id: act-3qdarj,
   type: bug,
   title: CLI help reports the wrong package version,
-  stage: review,
-  status: waiting,
+  stage: done,
+  status: complete,
   doneBy: agent,
   createdBy: Agent delegated decision under D24,
   createdAt: 2026-10-14T15:00:53.870Z,
@@ -21,7 +21,14 @@
         }
     },
   approvalHistory: [],
-  commits: [ e65466a8b3e621311366a46a01a5e79c1269c2e1 ]
+  commits: [ e65466a8b3e621311366a46a01a5e79c1269c2e1 ],
+  reviewDecision:
+    {
+      by: Agent delegated decision under D24,
+      at: 2026-10-14T16:11:27.123Z,
+      revision: 6b14adc579f836cf68a408af17e63f12e08b1b9a698cbc6ed021eb2a1021aa15,
+      decision: accepted
+    }
 }
 ---
 Reproduction: genuine current voidra 0.2.2 version reports 0.2.2, but built --help reports Voidra 0.1.0. src/cli.ts hardcodes the header while version uses PACKAGE_VERSION. Repair the existing CLI contract before v1 without changing commands, usage or exit behavior.
