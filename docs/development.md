@@ -71,6 +71,8 @@ The scanner excludes `.next`, e2e/results directories, and the desktop's exporte
 
 `make lint` checks skill metadata, length and relative resources. The shared run library and fake agent use real temporary Git repositories in tests. Unit/native tests run serially so the watcher timing assertion is not distorted by competing native builds. `make e2e` includes onboarding, profile editing/confirmation, create, queue, reject, rework, accept, invalid-output and explicit recovery workflows; CI never runs authenticated agents. See [run architecture](architecture/runs.md).
 
+Run `make check` and desktop end-to-end suites sequentially. Quality tests also launch real Electron windows; separate temporary projects do not isolate desktop focus, clipboard or CPU contention. Overlapping suites are not valid timing evidence. Keep browser/account interaction separate from native UI verification.
+
 The root development dependency links the current workspace `voidra` CLI. After `make check` or a package build, `npx --offline --yes voidra@0 version` and `npx --offline --yes voidra@0 check .` use the candidate for this repository’s dogfooding. The npm public baseline remains 0.1.0 until P15 publication; real-agent temporary projects still install the genuine freshly packed candidate archive.
 
 Undo engine tests compile native fixture scripts with the same inline source-map convention as the desktop and run them with Electron's Node runtime. The coverage input includes only `.cache/undo-native-*/scenario.cjs` before remapping; production coverage gates are unchanged. Keep those ignored bundles until coverage reporting finishes; the next engine test run clears old bundles. Direct stripped-TypeScript subprocess coverage remains excluded.

@@ -51,6 +51,7 @@ Signing, notarisation and silent automatic updates, which would need an Apple De
 | P15-06 | Version alignment and `make release` | 3 | P15-03, P15-05 | One command produces a consistent tag across the app, `voidra` and the skills. |
 | P15-07 | Installation docs | 1 | P15-02 | The README explains installing and opening the unsigned app. |
 | P15-08 | Publication retry recovery | 3 | P15-03, P15-05, P15-06 | Failure injection before publication leaves no public GitHub Release. Failure after one destination succeeds reports exactly what was published; retry finishes remaining destinations without duplicate versions or moved tags. A mismatched pre-existing artifact stops the retry. Record the test-tag recovery run. |
+| P15-09 | Close P12/P13 release-candidate UI regressions | 2 | P12, P13 | Enabled button text retains accessible contrast when async work finishes. Release creation checks wait for actual dialog dismissal and action navigation before auditing or invoking history. Keep all existing assertions and repeat the affected themed workflows, then whole quality/desktop checks. |
 
 ## Tests
 
@@ -58,6 +59,7 @@ Signing, notarisation and silent automatic updates, which would need an Apple De
 - **End-to-end:** the update banner against a mocked releases endpoint.
 - **DMG smoke test:** mount, copy, start with a fresh data folder, then quit cleanly.
 - **Release recovery:** a test tag exercises failed asset staging and partial publication/retry. Network failures are injected at the external boundary; successful public test versions are recorded rather than described as rolled back.
+- **Candidate UI follow-up:** audit only after async controls and release navigation finish; enabled button contrast must not fade. Run native quality and desktop suites sequentially, retaining all public-flow assertions.
 
 ## Failure and recovery
 

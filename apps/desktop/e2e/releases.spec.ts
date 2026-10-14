@@ -95,6 +95,13 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("heading", { name: "New release", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("dialog", {
+          name: "Choose completed work",
+          exact: true,
+        }),
+      ).toBeHidden();
+      await expect(page.locator(".action-meta")).toContainText("Plan");
       const after = await checkProject(root);
       expect(after.diagnostics).toEqual([]);
       expect(

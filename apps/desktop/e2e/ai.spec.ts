@@ -97,6 +97,9 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("Connection works", { exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Test connection", exact: true }),
+      ).toBeEnabled();
       expect(
         await readFile(join(temp, "data/ai-settings.json"), "utf8"),
       ).not.toContain("fixture-private-key");
