@@ -1,11 +1,11 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P16 are Done. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P16 are Done; P17 is In progress. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Session hand-off — 2026-10-14
 
-Continue P17 under D24. P00–P16 are Done; P17 remains Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
+Continue P17 under D24. P00–P16 are Done; P17 is In progress. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
 
 P09 reached M2 and passes quality, 44 desktop workflows, packaging and packaged startup. P10's corrected implementation `5965420` passes [CI](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38457428517): all quality/coverage/freshness checks, the complete desktop/accessibility suite, packaging and packaged SQLite startup. [P10 evidence](../docs/verification/p10.md) records exact replay, durable consumption, overwrite confirmations, routing coverage, onboarding undo/reinitialization and native menu behavior. Local focused checks pass fourteen helper tests and five desktop scenarios.
 
@@ -62,7 +62,7 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P14 | [Skills distribution](phase-14-skills-distribution.md) | App installs and updates skills; releases sync `voidra-skills` | P08, P12 | M3 | Done (2026-10-14) | [P14](../docs/verification/p14.md) |
 | P15 | [Packaging and updates](phase-15-packaging-and-updates.md) | DMG on GitHub Releases, update notices, npm publishing | P14 | M4 | Done 2026-10-14 | [P15](../docs/verification/p15.md) |
 | P16 | [v2 architecture documents](phase-16-v2-architecture-docs.md) | One design document per v2 item | P09 | M4 | Done (2026-10-14) | [P16](../docs/verification/p16.md) |
-| P17 | [v1 release](phase-17-v1-release.md) | v1.0.0 shipped with recorded evidence | P10–P16 | M4 | Not started | — |
+| P17 | [v1 release](phase-17-v1-release.md) | v1.0.0 shipped with recorded evidence | P10–P16 | M4 | In progress | [P17](../docs/verification/p17.md) |
 
 Phases whose needs are met can run in parallel. P16 is documentation only and can start any time after P09.
 

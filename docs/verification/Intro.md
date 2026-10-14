@@ -37,3 +37,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P14 — Skills distribution](p14.md).
 
 - [P15 — Packaging and updates](p15.md).
+
+- [P17 — v1 release](p17.md): in progress; final checks and actual human VoiceOver remain.
