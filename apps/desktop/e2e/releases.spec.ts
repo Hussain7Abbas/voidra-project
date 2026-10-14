@@ -227,6 +227,9 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("heading", { name: "New release", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Choose completed work" }),
+      ).toBeHidden();
       const id = [...(await checkProject(root)).records.values()].find(
         (record) =>
           record.kind === "action" && record.document.data.type === "release",
@@ -272,6 +275,9 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Send back to Plan", exact: true })
         .click();
+      await expect(
+        page.getByText("Sent back for changes", { exact: true }),
+      ).toBeVisible();
       await expect(page.locator(".action-meta")).toContainText("Plan");
       await run();
       await expect(
@@ -281,6 +287,9 @@ for (const theme of ["light", "dark"] as const)
         ),
       ).toBeVisible();
       await page.getByRole("button", { name: "Accept", exact: true }).click();
+      await expect(
+        page.getByText("Action accepted", { exact: true }),
+      ).toBeVisible();
       await expect(page.locator(".action-meta")).toContainText("Review");
       expect(git(["rev-parse", "HEAD"])).toBe(head);
       expect(git(["tag", "--list"])).toBe("");
