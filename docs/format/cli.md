@@ -11,9 +11,9 @@
 Read the project and the revision before approving its current plan:
 
 ```sh
-npx voidra@0.1.0 check ./project --json
-npx voidra@0.1.0 plan act-000000 --project ./project --json
-npx voidra@0.1.0 approve act-000000 --project ./project --by "You" --revision "<revision returned by plan>"
+npx voidra@0.2.2 check ./project --json
+npx voidra@0.2.2 plan act-000000 --project ./project --json
+npx voidra@0.2.2 approve act-000000 --project ./project --by "You" --revision "<revision returned by plan>"
 ```
 
 An `apply` manifest creates a new glossary only when the caller also passes `--glossary`:
@@ -27,4 +27,4 @@ An `apply` manifest creates a new glossary only when the caller also passes `--g
 }
 ```
 
-Pass the returned operation ID to `recover` after interruption. `--rollback` requests the recorded before state. A completed receipt is returned on a repeated matching recovery; a rollback cannot be replayed as a commit. `apply` refuses a prepared or rolled-back operation ID. `--help` lists the commands. `check` paths in diagnostics are relative to the selected project.
+Pass the returned operation ID to `recover` after interruption. `--rollback` requests the recorded before state. A completed receipt is returned on a repeated matching recovery; a rollback cannot be replayed as a commit. `apply` refuses a prepared or rolled-back operation ID. `--help` and `help` list the commands. Their header and usage-error help identify the installed package version, matching `version`. `check` paths in diagnostics are relative to the selected project.

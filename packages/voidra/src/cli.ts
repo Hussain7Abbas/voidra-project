@@ -12,8 +12,7 @@ export interface CliResult {
   stdout: string;
   stderr: string;
 }
-const help =
-  "Voidra 0.1.0\nCommands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--json]\n";
+const help = `Voidra ${PACKAGE_VERSION}\nCommands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--json]\n`;
 const configuration: Record<
   string,
   {

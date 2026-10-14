@@ -28960,6 +28960,11 @@ async function recoverOperation(root, id2, options = {}) {
   }
 }
 
+// packages/voidra/src/cli.ts
+var help = `Voidra ${PACKAGE_VERSION}
+Commands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--json]
+`;
+
 // packages/voidra/src/documents.ts
 var MAX_DOCUMENT_BYTES = 256 * 1024;
 

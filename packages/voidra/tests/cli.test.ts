@@ -8,6 +8,23 @@ import { PACKAGE_VERSION } from "../src/versions.ts";
 import { materialize } from "./helpers.ts";
 
 const bin = resolve("packages/voidra/dist/cli-entry.js");
+it("identifies the package version in built help and usage output", () => {
+  const version = spawnSync(process.execPath, [bin, "version"], {
+    encoding: "utf8",
+  });
+  expect(version.status).toBe(0);
+  expect(version.stdout.trim()).toBe(PACKAGE_VERSION);
+  for (const command of ["--help", "help", "unknown"]) {
+    const result = spawnSync(process.execPath, [bin, command], {
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(command === "unknown" ? 2 : 0);
+    const output = command === "unknown" ? result.stderr : result.stdout;
+    expect(output).toContain(
+      `Voidra ${version.stdout.trim()}\nCommands: check`,
+    );
+  }
+});
 it("runs the built executable with human/json output and all three exit codes", async () => {
   const root = await materialize();
   for (const args of [
