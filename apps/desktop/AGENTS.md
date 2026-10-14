@@ -20,6 +20,8 @@ Extends [root instructions](../../AGENTS.md). Desktop package name is `voidra-pr
 
 Keep [desktop architecture](../../docs/architecture/desktop.md), [design system](../../docs/design-system.md) and evidence current. `CLAUDE.md` only imports these instructions.
 
+- Failed workspace mutations send a refresh event after the error response so stale revisions reload even if the watcher coalesces an edit. Preserve hash guards and bytes; failed reads must not trigger a refresh loop.
+
 - The Run picker uses package eligibility from the snapshot. Queue replacement carries displayed queue/action hashes through the validated bridge; Profile draft activation remains an explicit action-page decision. Keep reorder controls keyboard operable and state live.
 
 - Commit links come from actual Git trailer history, including untagged history retained for Sync. Main opens only current service-verified GitHub commit URLs. Planning commits carry an exact displayed preview and selected paths; use the Node-only helper and its explicit recovery results. Never include private planning files or expand selection to intake glossary/instructions.

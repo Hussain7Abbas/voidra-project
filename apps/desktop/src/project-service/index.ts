@@ -6,6 +6,7 @@ import {
   isKnowledgeRequest,
   knowledgeRequestSchema,
   projectSchema,
+  workspaceEdits,
   workspaceRequestSchema,
 } from "../shared/bridge.ts";
 import { ProjectWorkspace } from "./workspace.ts";
@@ -84,6 +85,12 @@ parent.on("message", async (event: { data: unknown }) => {
       ok: false,
       message: (error as Error).message,
     });
+    // A rejected edit may have observed newer files than the renderer.
+    if (
+      parsed.data.command !== "workspace" &&
+      Object.hasOwn(workspaceEdits, parsed.data.command)
+    )
+      parent.postMessage({ event: "changed" });
   }
 });
 

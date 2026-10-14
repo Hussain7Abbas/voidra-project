@@ -51,7 +51,7 @@ Signing, notarisation and silent automatic updates, which would need an Apple De
 | P15-06 | Version alignment and `make release` | 3 | P15-03, P15-05 | One command produces a consistent tag across the app, `voidra` and the skills. |
 | P15-07 | Installation docs | 1 | P15-02 | The README explains installing and opening the unsigned app. |
 | P15-08 | Publication retry recovery | 3 | P15-03, P15-05, P15-06 | Failure injection before publication leaves no public GitHub Release. Failure after one destination succeeds reports exactly what was published; retry finishes remaining destinations without duplicate versions or moved tags. A mismatched pre-existing artifact stops the retry. Record the test-tag recovery run. |
-| P15-09 | Close P12/P13 release-candidate UI regressions | 2 | P12, P13 | Enabled button text retains accessible contrast when async work finishes. Release creation checks wait for actual dialog dismissal and action navigation before auditing or invoking history. Review/rejection checks require operation completion before queuing again, including Release acceptance that stays at Review. Keep all existing assertions and repeat the affected themed workflows, then whole quality/desktop checks. |
+| P15-09 | Close P12/P13 release-candidate UI regressions | 2 | P07, P12, P13 | Enabled button text retains accessible contrast when async work finishes. Release creation checks wait for actual dialog dismissal and action navigation before auditing or invoking history. Review/rejection checks require operation completion before queuing again, including Release acceptance that stays at Review. Failed workspace mutations explicitly refresh the displayed revision without weakening guards or writing files. Keep all existing assertions and repeat the affected themed workflows, then whole quality/desktop checks. |
 
 ## Tests
 
@@ -73,4 +73,4 @@ Every story is accepted, and a test release proves the whole pipeline.
 ## Hand-off
 
 - D24 delegates the icon decision; the [recorded agent review](../docs/icon-review.md) accepts the connected V without claiming a personal human review.
-- Implementation and local checks are prepared. Resume from the actual npm account sign-in/2FA checkpoint in [evidence](../docs/verification/p15.md), then configure the registered workflow, verify matching CI and run the retained v0.2.0 test-tag failure/retry/provenance proofs. The implementing agent performs the commands and publication steps; the human provides only the required account interaction.
+- Implementation and local checks are prepared. npm trusted-publisher creation and authenticated read-back are complete. Resume the rejected-edit refresh follow-up in [evidence](../docs/verification/p15.md), verify matching full checks, then run the retained v0.2.0 test-tag failure/retry/provenance proofs. The implementing agent performs the commands and publication steps; the human provides only the required account interaction.

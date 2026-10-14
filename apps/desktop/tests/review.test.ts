@@ -53,6 +53,33 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
     expect(
       await page.getByRole("button", { name: "Reject", exact: true }).count(),
     ).toBe(1);
+    const actionPath = join(root, ".voidra/actions/act-000000/action.md"),
+      beforeRejected = await readFile(actionPath);
+    const rejectedRefresh = await page.evaluate(async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let unsubscribe = () => {};
+      const refreshed = new Promise<boolean>((resolve) => {
+        unsubscribe = window.voidra.subscribe((event) => {
+          if (event.type === "changed") resolve(true);
+        });
+        timer = setTimeout(() => resolve(false), 5000);
+      });
+      try {
+        const result = await window.voidra.invoke({
+          command: "review-action",
+          id: "act-000000",
+          decision: "accepted",
+          revision: "0".repeat(64),
+          feedback: "",
+        });
+        return { ok: result.ok, refreshed: await refreshed };
+      } finally {
+        clearTimeout(timer);
+        unsubscribe();
+      }
+    });
+    expect(rejectedRefresh).toEqual({ ok: false, refreshed: true });
+    expect(await readFile(actionPath)).toEqual(beforeRejected);
     await page.getByRole("button", { name: "Reject", exact: true }).click();
     await page
       .getByLabel("Feedback", { exact: true })
