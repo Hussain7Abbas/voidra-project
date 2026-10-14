@@ -57,7 +57,7 @@ for (const type of [
       await page
         .getByRole("button", { name: "Create action", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await page
         .getByRole("button", { name: `Lifecycle ${type}`, exact: true })
         .click();

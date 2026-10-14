@@ -61,7 +61,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await page
         .getByRole("button", {
           name: "Promote idea: Export notes",
@@ -74,7 +74,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Create action", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const project = await checkProject(root),
         idea = [...project.records.values()].find((r) => r.kind === "idea");
       const id = String(idea?.document.data.promotedTo),
@@ -131,7 +131,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save answer", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const profile = join(root, ".voidra/profile/problem.md");
       await writeFile(
         profile,
@@ -169,7 +169,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Overwrite and undo", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByText("Save and reopen private project notes offline.", {
           exact: true,

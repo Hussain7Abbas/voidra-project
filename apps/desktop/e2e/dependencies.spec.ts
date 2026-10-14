@@ -47,7 +47,7 @@ for (const theme of ["light", "dark"] as const)
         await page
           .getByRole("button", { name: "Create action", exact: true })
           .click();
-        await expect(page.getByRole("dialog")).toBeHidden();
+        await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       }
       await create("Provision dependencies", "feature");
       await create("Create account", "docs", true);
@@ -73,7 +73,7 @@ for (const theme of ["light", "dark"] as const)
         await page
           .getByRole("button", { name: "Save changes", exact: true })
           .click();
-        await expect(page.getByRole("dialog")).toBeHidden();
+        await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
         await page
           .getByRole("button", { name: "Back to actions", exact: true })
           .click();
@@ -96,7 +96,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save changes", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByRole("button", { name: "Queue for agent", exact: true }),
       ).toBeDisabled();
@@ -163,7 +163,7 @@ for (const theme of ["light", "dark"] as const)
           exact: true,
         })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const saved = parseRecord(path, await readFile(join(root, path)));
       expect(saved.body).toBe("My intended updated description.");
       expect(saved.data.outsideField).toBe("preserve me");

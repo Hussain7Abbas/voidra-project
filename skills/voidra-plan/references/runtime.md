@@ -17,13 +17,13 @@ Write the report to `.voidra/local/report-<run-id>.json` (private, never committ
 {
   "summary": "What changed and any remaining issues.",
   "paths": ["README.md"],
-  "checks": [{"name": "Documentation reviewed", "passed": true}, {"name": "npx voidra@0.2.1 check", "passed": true}]
+  "checks": [{"name": "Documentation reviewed", "passed": true}, {"name": "npx voidra@0.2.2 check", "passed": true}]
 }
 ```
 
 Paths are exact project-relative changed files. Include additions/deletions; exclude `.git`, `.voidra/local` and other actions. Do not stage unrelated changes yourself. The helper adds the current action/run and, for Release, its proposal record. `finalize` owns the local tag and Released updates; human members retain their checklist stage semantics. Git hooks still run. A failed check cannot prepare Review. During preparation/finalization the app holds its last complete view until checkpoints finish.
 
-Validate with `npx --yes voidra@0.2.1 check .` after each completed helper operation. If it reports an unfinished operation, inspect the journal and use `npx --yes voidra@0.2.1 recover <op-id>` (or explicitly roll back) before run recovery. Never overwrite a conflicting outside edit automatically. Consumed records remain evidence after interruption and prevent undo.
+Validate with `npx --yes voidra@0.2.2 check .` after each completed helper operation. If it reports an unfinished operation, inspect the journal and use `npx --yes voidra@0.2.2 recover <op-id>` (or explicitly roll back) before run recovery. Never overwrite a conflicting outside edit automatically. Consumed records remain evidence after interruption and prevent undo.
 
 A heartbeat older than two minutes displays a warning; the owner identity still controls recovery. Keep heartbeat current while working. After Review rejection, queue/run again: read the saved feedback and create a follow-up commit with the same action trailer and a new run trailer.
 

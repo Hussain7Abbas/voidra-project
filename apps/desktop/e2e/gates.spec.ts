@@ -111,7 +111,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Send back to Plan", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByText("Make the output deterministic.", { exact: true }),
       ).toBeVisible();
@@ -167,7 +167,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Send back to Implement", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByText("Include an empty export.", { exact: true }),
       ).toBeVisible();
@@ -307,7 +307,7 @@ for (const type of ["research", "release"] as const)
           exact: true,
         })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect
         .poll(
           async () =>

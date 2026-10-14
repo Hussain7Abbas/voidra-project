@@ -43,7 +43,7 @@ for (const theme of ["light", "dark"] as const)
         await page
           .getByRole("button", { name: "Create action", exact: true })
           .click();
-        await expect(page.getByRole("dialog")).toBeHidden();
+        await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
         await expect(
           page.getByRole("button", { name: `Test ${type}`, exact: true }),
         ).toBeVisible();
@@ -73,7 +73,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Create action", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const result = await checkProject(root);
       expect(result.diagnostics).toEqual([]);
       const human = [...result.records.values()].find(

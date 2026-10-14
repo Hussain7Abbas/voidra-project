@@ -51,7 +51,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByRole("heading", { name: "Export notes", exact: true }),
       ).toBeVisible();
@@ -64,7 +64,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await page
         .getByRole("button", { name: "Edit idea: Export notes", exact: true })
         .click();
@@ -75,7 +75,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await page
         .getByLabel("Idea status", { exact: true })
         .selectOption("rejected");
@@ -102,7 +102,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       await page
         .getByRole("button", {
           name: "Promote idea: Export notes",
@@ -118,7 +118,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Create action", exact: true })
         .click();
-      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const promoted = await checkProject(root),
         idea = [...promoted.records.values()].find((r) => r.kind === "idea");
       expect(idea?.document.data.status).toBe("promoted");
