@@ -2,7 +2,7 @@
 
 > **Milestone:** M4 (completes it) · **Needs:** P10–P16 · **Status:** see [main.md](main.md)
 
-P17 is blocked on actual final Claude Code coverage (the user reports the subscription ended) and the physical human VoiceOver pass. Independent candidate/Codex checks are complete; publication and the final downloaded-v1 DMG check follow only after these gates. See [evidence](../docs/verification/p17.md) and the [prepared checklist](../docs/verification/p17-voiceover.md).
+P17 is blocked only on the physical human VoiceOver pass. Claude access was verified on 2026-10-15 and the complete final candidate matrix now passes audited checks for both agents. Independent candidate/Codex checks are complete; publication and the final downloaded-v1 DMG check follow only after these gates. See [evidence](../docs/verification/p17.md) and the [prepared checklist](../docs/verification/p17-voiceover.md).
 
 ## Outcome
 
