@@ -1,0 +1,13 @@
+---
+{
+  id: act-9es7aq,
+  type: docs,
+  title: Prepare the v1 candidate and user documentation,
+  stage: implement,
+  status: ready,
+  doneBy: agent,
+  createdBy: Agent delegated decision under D24,
+  createdAt: 2026-10-14T15:15:46.921Z
+}
+---
+P17 verification preparation under D26: align app/library/reader/skills to 1.0.0 using the existing alignVersions helper, rebuild before generating references, and pack the genuine candidate for temporary checks. Complete the source-linked user guide, indexes, current CLI examples, development instructions and changelog. Preserve independent format/template versions, confirmed project values and historical evidence. No tag, publication, remote or account changes; v1 is still pending until all P17 criteria including actual Claude and human VoiceOver evidence are resolved. Verify generated freshness, package/skill alignment, full quality, desktop/accessibility, packaged startup and documentation links.

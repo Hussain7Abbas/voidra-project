@@ -20,7 +20,8 @@
           acceptance.md: 8b4d6d669dc9159c03757b958156dfcd39cc4bc0cd97505d89d339c71c158795
         }
     },
-  approvalHistory: []
+  approvalHistory: [],
+  commits: [ e65466a8b3e621311366a46a01a5e79c1269c2e1 ]
 }
 ---
 Reproduction: genuine current voidra 0.2.2 version reports 0.2.2, but built --help reports Voidra 0.1.0. src/cli.ts hardcodes the header while version uses PACKAGE_VERSION. Repair the existing CLI contract before v1 without changing commands, usage or exit behavior.
