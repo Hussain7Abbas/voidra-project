@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import {
   app,
@@ -36,6 +37,7 @@ import {
   resolveAsset,
 } from "./security.ts";
 import { ProjectService } from "./service.ts";
+import { SkillInstaller } from "./skill-installer.ts";
 import {
   AppStore,
   canonicalFolder,
@@ -97,6 +99,12 @@ const broadcast = (): void => {
   for (const id of registry.ids()) notify(id, { type: "changed" });
 };
 const store = new AppStore(join(app.getPath("userData"), "settings.json"));
+const skills = new SkillInstaller(
+  join(app.getAppPath(), "dist/skills"),
+  !app.isPackaged && process.env.VOIDRA_TEST_SKILLS_HOME
+    ? process.env.VOIDRA_TEST_SKILLS_HOME
+    : homedir(),
+);
 const aiSettings = new AiSettings(
   join(app.getPath("userData"), "ai-settings.json"),
   {
@@ -322,6 +330,7 @@ async function start(): Promise<void> {
             ok: true,
             data: {
               kind: "snapshot",
+              skillsOffer: !(await store.read()).skillsOfferSeen,
               theme: (await store.read()).theme,
               project: projects.get(window.id) ?? null,
               recents: await store.list(),
@@ -331,6 +340,38 @@ async function start(): Promise<void> {
                 .catch(() => ({ configured: false, model: null })),
             },
           };
+        } else if (request.command === "skills-status") {
+          const service = services.get(window.id);
+          const format = service
+            ? (await service.workspace({ command: "workspace" })).format
+            : null;
+          response = {
+            ok: true,
+            data: {
+              kind: "skills-status",
+              skills: await skills.status(format ?? undefined),
+            },
+          };
+        } else if (request.command === "skills-dismiss-offer") {
+          await store.dismissSkillsOffer();
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "skills-preview") {
+          response = {
+            ok: true,
+            data: {
+              kind: "skills-preview",
+              preview: await skills.preview(
+                request.agent,
+                request.name,
+                request.operation,
+              ),
+            },
+          };
+        } else if (request.command === "skills-apply") {
+          await skills.apply(request, request.confirmed);
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "ai-settings") {
           response = {
             ok: true,

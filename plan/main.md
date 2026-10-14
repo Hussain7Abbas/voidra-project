@@ -1,21 +1,22 @@
 # Voidra Project — implementation plan
 
-> **Status:** implementation started on 2026-10-12. P00–P12 and P16 are Done; P13 is In progress. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
+> **Status:** implementation started on 2026-10-12. P00–P14 and P16 are Done; P15 is next. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
 
 ## Session hand-off — 2026-10-14
 
-Continue P13, then P14/P15/P17 under D24. P00–P12 and P16 are Done; P13 is In progress; P14/P15/P17 remain Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
+Continue P15/P17 under D24. P00–P14 and P16 are Done; P15/P17 remain Not started. Do not repeat generic phase permission questions. Resolve delegated questions/reviews from the approved vision and record agent decisions honestly; account access and physical checks still need actual evidence.
 
 P09 reached M2 and passes quality, 44 desktop workflows, packaging and packaged startup. P10's corrected implementation `5965420` passes [CI](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38457428517): all quality/coverage/freshness checks, the complete desktop/accessibility suite, packaging and packaged SQLite startup. [P10 evidence](../docs/verification/p10.md) records exact replay, durable consumption, overwrite confirmations, routing coverage, onboarding undo/reinitialization and native menu behavior. Local focused checks pass fourteen helper tests and five desktop scenarios.
 
 - P11 is Done. Implementation `4182fb6` passes [CI](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38470115253): 322 quality tests in 64 files, all 51 desktop workflows/accessibility, build/package and packaged startup. Matching full local checks pass. [P11 evidence](../docs/verification/p11.md) records decision/assumption projection, safe read-only docs/glossary, revisits and ADR goldens.
 - P12 is Done. Source 6faad01 passes [CI 38489099006](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38489099006): 355 quality tests/72 files, 57 desktop workflows, build/package/startup. Release and Sync pass both authenticated agents; details are in [P12 evidence](../docs/verification/p12.md). P16's 15 source-linked v2 designs and delegated review pass 424 documentation links and the full quality suite. No v2 code is implemented.
-- P13 is In progress. Encrypted asynchronous key settings, bounded streaming OpenRouter client, exact context previews, public planning-only context and all five editable suggestion features are implemented. Ten core tests, a native five-feature/privacy bridge check and five focused AI workflows (including empty-project onboarding and rate errors) pass. The full quality suite passes 366 tests across 77 files and the complete desktop suite passes 61 cases; unsigned arm64 packaging and startup pass; complete-source CI closure remains. See [P13 evidence](../docs/verification/p13.md). No real OpenRouter account or production Keychain verification is claimed; tests use local HTTP and the mock-Keychain switch.
+- P13 is Done. Source `3dba357` passes [CI 38500090522](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38500090522): quality, all desktop/accessibility workflows, build/package/startup. Local checks pass 366 quality tests, 61 whole desktop cases and five focused AI flows including onboarding/rate errors. [P13 evidence](../docs/verification/p13.md) records corrected hosted waits and all five editable suggestion/privacy boundaries. No real OpenRouter account or production Keychain verification is claimed.
+- P14 is Done; M3 is reached. All six stories pass local exit checks: 373 tests/79 files, 64 whole desktop workflows, both corrected installation themes, fresh arm64 packaging/startup and actual asar installation of all six skills for both agents. The archive-copy bug is fixed and the source snapshot is being verified by CI; no remote result is claimed yet. Genuine local-remote publication tests, a public-repository dry run and real pinned CLI project installation pass. Public release sync remains P17 after matching library publication. See [P14 evidence](../docs/verification/p14.md).
 - Keep runtime inputs stable during checks. Native fixture bundles use inline maps and an explicit ignored coverage-input glob; production gates remain unchanged. Their scripts are retained until reporting, then cleared by the next engine test. Idle-sleep prevention cannot prevent lid-close sleep: macOS logs confirm long interruptions that invalidate local timing checks. CI provided uninterrupted whole-suite evidence. Hosted macOS runner capacity failures are distinct from code failures.
 - This repository's profile remains nine blocks/17 inferred answers from validated Codex default intake. `idea-0g353s` tracks open-time variance; `act-jxg00v` tracks the non-Git Bootstrap/repository-root follow-up. Neither is claimed implemented. Root offline CLI links workspace 0.2.0; public npm remains 0.1.0 until P15 under D25. Real-agent fixtures must install a genuine freshly packed matching candidate.
 - Preserve exact approval hashes, durable consumption/ownership, selected Git recovery and private-file exclusions. Check the remaining standalone non-Git Bootstrap/subfolder boundary before release (P17 follow-up).
-- Phase commits/pushes use Hussain7Abbas's existing authentication without changing the active account. P17 still needs real human VoiceOver evidence. P15 may need one npm account/website step; D24 does not authorize invented results.
+- Phase commits/pushes use Hussain7Abbas's existing authentication without changing the active account. P17 still needs real human VoiceOver evidence. P15 currently needs npm login renewal (whoami returns E401). Compatible npm 11.21.0 offers a trust CLI, so account confirmation may replace the website configuration step; D24 does not authorize invented results.
 
 ## Sources of truth
 
@@ -55,8 +56,8 @@ Status values: **Not started**, **In progress**, **Blocked** (with the reason), 
 | P10 | [Undo and redo](phase-10-undo-redo.md) | ⌘Z and ⇧⌘Z for every app edit | P07 | M3 | Done (2026-10-13) | [Evidence](../docs/verification/p10.md) |
 | P11 | [Decisions, assumptions and glossary](phase-11-decisions-assumptions-and-glossary.md) | One decision index, glossary view, ADR rules | P08 | M3 | Done (2026-10-14) | [P11](../docs/verification/p11.md) |
 | P12 | [Releases and `voidra-sync`](phase-12-releases-and-sync.md) | Releases from done actions; catching up with outside work | P09 | M3 | Done (2026-10-14) | [P12](../docs/verification/p12.md) |
-| P13 | [AI in the app](phase-13-ai-in-the-app.md) | Optional OpenRouter features | P04, P06, P12 | M3 | In progress | [P13](../docs/verification/p13.md) |
-| P14 | [Skills distribution](phase-14-skills-distribution.md) | App installs and updates skills; releases sync `voidra-skills` | P08, P12 | M3 | Not started | — |
+| P13 | [AI in the app](phase-13-ai-in-the-app.md) | Optional OpenRouter features | P04, P06, P12 | M3 | Done (2026-10-14) | [P13](../docs/verification/p13.md) |
+| P14 | [Skills distribution](phase-14-skills-distribution.md) | App installs and updates skills; releases sync `voidra-skills` | P08, P12 | M3 | Done (2026-10-14) | [P14](../docs/verification/p14.md) |
 | P15 | [Packaging and updates](phase-15-packaging-and-updates.md) | DMG on GitHub Releases, update notices, npm publishing | P14 | M4 | Not started | — |
 | P16 | [v2 architecture documents](phase-16-v2-architecture-docs.md) | One design document per v2 item | P09 | M4 | Done (2026-10-14) | [P16](../docs/verification/p16.md) |
 | P17 | [v1 release](phase-17-v1-release.md) | v1.0.0 shipped with recorded evidence | P10–P16 | M4 | Not started | — |
@@ -69,7 +70,7 @@ Phases whose needs are met can run in parallel. P16 is documentation only and ca
 | --- | --- | --- |
 | **M1 — Tracer bullet** | P00–P03 are Done | Create a docs action in the app, run `/voidra-go` in Claude Code or `$voidra-go` in Codex, watch the result appear and accept it. |
 | **M2 — Core loop** | P04–P09 are Done; reached 2026-10-13 | Use Voidra for real work: profile, backlog, every action type, question rounds, plans, reviews, commits and teams. **Dogfooding starts:** Voidra Project gets its own `.voidra/` and tracks its new ideas and bugs there. This plan keeps tracking the remaining phases. |
-| **M3 — Feature-complete** | P10–P14 are Done | Everything in the VISION.md v1 scope works. |
+| **M3 — Feature-complete** | Reached 2026-10-14; P10–P14 are Done | Core v1 features work; release distribution follows in M4. |
 | **M4 — Released** | P15–P17 are Done | v1.0.0 is on GitHub Releases, `voidra` is on npm, and the skills are on skills.sh. |
 
 ## Decisions
@@ -118,6 +119,7 @@ voidra-project/
 ├── packages/voidra/     npm package "voidra": .voidra format, lifecycles, validator, CLI
 ├── skills/              voidra-init, voidra-go, voidra-plan, voidra-sync, voidra-release, voidra-architect-general
 ├── templates/general/   the general template's profile blocks, questions and lifecycle overrides
+├── tools/skills-distribution/ checked release copies and isolated publishing previews
 ├── tools/fake-agent/    a scripted stand-in for /voidra-go in end-to-end tests
 ├── fixtures/            sample projects, valid and broken, shared by every test suite
 ├── docs/                intro.md, format/, architecture/, adr/, verification/, compatibility.md

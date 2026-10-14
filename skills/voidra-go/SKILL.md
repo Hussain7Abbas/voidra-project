@@ -1,6 +1,10 @@
 ---
 name: voidra-go
 description: Run queued Voidra actions through Discovery, planning, implementation and verification in a local Git repository. Leave questions, exact plans, Research findings or committed results for human decisions.
+license: AGPL-3.0-or-later
+metadata:
+  version: "0.2.0"
+  format-version: "1"
 ---
 
 Read the repository instructions, project profile, glossary, action, earlier runs and rejection feedback. Use the [runtime procedure](references/runtime.md) and [format reference](references/format.md). This skill works without the app.

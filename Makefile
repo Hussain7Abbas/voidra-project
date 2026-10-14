@@ -4,12 +4,15 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 .DEFAULT_GOAL := help
+DRY_RUN ?= 0
+SKILLS_REPO ?=
+export DRY_RUN SKILLS_REPO
 
 .PHONY: help \
         install setup \
         build dev native e2e package-dir smoke-packaged \
         lint format typecheck deprecations check clean \
-        test test-watch gen gen-check skills-link
+        test test-watch gen gen-check skills-link skills-sync
 
 help: # Show this help
 	@awk 'BEGIN {FS = ": *#+ *"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+( +[a-zA-Z0-9_-]+)*: *#/ { gsub(/ +/, ", ", $$1); printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -75,3 +78,6 @@ smoke-packaged: # Start the packaged app and verify native SQLite
 
 skills-link: # Link development skills in this project or PROJECT folder
 	@cd "$(ROOT)" && node tools/run-engine/scripts/link.ts "$(if $(PROJECT),$(PROJECT),$(ROOT))"
+
+skills-sync: # Validate and publish release skill copies (DRY_RUN=1 previews, SKILLS_REPO selects a clone)
+	@cd "$(ROOT)" && node tools/skills-distribution/scripts/sync.ts

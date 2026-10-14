@@ -5,6 +5,7 @@ import {
   aiReplySchemas,
   aiRequestSchemas,
 } from "./ai.ts";
+import { skillReplySchemas, skillRequestSchemas } from "./skills.ts";
 export const actionTypeSchema = z.enum([
   "feature",
   "bug",
@@ -177,6 +178,7 @@ export const gitHistorySchema = z.strictObject({
   notice: z.string().nullable(),
 });
 export const workspaceSchema = z.strictObject({
+  format: z.number().int().nullable().default(null),
   editing: z.strictObject({
     undo: historyEntrySchema,
     redo: historyEntrySchema,
@@ -639,6 +641,7 @@ export const workspaceEdits = {
   "create-action": "Create action",
 } satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  ...skillRequestSchemas,
   ...aiRequestSchemas,
   ...knowledgeRequestSchema.options,
   z.strictObject({
@@ -694,6 +697,7 @@ export function isWorkspaceRequest(
   return workspaceRequestSchema.safeParse(input).success;
 }
 export const snapshotSchema = z.strictObject({
+  skillsOffer: z.boolean().default(true),
   kind: z.literal("snapshot"),
   theme: themeSchema,
   project: projectSchema.nullable(),
@@ -722,6 +726,7 @@ export const responseSchema = z.discriminatedUnion("ok", [
     ok: z.literal(true),
     data: z.discriminatedUnion("kind", [
       ...aiReplySchemas,
+      ...skillReplySchemas,
       ...knowledgeDataSchema.options,
       snapshotSchema,
       z.strictObject({

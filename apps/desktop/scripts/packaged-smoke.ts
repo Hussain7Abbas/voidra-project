@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { _electron } from "@playwright/test";
 import { parseRecord, serializeRecord } from "voidra";
 import { processIdentity } from "../../../tools/run-engine/src/lock.ts";
+import { verifyPackagedSkills } from "./packaged-skills.ts";
 
 const root = await mkdtemp(join(tmpdir(), "voidra-packaged-"));
 const project = join(root, "project");
@@ -104,6 +105,15 @@ try {
     arch: process.arch,
   }));
   process.stdout.write(`${JSON.stringify(runtime)}\n`);
+  await verifyPackagedSkills(
+    resolve(
+      "release/mac-arm64/Voidra Project.app/Contents/MacOS/Voidra Project",
+    ),
+    resolve(
+      "release/mac-arm64/Voidra Project.app/Contents/Resources/app.asar/dist/skills",
+    ),
+    root,
+  );
   await page.screenshot({
     path: resolve("../../.cache/screenshots/p02-packaged.png"),
   });

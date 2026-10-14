@@ -1,6 +1,10 @@
 ---
 name: voidra-plan
 description: Run only queued Voidra Discovery and planning stages, proposing questions, plans, slices or Research findings. Preserve source files, repository instructions, HEAD and tags; stop before implementation.
+license: AGPL-3.0-or-later
+metadata:
+  version: "0.2.0"
+  format-version: "1"
 ---
 
 Read the repository instructions, profile, action and feedback. Use [Discovery](references/discovery.md), [Plan](references/plan.md), [Research](references/research.md), [runtime](references/runtime.md) and [format](references/format.md).

@@ -14,6 +14,11 @@ it("persists theme and canonical recent folders; reports moved folders", async (
     await mkdir(second);
     const store = new AppStore(join(root, "settings.json"));
     expect((await store.read()).theme).toBe("system");
+    expect((await store.read()).skillsOfferSeen).toBe(false);
+    await store.dismissSkillsOffer();
+    expect(
+      (await new AppStore(join(root, "settings.json")).read()).skillsOfferSeen,
+    ).toBe(true);
     await store.setTheme("dark");
     await store.remember(first);
     await store.remember(second);

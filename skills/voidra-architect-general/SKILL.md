@@ -1,6 +1,10 @@
 ---
 name: voidra-architect-general
 description: Run Discovery and propose plans or thin slices for Voidra actions using the general project profile. Stops for questions or plan approval; writes planning records and settled glossary terms without implementing or committing.
+license: AGPL-3.0-or-later
+metadata:
+  version: "0.2.0"
+  format-version: "1"
 ---
 
 Read the repository instructions, `.voidra/README.md`, the general profile, target action and its questions/feedback. Use the [planning procedure](references/planning.md) and the generated [format and lifecycle reference](references/format.md). This skill works without the app. If no action ID was provided, select the first unblocked agent action in the personal queue; never invent user answers or select a human action.

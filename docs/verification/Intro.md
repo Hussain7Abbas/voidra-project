@@ -33,3 +33,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P16: V2 designs](p16.md) — all 15 future items, source-linked proposals and delegated review; no v2 implementation.
 
 - [P13: Optional AI](p13.md) — settings, transport and privacy seams; implementation in progress.
+
+- [P14 — Skills distribution](p14.md).

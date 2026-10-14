@@ -27,7 +27,7 @@ Sources: [Electron releases](https://releases.electronjs.org/), [TypeScript comp
 
 ## Testing seams and coverage
 
-The workspace members are `tools/standards`, `tools/run-engine`, `tools/fake-agent`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
+The workspace members are `tools/standards`, `tools/run-engine`, `tools/fake-agent`, `tools/skills-distribution`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
 
 | Scope | Minimum line coverage |
 | --- | --- |
@@ -76,3 +76,7 @@ The root development dependency links the current workspace `voidra` CLI. After 
 Undo engine tests compile native fixture scripts with the same inline source-map convention as the desktop and run them with Electron's Node runtime. The coverage input includes only `.cache/undo-native-*/scenario.cjs` before remapping; production coverage gates are unchanged. Keep those ignored bundles until coverage reporting finishes; the next engine test run clears old bundles. Direct stripped-TypeScript subprocess coverage remains excluded.
 
 CI allows 30 minutes for the expanded real-Git/native/Electron suite; the P12/P16 closure used over 18 minutes. Functional waits allow five seconds for review refresh and ten seconds for completed Release replay. The 105-write history-bound scenario alone allows 60 seconds for its native subprocess and 75 seconds for its test; other native subprocess limits remain 25 seconds. Assertions and coverage gates are unchanged. Authenticated agent checks still run only locally.
+
+## Skill distribution
+
+Settings installs offline bundled copies for Claude Code and Codex, protects hand edits with exact diff confirmation, and warns on written-format mismatches. `make skills-sync DRY_RUN=1` validates and previews an isolated public distribution clone; `SKILLS_REPO=/absolute/clone` selects a clean existing checkout. The real command publishes each validated skill through voidra-skills’ own rules, then shared templates/catalog updates. Use it during P17 releases after the matching library is published. See [architecture](architecture/skills-distribution.md) and [P14 evidence](verification/p14.md).

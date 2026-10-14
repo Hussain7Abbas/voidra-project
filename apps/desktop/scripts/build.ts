@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { copyFile, cp } from "node:fs/promises";
 import { build } from "esbuild";
+import { prepareSkillBundle } from "../src/main/skill-installer.ts";
 
 execFileSync(process.execPath, ["../../tools/run-engine/scripts/native.ts"], {
   stdio: "inherit",
@@ -40,3 +41,4 @@ await copyFile(
   "dist/process-info",
 );
 await cp("../../templates", "dist/templates", { recursive: true });
+await prepareSkillBundle("../../skills", "dist/skills");

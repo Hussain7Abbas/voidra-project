@@ -27,3 +27,5 @@
 - [Releases and outside work](releases-sync.md): Release selection/history, exact proposals, standalone commit/tag recovery and protected outside-work Sync.
 
 - [Optional AI](ai.md): encrypted settings, public-context privacy, streaming and editable suggestions.
+
+- [Skill installation and release copies](skills-distribution.md).

@@ -131,6 +131,15 @@ importers:
         specifier: 0.28.2
         version: 0.28.2
 
+  tools/skills-distribution:
+    dependencies:
+      voidra:
+        specifier: workspace:*
+        version: link:../../packages/voidra
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+
   tools/standards: {}
 
 packages:

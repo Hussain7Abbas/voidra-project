@@ -16,3 +16,5 @@ Keep the sibling CLAUDE.md containing only `@AGENTS.md` and a trailing newline.
 - voidra-release creates/queues local Release work; Go plans and stops at Review before committing/tagging. Plan mode never finalizes. Runtime owns commit/tag recovery and completed-member updates. Keep the Release guide self-contained in Go/Plan and generated intake scripts/references current.
 
 - `voidra-sync` reads real outside commits and writes only source-linked profile/proposals plus its Sync record. It never replaces confirmed answers, queues proposals or writes source/Git/glossary/instructions. Ship its matching template copies and generated runtime/format/notices. Repeat and partial-write recovery must preserve proposal identities and refuse live owners/outside edits.
+
+- Every distributable Voidra skill declares metadata.version and metadata.format-version in SKILL.md and retains the full AGPL LICENSE. The app builds hash markers from complete payloads. Release copies remain owned here; make skills-sync prevalidates and uses the distribution repository’s own single-skill publishing rules.

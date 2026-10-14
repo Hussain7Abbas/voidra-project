@@ -19,6 +19,7 @@ const settingsSchema = z.looseObject({
   version: z.literal(1),
   theme: themeSchema,
   recents: z.array(recentSchema),
+  skillsOfferSeen: z.boolean().default(false),
 });
 type Settings = z.infer<typeof settingsSchema>;
 export function resolveTheme(
@@ -45,7 +46,12 @@ export class AppStore {
       raw = await readFile(this.file, "utf8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT")
-        return { version: 1, theme: "system", recents: [] };
+        return {
+          version: 1,
+          theme: "system",
+          recents: [],
+          skillsOfferSeen: false,
+        };
       throw error;
     }
     try {
@@ -78,6 +84,11 @@ export class AppStore {
   setTheme(theme: ThemePreference): Promise<void> {
     return this.mutate((settings) => {
       settings.theme = themeSchema.parse(theme);
+    });
+  }
+  dismissSkillsOffer(): Promise<void> {
+    return this.mutate((settings) => {
+      settings.skillsOfferSeen = true;
     });
   }
   async remember(path: string): Promise<void> {

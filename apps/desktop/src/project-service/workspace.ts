@@ -893,6 +893,7 @@ export class ProjectWorkspace {
       };
     });
     return workspaceSchema.parse({
+      format: project.metadata?.format ?? null,
       editing: await this.history.state(),
       name: project.metadata?.project.name ?? basename(this.root),
       hasVoidra,

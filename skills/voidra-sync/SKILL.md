@@ -1,6 +1,10 @@
 ---
 name: voidra-sync
 description: Catch Voidra planning up with commits made outside its tracked actions. Infer source-linked profile updates, protect confirmed answers, propose follow-up ideas or actions, and record the examined Git revision without editing code or committing.
+license: AGPL-3.0-or-later
+metadata:
+  version: "0.2.0"
+  format-version: "1"
 ---
 
 Read repository instructions, `.voidra/` profile, backlog and actions. Run `node <skill-folder>/scripts/sync.mjs context --project <project-root>`. It lists actual commits without valid Voidra-Action trailers since the closest reachable sync revision. If there are none, report that planning is up to date and stop without writes.

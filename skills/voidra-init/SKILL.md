@@ -1,6 +1,10 @@
 ---
 name: voidra-init
 description: Bring an existing codebase into Voidra with a source-linked inferred profile, a glossary draft and instruction pointers. Use when code exists but .voidra does not. Creates no commits and changes no source code.
+license: AGPL-3.0-or-later
+metadata:
+  version: "0.2.0"
+  format-version: "1"
 ---
 
 Read the repository instructions and [intake procedure](references/intake.md). Use the bundled [general template](references/templates/general/template.yaml); `--template <id>` selects another bundled template. The [format reference](references/format.md) defines the output.

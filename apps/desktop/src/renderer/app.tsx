@@ -38,6 +38,7 @@ import {
   useWorkspace,
 } from "./project-profile.tsx";
 import { ProjectReleases } from "./project-releases.tsx";
+import { SkillSettingsPanel } from "./skill-settings.tsx";
 import { SyncSuggestion } from "./sync-suggestion.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
@@ -381,6 +382,33 @@ function Shell() {
           className="main-content"
           data-app-ready={Boolean(data)}
         >
+          {data?.skillsOffer && (
+            <section
+              aria-label="Coding agent setup"
+              className="service-notice mb-5"
+            >
+              <p>
+                Install Voidra’s bundled skills for Claude Code and Codex when
+                you are ready.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  onClick={() => {
+                    setSettings(true);
+                    void act({ command: "skills-dismiss-offer" });
+                  }}
+                >
+                  Review skill installation
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void act({ command: "skills-dismiss-offer" })}
+                >
+                  Dismiss skill setup
+                </Button>
+              </div>
+            </section>
+          )}
           {data?.serviceState && data?.serviceState !== "ready" && (
             <div
               className="service-notice"
@@ -451,6 +479,7 @@ function Shell() {
           </select>
         </Field>
         <AiSettingsPanel />
+        <SkillSettingsPanel />
       </Dialog>
       <ConfirmDialog
         open={remove !== null}

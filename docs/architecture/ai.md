@@ -2,7 +2,7 @@
 
 [Architecture index](Intro.md) · [Agent workflows](../agents.md)
 
-P13 is in progress. Main owns an asynchronous encrypted credential store and the bounded OpenRouter HTTP client. `AiSettings` writes only encrypted key bytes into the app data directory with mode 0600 and atomic replacement; public settings return configured/available/model, never the saved key. Startup checks metadata only. Keychain initialization waits for explicit AI settings or use, so missing/invalid AI settings do not disable manual planning. Removing/changing the key cancels active requests.
+P13 is complete. Main owns an asynchronous encrypted credential store and the bounded OpenRouter HTTP client. `AiSettings` writes only encrypted key bytes into the app data directory with mode 0600 and atomic replacement; public settings return configured/available/model, never the saved key. Startup checks metadata only. Keychain initialization waits for explicit AI settings or use, so missing/invalid AI settings do not disable manual planning. Removing/changing the key cancels active requests.
 
 The client uses authenticated `/models`, `/key` and streaming `/chat/completions`. It bounds responses, handles UTF-8/chunk/SSE framing and comments, requires completion, aborts cancellation/timeouts, and maps authentication/credit/rate/provider errors without forwarding raw server text. Requests cannot follow credential-bearing redirects. Model choice is explicit. The renderer neither stores the key nor performs network requests.
 
