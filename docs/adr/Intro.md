@@ -22,3 +22,5 @@ These records describe confirmed project decisions, not completed runtime featur
 - [Persistent undo history](2026-10-13-undo-history.md): bounded local snapshots and consumed-record protection.
 
 - [Bundled skill installation](2026-10-14-bundled-skill-installer.md): researched agent folders, offline exact payloads and protecting edits.
+
+- [Release versions and independent checkpoints](2026-10-14-release-versions.md).

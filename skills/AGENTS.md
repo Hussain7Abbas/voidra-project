@@ -18,3 +18,5 @@ Keep the sibling CLAUDE.md containing only `@AGENTS.md` and a trailing newline.
 - `voidra-sync` reads real outside commits and writes only source-linked profile/proposals plus its Sync record. It never replaces confirmed answers, queues proposals or writes source/Git/glossary/instructions. Ship its matching template copies and generated runtime/format/notices. Repeat and partial-write recovery must preserve proposal identities and refuse live owners/outside edits.
 
 - Every distributable Voidra skill declares metadata.version and metadata.format-version in SKILL.md and retains the full AGPL LICENSE. The app builds hash markers from complete payloads. Release copies remain owned here; make skills-sync prevalidates and uses the distribution repository’s own single-skill publishing rules.
+
+- Validation commands pin the exact declared library version. The release alignment helper updates skill/ref commands; intake/app-created planning READMEs derive the current package version. Regenerate standalone assets after changing that guidance.

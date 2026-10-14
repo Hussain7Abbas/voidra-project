@@ -308,7 +308,7 @@ export async function initializeProject(
     ],
     [
       ".voidra/README.md",
-      "# Project planning\n\nRead the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run `npx voidra@0 check` after writing planning records.\n",
+      `# Project planning\n\nRead the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run \`npx voidra@${PACKAGE_VERSION} check\` after writing planning records.\n`,
     ],
     [".voidra/.gitignore", "local/\n"],
   ]);

@@ -29,3 +29,5 @@
 - [Optional AI](ai.md): encrypted settings, public-context privacy, streaming and editable suggestions.
 
 - [Skill installation and release copies](skills-distribution.md).
+
+- [Packaging and publication recovery](publication.md).

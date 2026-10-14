@@ -6,6 +6,7 @@ import {
   aiRequestSchemas,
 } from "./ai.ts";
 import { skillReplySchemas, skillRequestSchemas } from "./skills.ts";
+import { updateNoticeSchema, updateRequestSchemas } from "./updates.ts";
 export const actionTypeSchema = z.enum([
   "feature",
   "bug",
@@ -641,6 +642,7 @@ export const workspaceEdits = {
   "create-action": "Create action",
 } satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  ...updateRequestSchemas,
   ...skillRequestSchemas,
   ...aiRequestSchemas,
   ...knowledgeRequestSchema.options,
@@ -697,6 +699,9 @@ export function isWorkspaceRequest(
   return workspaceRequestSchema.safeParse(input).success;
 }
 export const snapshotSchema = z.strictObject({
+  appVersion: z.string().default("0.0.0"),
+  updatesEnabled: z.boolean().default(true),
+  update: updateNoticeSchema.nullable().default(null),
   skillsOffer: z.boolean().default(true),
   kind: z.literal("snapshot"),
   theme: themeSchema,

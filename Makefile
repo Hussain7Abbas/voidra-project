@@ -6,13 +6,14 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 .DEFAULT_GOAL := help
 DRY_RUN ?= 0
 SKILLS_REPO ?=
-export DRY_RUN SKILLS_REPO
+VERSION ?=
+export DRY_RUN SKILLS_REPO VERSION
 
 .PHONY: help \
         install setup \
-        build dev native e2e package-dir smoke-packaged \
+        build dev native e2e package-dir package-dmg smoke-packaged \
         lint format typecheck deprecations check clean \
-        test test-watch gen gen-check skills-link skills-sync
+        test test-watch gen gen-check skills-link skills-sync release release-finish
 
 help: # Show this help
 	@awk 'BEGIN {FS = ": *#+ *"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+( +[a-zA-Z0-9_-]+)*: *#/ { gsub(/ +/, ", ", $$1); printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -73,6 +74,9 @@ e2e: # Run Electron accessibility and workflow tests
 package-dir: # Package the unsigned arm64 app directory
 	@cd "$(ROOT)" && pnpm package:dir
 
+package-dmg: # Build the unsigned Apple Silicon DMG without publishing
+	@cd "$(ROOT)" && pnpm --filter voidra-project package:dmg
+
 smoke-packaged: # Start the packaged app and verify native SQLite
 	@cd "$(ROOT)" && pnpm smoke:packaged
 
@@ -81,3 +85,10 @@ skills-link: # Link development skills in this project or PROJECT folder
 
 skills-sync: # Validate and publish release skill copies (DRY_RUN=1 previews, SKILLS_REPO selects a clone)
 	@cd "$(ROOT)" && node tools/skills-distribution/scripts/sync.ts
+
+# ── Deploy ───────────────────────────────────────────────────────────
+release: # Align, check, tag and publish a release (VERSION=X.Y.Z)
+	@cd "$(ROOT)" && node tools/release-engine/scripts/prepare-tag.ts
+
+release-finish: # Verify and finish remaining publication checkpoints for an existing VERSION
+	@cd "$(ROOT)" && node tools/release-engine/scripts/finish.ts

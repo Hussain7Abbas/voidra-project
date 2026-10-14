@@ -96,6 +96,9 @@ importers:
       rehype-sanitize:
         specifier: 6.0.0
         version: 6.0.0
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@24.19.2)
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -117,6 +120,15 @@ importers:
       voidra:
         specifier: workspace:*
         version: link:../../packages/voidra
+
+  tools/release-engine:
+    dependencies:
+      voidra:
+        specifier: workspace:*
+        version: link:../../packages/voidra
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   tools/run-engine:
     dependencies:
@@ -2846,8 +2858,7 @@ snapshots:
 
   '@fontsource-variable/inter@5.3.0': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.5':
     optionalDependencies:
@@ -4773,7 +4784,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 24.19.2
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

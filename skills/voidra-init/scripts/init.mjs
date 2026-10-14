@@ -29136,7 +29136,10 @@ async function initializeProject(root, input4, options, writer) {
     ],
     [
       ".voidra/README.md",
-      "# Project planning\n\nRead the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run `npx voidra@0 check` after writing planning records.\n"
+      `# Project planning
+
+Read the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run \`npx voidra@${PACKAGE_VERSION} check\` after writing planning records.
+`
     ],
     [".voidra/.gitignore", "local/\n"]
   ]);
@@ -29281,7 +29284,12 @@ import {
   writeFile as writeFile2
 } from "node:fs/promises";
 import { dirname as dirname3, isAbsolute as isAbsolute2, join as join4, relative, resolve as resolve2 } from "node:path";
-var section = "\n<!-- Voidra planning -->\n## Voidra planning\n\nRead [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run `npx voidra@0 check` after planning writes.\n";
+var section = `
+<!-- Voidra planning -->
+## Voidra planning
+
+Read [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run \`npx voidra@${PACKAGE_VERSION} check\` after planning writes.
+`;
 async function readInstruction(root, name) {
   try {
     if ((await lstat4(join4(root, name))).isSymbolicLink())

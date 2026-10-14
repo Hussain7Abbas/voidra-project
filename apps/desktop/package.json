@@ -1,6 +1,6 @@
 {
   "name": "voidra-project",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Voidra Project desktop application",
   "type": "module",
@@ -11,9 +11,11 @@
     "build": "next build --webpack && node scripts/build.ts",
     "dev": "pnpm build && electron .",
     "native": "electron-builder install-app-deps",
-    "package:dir": "electron-builder --dir --mac --arm64",
+    "package:dir": "electron-builder --dir --mac --arm64 --publish never",
     "e2e": "playwright test",
-    "smoke:packaged": "node scripts/packaged-smoke.ts"
+    "smoke:packaged": "node scripts/packaged-smoke.ts",
+    "icon": "node scripts/icon.ts",
+    "package:dmg": "electron-builder --mac dmg --arm64 --publish never"
   },
   "dependencies": {
     "@voidra/run-engine": "workspace:*",
@@ -40,7 +42,8 @@
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
     "rehype-sanitize": "6.0.0",
-    "tailwindcss": "4.3.3"
+    "tailwindcss": "4.3.3",
+    "sharp": "0.35.5"
   },
   "build": {
     "appId": "dev.voidra.project",
@@ -69,8 +72,13 @@
           ]
         }
       ],
-      "identity": null
+      "identity": null,
+      "icon": "build/icon.icns"
     },
-    "npmRebuild": true
+    "npmRebuild": true,
+    "dmg": {
+      "sign": false,
+      "artifactName": "Voidra-Project-${version}-arm64.dmg"
+    }
   }
 }

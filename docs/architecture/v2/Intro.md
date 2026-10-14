@@ -2,7 +2,7 @@
 
 [Architecture index](../Intro.md) · [Documentation index](../../intro.md) · [Approved scope](../../../VISION.md#14-scope)
 
-These are future designs, reviewed by the implementing agent under delegated decision D24. No v2 feature, schema or migration is implemented. Their baseline is the built standalone run engine, grouped writer, typed desktop bridge, per-project utility/index and source-linked planning through P12. At that review, optional AI, production skill installation and release distribution were dependencies on P13–P15. P13 now supplies the implemented [optional AI boundary](../ai.md); the proposals still require completed installation/distribution phases before using those capabilities.
+These are future designs, reviewed by the implementing agent under delegated decision D24. No v2 feature, schema or migration is implemented. Their baseline is the built standalone run engine, grouped writer, typed desktop bridge, per-project utility/index and source-linked planning through P12. At that review, optional AI, production skill installation and release distribution were dependencies on P13–P15. P13 now supplies the implemented [optional AI boundary](../ai.md); P14 now supplies [installed copies and checked release sync](../skills-distribution.md). Release pipeline completion remains a P15 dependency; no v2 implementation is implied.
 
 | Vision item | Design | Phase story |
 | --- | --- | --- |

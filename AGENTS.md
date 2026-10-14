@@ -10,6 +10,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `templates/`: bundled, validated profile questions; follow its [local instructions](templates/AGENTS.md). The general 1.0.0 template has delegated P05 approval; see its review evidence.
 - `skills/`: executable skills and self-contained generated references; follow its [local instructions](skills/AGENTS.md).
 - `tools/run-engine/`: standalone run ownership, durable Git recovery, skill linking and artifact generation. Follow its [local instructions](tools/run-engine/AGENTS.md).
+- `tools/release-engine/`: version alignment, staged checksums, immutable publication recovery and OIDC provenance checks. Follow its [local instructions](tools/release-engine/AGENTS.md).
 - `tools/skills-distribution/`: checked release copies, isolated dry runs and the distribution repository’s own publishing rules. Follow its [local instructions](tools/skills-distribution/AGENTS.md).
 - `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
@@ -41,6 +42,7 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 | `make dev` | Build and open the desktop app |
 | `make native` | Rebuild native modules for Electron |
 | `make e2e` | Electron workflow and accessibility checks |
+| `make package-dmg` / `make release VERSION=X.Y.Z` | Build unsigned DMG / align, check, tag and publish with recovery |
 | `make package-dir` / `make smoke-packaged` | Package unsigned arm64 app / verify startup and SQLite |
 | `make clean` | Remove build, package, test and coverage output |
 

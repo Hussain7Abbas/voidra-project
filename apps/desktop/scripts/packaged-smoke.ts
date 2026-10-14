@@ -8,6 +8,9 @@ import { processIdentity } from "../../../tools/run-engine/src/lock.ts";
 import { verifyPackagedSkills } from "./packaged-skills.ts";
 
 const root = await mkdtemp(join(tmpdir(), "voidra-packaged-"));
+const appRoot =
+  process.env.VOIDRA_SMOKE_APP_PATH ??
+  resolve("release/mac-arm64/Voidra Project.app");
 const project = join(root, "project");
 await cp(resolve("../../fixtures/new-project/project"), project, {
   recursive: true,
@@ -66,9 +69,7 @@ const env = Object.fromEntries(
   ),
 );
 const application = await _electron.launch({
-  executablePath: resolve(
-    "release/mac-arm64/Voidra Project.app/Contents/MacOS/Voidra Project",
-  ),
+  executablePath: join(appRoot, "Contents/MacOS/Voidra Project"),
   args: [`--project=${project}`],
   env: { ...env, VOIDRA_DATA_DIR: root },
 });
@@ -106,12 +107,8 @@ try {
   }));
   process.stdout.write(`${JSON.stringify(runtime)}\n`);
   await verifyPackagedSkills(
-    resolve(
-      "release/mac-arm64/Voidra Project.app/Contents/MacOS/Voidra Project",
-    ),
-    resolve(
-      "release/mac-arm64/Voidra Project.app/Contents/Resources/app.asar/dist/skills",
-    ),
+    join(appRoot, "Contents/MacOS/Voidra Project"),
+    join(appRoot, "Contents/Resources/app.asar/dist/skills"),
     root,
   );
   await page.screenshot({

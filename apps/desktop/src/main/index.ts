@@ -9,6 +9,7 @@ import {
   ipcMain,
   Menu,
   type MenuItemConstructorOptions,
+  nativeImage,
   nativeTheme,
   protocol,
   safeStorage,
@@ -44,6 +45,7 @@ import {
   resolveTheme,
   WindowRegistry,
 } from "./state.ts";
+import { UpdateService } from "./updates.ts";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -99,6 +101,22 @@ const broadcast = (): void => {
   for (const id of registry.ids()) notify(id, { type: "changed" });
 };
 const store = new AppStore(join(app.getPath("userData"), "settings.json"));
+const updateEndpoint = !app.isPackaged
+  ? process.env.VOIDRA_TEST_RELEASES_URL
+  : undefined;
+if (
+  updateEndpoint &&
+  !["127.0.0.1", "localhost", "[::1]"].includes(
+    new URL(updateEndpoint).hostname,
+  )
+)
+  throw new Error("The test release endpoint must be local");
+const updates = new UpdateService(
+  app.getVersion(),
+  updateEndpoint ??
+    "https://api.github.com/repos/Hussain7Abbas/voidra-project/releases/latest",
+  broadcast,
+);
 const skills = new SkillInstaller(
   join(app.getAppPath(), "dist/skills"),
   !app.isPackaged && process.env.VOIDRA_TEST_SKILLS_HOME
@@ -330,6 +348,9 @@ async function start(): Promise<void> {
             ok: true,
             data: {
               kind: "snapshot",
+              appVersion: app.getVersion(),
+              updatesEnabled: (await store.read()).updatesEnabled,
+              update: updates.notice,
               skillsOffer: !(await store.read()).skillsOfferSeen,
               theme: (await store.read()).theme,
               project: projects.get(window.id) ?? null,
@@ -340,6 +361,19 @@ async function start(): Promise<void> {
                 .catch(() => ({ configured: false, model: null })),
             },
           };
+        } else if (request.command === "set-updates") {
+          await store.setUpdates(request.enabled);
+          if (app.isPackaged || updateEndpoint)
+            void updates.setEnabled(request.enabled);
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "open-update") {
+          if (!updates.notice || updates.notice.version !== request.version)
+            throw new Error(
+              "The displayed update changed; review the current notice.",
+            );
+          await shell.openExternal(updates.notice.url);
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "skills-status") {
           const service = services.get(window.id);
           const format = service
@@ -665,6 +699,7 @@ async function start(): Promise<void> {
   );
   let quitting = false;
   app.on("before-quit", (event) => {
+    updates.close();
     if (quitting) return;
     event.preventDefault();
     quitting = true;
@@ -674,6 +709,11 @@ async function start(): Promise<void> {
     ]).then(() => app.quit());
   });
   nativeTheme.on("updated", broadcast);
+  app.dock?.setIcon(
+    nativeImage.createFromPath(join(app.getAppPath(), "dist/icon.png")),
+  );
+  if (app.isPackaged || updateEndpoint)
+    void updates.setEnabled((await store.read()).updatesEnabled);
   await createWindow(
     initialFolder ? await canonicalFolder(initialFolder) : null,
   );

@@ -41,4 +41,5 @@ await copyFile(
   "dist/process-info",
 );
 await cp("../../templates", "dist/templates", { recursive: true });
+await copyFile("build/icon.png", "dist/icon.png");
 await prepareSkillBundle("../../skills", "dist/skills");

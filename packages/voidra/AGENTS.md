@@ -9,6 +9,7 @@ Extends [root instructions](../../AGENTS.md). This package is the shared contrac
 - `scripts/generate.ts` produces schemas and shared references. Regenerate with `pnpm gen` whenever the contract changes. `pnpm gen:check` rejects missing, stale and orphan output.
 - `scripts/fixtures.ts` builds the committed catalog and generates a separate large project. `pnpm fixtures` updates snapshots deliberately; do not regenerate expectations to hide a failure. `new-project` is generated through actual approved general-template initialization, with IDs/times normalized for reproducibility. Broken fixtures retain their isolated validation cases.
 - Package publication requires passing checks, built-artifact smoke tests and CI. Keep AGPL license, repository metadata and bin entry in the npm archive. npm account access is required; never print credentials.
+- Generated planning READMEs pin validation to PACKAGE_VERSION. Public release publication belongs to the exact-tag OIDC workflow in tools/release-engine; ordinary CI and package APIs never publish.
 
 Update the corresponding [format page](../../docs/format/Intro.md), API docs and generated references with every schema/API change. Keep sibling CLAUDE.md as `@AGENTS.md` plus newline.
 

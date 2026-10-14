@@ -21,3 +21,5 @@ P00 supplies repository tooling and policies. P01 publishes the format package a
 - [Agent workflows and observed differences](agents.md): shared standalone skills, sandboxed checks and actual CLI behavior.
 
 - [V2 design index](architecture/v2/Intro.md): all 15 approved future-scope items, grounded in built v1 code and evidence.
+
+- [App icon review](icon-review.md): original directions and delegated P15 acceptance.

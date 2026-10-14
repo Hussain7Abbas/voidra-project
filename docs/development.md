@@ -27,7 +27,7 @@ Sources: [Electron releases](https://releases.electronjs.org/), [TypeScript comp
 
 ## Testing seams and coverage
 
-The workspace members are `tools/standards`, `tools/run-engine`, `tools/fake-agent`, `tools/skills-distribution`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
+The workspace members are `tools/standards`, `tools/run-engine`, `tools/fake-agent`, `tools/skills-distribution`, `tools/release-engine`, `packages/voidra` and `apps/desktop`. The standards package has scanner parser/filesystem/CLI tests and temporary-project tests proving coverage enforcement. The temporary projects are deleted after each test and are never application or format-package placeholders.
 
 | Scope | Minimum line coverage |
 | --- | --- |
@@ -55,7 +55,7 @@ The macOS workflow installs the pinned toolchain with a frozen lockfile and runs
 
 `pnpm fixtures` deliberately rebuilds the committed catalog and its expected diagnostics. Review changed expectations. The `empty-folder` catalog entry has no project files; its test creates a truly empty directory. `new-project` contains minimal valid format data until P05 creates the real general-template output. `pnpm fixture:large /absolute/temporary/output` generates 1,000 actions; keep the output outside the repository. Local records in fixtures are explicitly tracked despite each fixture's `local/` ignore rule.
 
-The format package uses zod 4.6.7 and yaml 2.9.1. See the [API contract](format/api.md), [CLI](format/cli.md) and [P01 evidence](verification/p01.md). Package publication is an authenticated local operation after checks and CI, never an automatic CI side effect.
+The format package uses zod 4.6.7 and yaml 2.9.1. See the [API contract](format/api.md), [CLI](format/cli.md) and [P01 evidence](verification/p01.md). The initial 0.1.0 publication used local authentication. Release publication now uses the explicitly dispatched exact-tag OIDC workflow after checked artifact staging; ordinary CI never publishes.
 
 ## Desktop development
 
@@ -80,3 +80,7 @@ CI allows 30 minutes for the expanded real-Git/native/Electron suite; the P12/P1
 ## Skill distribution
 
 Settings installs offline bundled copies for Claude Code and Codex, protects hand edits with exact diff confirmation, and warns on written-format mismatches. `make skills-sync DRY_RUN=1` validates and previews an isolated public distribution clone; `SKILLS_REPO=/absolute/clone` selects a clean existing checkout. The real command publishes each validated skill through voidra-skills’ own rules, then shared templates/catalog updates. Use it during P17 releases after the matching library is published. See [architecture](architecture/skills-distribution.md) and [P14 evidence](verification/p14.md).
+
+## Release preparation
+
+`pnpm --filter voidra-project icon` regenerates PNG/ICNS from the reviewed SVG. `make package-dmg` builds without publishing; `node apps/desktop/scripts/dmg-smoke.ts` is run from the desktop workspace with the DMG path. `make release VERSION=X.Y.Z` requires clean committed source and matching notes, aligns app/library/reader/skill versions and exact check commands, regenerates/checks, tags/pushes and waits for separate GitHub/npm/skills checkpoints. `make release-finish VERSION=X.Y.Z` resumes verification/sync of an existing immutable tag. Original staged bytes are preserved; published mismatches stop. See [publication architecture](architecture/publication.md), [version ADR](adr/2026-10-14-release-versions.md) and [P15 evidence](verification/p15.md).

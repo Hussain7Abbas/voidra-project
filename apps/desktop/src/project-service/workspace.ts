@@ -566,8 +566,7 @@ export class ProjectWorkspace {
         {
           path: ".voidra/README.md",
           expectedHash: null,
-          content:
-            "# Voidra planning\n\nThis folder holds project planning and tracking records. Local queues, locks and recovery journals are never committed. Use `npx voidra@0 check` to validate it.\n",
+          content: `# Voidra planning\n\nThis folder holds project planning and tracking records. Local queues, locks and recovery journals are never committed. Use \`npx voidra@${PACKAGE_VERSION} check\` to validate it.\n`,
         },
         { path: ".voidra/.gitignore", expectedHash: null, content: "local/\n" },
       ],

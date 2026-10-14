@@ -35,3 +35,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P13: Optional AI](p13.md) — settings, transport and privacy seams; implementation in progress.
 
 - [P14 — Skills distribution](p14.md).
+
+- [P15 — Packaging and updates](p15.md).

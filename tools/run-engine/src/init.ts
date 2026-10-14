@@ -14,11 +14,11 @@ import {
   detectCode,
   type IntakeOptions,
   initializeProject,
+  PACKAGE_VERSION,
   type Template,
 } from "voidra";
 
-const section =
-  "\n<!-- Voidra planning -->\n## Voidra planning\n\nRead [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run `npx voidra@0 check` after planning writes.\n";
+const section = `\n<!-- Voidra planning -->\n## Voidra planning\n\nRead [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run \`npx voidra@${PACKAGE_VERSION} check\` after planning writes.\n`;
 async function readInstruction(
   root: string,
   name: string,

@@ -47,6 +47,8 @@ import { Field } from "./ui/field.tsx";
 import { ErrorState, PageHeader } from "./ui/page.tsx";
 import { Spinner } from "./ui/spinner.tsx";
 import { ToastProvider, useToast } from "./ui/toast.tsx";
+import { UpdateNotice } from "./update-notice.tsx";
+import { UpdateSettings } from "./update-settings.tsx";
 export async function request(
   input: BridgeRequest,
 ): Promise<Extract<BridgeResponse, { ok: true }>["data"]> {
@@ -382,6 +384,7 @@ function Shell() {
           className="main-content"
           data-app-ready={Boolean(data)}
         >
+          <UpdateNotice />
           {data?.skillsOffer && (
             <section
               aria-label="Coding agent setup"
@@ -480,6 +483,7 @@ function Shell() {
         </Field>
         <AiSettingsPanel />
         <SkillSettingsPanel />
+        <UpdateSettings />
       </Dialog>
       <ConfirmDialog
         open={remove !== null}

@@ -20,6 +20,7 @@ const settingsSchema = z.looseObject({
   theme: themeSchema,
   recents: z.array(recentSchema),
   skillsOfferSeen: z.boolean().default(false),
+  updatesEnabled: z.boolean().default(true),
 });
 type Settings = z.infer<typeof settingsSchema>;
 export function resolveTheme(
@@ -51,6 +52,7 @@ export class AppStore {
           theme: "system",
           recents: [],
           skillsOfferSeen: false,
+          updatesEnabled: true,
         };
       throw error;
     }
@@ -89,6 +91,11 @@ export class AppStore {
   dismissSkillsOffer(): Promise<void> {
     return this.mutate((settings) => {
       settings.skillsOfferSeen = true;
+    });
+  }
+  setUpdates(enabled: boolean): Promise<void> {
+    return this.mutate((settings) => {
+      settings.updatesEnabled = enabled;
     });
   }
   async remember(path: string): Promise<void> {
