@@ -38,4 +38,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [P15 — Packaging and updates](p15.md).
 
-- [P17 — v1 release](p17.md): in progress; final checks and actual human VoiceOver remain.
+- [P17 — v1 release](p17.md): candidate verification and remaining account/physical release gates.
+- [P17 human VoiceOver checklist](p17-voiceover.md): prepared candidate and the actual manual pass still required.
