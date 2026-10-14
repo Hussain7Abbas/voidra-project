@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron } from "@playwright/test";
 import { expect, it } from "vitest";
-import { checkProject, parseRecord, schemas } from "voidra";
+import { checkProject, parseRecord, reviewRevision, schemas } from "voidra";
 import {
   commitResult,
   finalizeResult,
@@ -129,6 +129,11 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
     ).revision;
     const path = join(root, ".voidra/actions/act-000000/action.md");
     await writeFile(path, `${await readFile(path, "utf8")}\n`);
+    const changedRevision = reviewRevision(
+      await checkProject(root),
+      "act-000000",
+    );
+    expect(changedRevision).not.toBe(revision);
     const stale = await page.evaluate(
       (revision) =>
         window.voidra.invoke({
@@ -141,14 +146,43 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
       revision,
     );
     expect(stale.ok).toBe(false);
-    await expect
-      .poll(() =>
-        page
+    if (!stale.ok)
+      expect(stale.error.message).toContain("Review revision changed");
+    try {
+      await expect
+        .poll(
+          () =>
+            page
+              .locator("[data-review-revision]")
+              .getAttribute("data-review-revision"),
+          { timeout: 5000 },
+        )
+        .toBe(changedRevision);
+    } catch (error) {
+      const latest = await page.evaluate(() =>
+        window.voidra.invoke({ command: "workspace" }),
+      );
+      console.error("Review refresh diagnostic", {
+        stale,
+        expected: changedRevision,
+        visible: await page
           .locator("[data-review-revision]")
           .getAttribute("data-review-revision"),
-      )
-      .not.toBe(revision);
+        service:
+          latest.ok && latest.data.kind === "workspace"
+            ? latest.data.workspace.actions.map(({ data, revision }) => ({
+                id: data.id,
+                revision,
+              }))
+            : latest,
+        alerts: await page.getByRole("alert").allTextContents(),
+      });
+      throw error;
+    }
     await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await page
+      .getByText("Action accepted", { exact: true })
+      .waitFor({ timeout: 5000 });
     await expect
       .poll(
         async () =>
@@ -160,9 +194,6 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
           ).stage,
       )
       .toBe("done");
-    await page
-      .getByText("Action accepted", { exact: true })
-      .waitFor({ timeout: 5000 });
     expect((await checkProject(root)).diagnostics).toEqual([]);
   } finally {
     await app.close();

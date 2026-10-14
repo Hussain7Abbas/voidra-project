@@ -84,6 +84,7 @@ for (const theme of ["light", "dark"] as const)
         name: "Add First task to queue",
         exact: true,
       });
+      await expect(add).toBeEnabled();
       await add.focus();
       await page.keyboard.press("Enter");
       await expect(
@@ -99,6 +100,7 @@ for (const theme of ["light", "dark"] as const)
         name: "Move Second task earlier",
         exact: true,
       });
+      await expect(up).toBeEnabled();
       await up.focus();
       await page.keyboard.press("Enter");
       await expect
