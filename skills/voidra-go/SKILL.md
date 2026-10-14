@@ -1,9 +1,11 @@
 ---
 name: voidra-go
-description: Run queued Voidra actions through Discovery, planning, implementation and verification in a local Git repository. Leave questions, exact plans, Research findings or committed results for human decisions.
+description: Run queued Voidra actions through Discovery, planning,
+  implementation and verification in a local Git repository. Leave questions,
+  exact plans, Research findings or committed results for human decisions.
 license: AGPL-3.0-or-later
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   format-version: "1"
 ---
 
@@ -19,4 +21,4 @@ Use the bundled runtime for planning writes, ownership and commits. Never hand-e
 6. `prepare`, validate, `commit` using the project's message style, validate, and `finalize`, validate. Leave implementation results at Review; Release finishes at Released. Commit trailers identify the action and run; interrupted commits reconcile instead of repeating.
 7. Continue the remaining queue in order. If work fails, use `fail` with the reason and validate; do not claim completion or invent a passing check.
 
-Validate after each completed file write or grouped operation with `npx --yes voidra@0.2.0 check .`. An unrelated stale gate may remain; stop for structural errors or a stale gate belonging to this action. Report actual checks, changed paths, commits and gates. Call results at Review waiting for a human decision; do not call them Done. The user's instructions take precedence over the skill.
+Validate after each completed file write or grouped operation with `npx --yes voidra@0.2.1 check .`. An unrelated stale gate may remain; stop for structural errors or a stale gate belonging to this action. Report actual checks, changed paths, commits and gates. Call results at Review waiting for a human decision; do not call them Done. The user's instructions take precedence over the skill.

@@ -64,6 +64,11 @@ try {
     const startingHead = git(["rev-parse", "HEAD"]);
     await selectNotes(root, version);
     const versionPaths = new Set(await alignVersions(root, version));
+    execFileSync("pnpm", ["--filter", "voidra", "build"], {
+      cwd: root,
+      env,
+      stdio: "inherit",
+    });
     execFileSync("make", ["gen"], { cwd: root, env, stdio: "inherit" });
     const generated = (path: string) =>
       /^(?:docs\/format\/|fixtures\/(?:architecture|lifecycles|knowledge|releases|sync)\/|skills\/(?:shared\/references\/|voidra-[a-z-]+\/(?:scripts\/|references\/)))/.test(
