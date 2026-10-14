@@ -29,3 +29,5 @@ await applyOperation(projectFolder, {
 Format 1 requires voidra 0.1.0. Newer formats are refused. `migrateProject` and `voidra migrate --dry-run` support the unreleased format-0 prototype fixture, retaining its legacy fields. No older Voidra product compatibility is claimed.
 
 See the [format specification](https://github.com/Hussain7Abbas/voidra-project/tree/main/docs/format), [API contract](https://github.com/Hussain7Abbas/voidra-project/blob/main/docs/format/api.md) and [verification evidence](https://github.com/Hussain7Abbas/voidra-project/blob/main/docs/verification/p01.md).
+
+The 0.2.0 candidate also exports guarded Release selection and `applySyncReport` for planning-only inferred updates/proposals. Sync records preserve confirmed answers and bind examined commits and record consumption; the Node adapter verifies actual Git history. Public registry publication remains separate from this local candidate.

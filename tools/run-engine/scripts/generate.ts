@@ -10,6 +10,7 @@ for (const [skill, entry, script] of [
   ["voidra-plan", "cli-entry.ts", "runtime.mjs"],
   ["voidra-init", "init-cli.ts", "init.mjs"],
   ["voidra-release", "release-cli.ts", "release.mjs"],
+  ["voidra-sync", "sync-cli.ts", "sync.mjs"],
   ["voidra-architect-general", "architecture-cli.ts", "architecture.mjs"],
 ]) {
   const output = resolve(root, `skills/${skill}/scripts/${script}`);
@@ -40,8 +41,17 @@ for (const [skill, entry, script] of [
     },
     {
       path: resolve(root, `skills/${skill}/references/third-party-notices.txt`),
-      bytes: await readFile(
-        resolve(root, "skills/voidra-go/references/third-party-notices.txt"),
+      bytes: Buffer.from(
+        `${(
+          await readFile(
+            resolve(
+              root,
+              "skills/voidra-go/references/third-party-notices.txt",
+            ),
+          )
+        )
+          .toString()
+          .trimEnd()}\n`,
       ),
     },
   );
@@ -50,7 +60,12 @@ for (const folder of await readdir(resolve(root, "templates"), {
   withFileTypes: true,
 })) {
   if (!folder.isDirectory()) continue;
-  for (const skill of ["voidra-init", "voidra-go", "voidra-plan"])
+  for (const skill of [
+    "voidra-init",
+    "voidra-go",
+    "voidra-plan",
+    "voidra-sync",
+  ])
     files.push({
       path: resolve(
         root,

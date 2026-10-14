@@ -16,6 +16,7 @@ This is the contract fixed by P01-01. Implementation and verification follow in 
 - [Acceptance criteria](acceptance.md)
 - [Runs and start records](run.md)
 - [Release records](release.md)
+- [Sync records](sync.md)
 - [Personal queue](queue.md)
 - [Run lock](lock.md)
 - [Recoverable operations](operation.md)

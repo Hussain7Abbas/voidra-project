@@ -5,3 +5,4 @@ export * from "./lock.ts";
 export * from "./planning-commit.ts";
 export * from "./release-intake.ts";
 export * from "./run.ts";
+export * from "./sync.ts";

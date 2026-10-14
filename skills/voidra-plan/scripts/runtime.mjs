@@ -1007,14 +1007,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text5, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text6, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text5;
+        return text6;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text5.length <= endStep)
-        return text5;
+      if (text6.length <= endStep)
+        return text6;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1031,14 +1031,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text5, i, indent.length);
+        i = consumeMoreIndentedLines(text6, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text5[i += 1]; ) {
+      for (let ch; ch = text6[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text5[i + 1]) {
+          switch (text6[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -1055,12 +1055,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text5, i, indent.length);
+            i = consumeMoreIndentedLines(text6, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text5[i + 1];
+            const next = text6[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -1072,12 +1072,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text5[i += 1];
+                ch = text6[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text5;
+                return text6;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1092,39 +1092,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text5;
+        return text6;
       if (onFold)
         onFold();
-      let res = text5.slice(0, folds[0]);
+      let res = text6.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text5.length;
+        const end2 = folds[i2 + 1] || text6.length;
         if (fold === 0)
           res = `
-${indent}${text5.slice(0, end2)}`;
+${indent}${text6.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text5[fold]}\\`;
+            res += `${text6[fold]}\\`;
           res += `
-${indent}${text5.slice(fold + 1, end2)}`;
+${indent}${text6.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text5, i, indent) {
+    function consumeMoreIndentedLines(text6, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text5[start];
+      let ch = text6[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text5[++i];
+          ch = text6[++i];
         } else {
           do {
-            ch = text5[++i];
+            ch = text6[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text5[start];
+          ch = text6[start];
         }
       }
       return end;
@@ -16753,8 +16753,8 @@ function ko_default() {
 }
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/locales/lt.js
-var capitalizeFirstCharacter = (text5) => {
-  return text5.charAt(0).toUpperCase() + text5.slice(1);
+var capitalizeFirstCharacter = (text6) => {
+  return text6.charAt(0).toUpperCase() + text6.slice(1);
 };
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
@@ -27475,6 +27475,16 @@ var schemas = {
     tag: text.optional(),
     date: date5.optional()
   }),
+  sync: object2({
+    id: id("sync"),
+    examinedRevision: external_exports.string().regex(/^[a-f0-9]{40,64}$/),
+    since: external_exports.string().regex(/^[a-f0-9]{40,64}$/).nullable(),
+    commits: external_exports.array(external_exports.string().regex(/^[a-f0-9]{40,64}$/)).min(1),
+    proposals: external_exports.array(external_exports.union([id("act"), id("idea")])),
+    consumedRecords: external_exports.array(text),
+    by: text,
+    at: date5
+  }),
   queue: object2({ queuedBy: text, queuedAt: date5 }),
   lock: object2({
     ownerToken: text,
@@ -27858,6 +27868,7 @@ function fileKind(path) {
   if (kind) return kind;
   if (/^\.voidra\/actions\/[^/]+\/runs\/[^/]+\.md$/.test(path)) return "run";
   if (/^\.voidra\/releases\/[^/]+\.md$/.test(path)) return "release";
+  if (/^\.voidra\/syncs\/[^/]+\.md$/.test(path)) return "sync";
   if (path === ".voidra/local/pending-actions.md") return "queue";
   if (path === ".voidra/local/run.lock") return "lock";
   if (/^\.voidra\/local\/operations\/[^/]+\.json$/.test(path))
@@ -27888,7 +27899,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -28098,6 +28109,21 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "idea" && file2 !== `.voidra/backlog/${d.id}.md`)
       add("identity", file2, "id", "Idea ID must match its filename");
+    if (kind === "sync") {
+      const sync = schemas.sync.parse(d);
+      if (file2 !== `.voidra/syncs/${sync.id}.md`)
+        add("identity", file2, "id", "Sync ID must match its filename");
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          file2,
+          "id",
+          "Sync records require voidra \u2265 0.2.0"
+        );
+      for (const field of ["commits", "proposals"])
+        if (new Set(sync[field]).size !== sync[field].length)
+          add("sync", file2, field, "Sync entries must be unique");
+    }
     if (kind === "profile" && file2 !== `.voidra/profile/${d.block}.md`)
       add("identity", file2, "block", "Profile block must match its filename");
     if (["questions", "requirements", "blueprint", "acceptance", "run"].includes(
@@ -28358,6 +28384,13 @@ function inspectFiles(files, options = {}) {
     if (typeof d.action === "string") reference(d.action, file2, "action");
     if (kind === "idea" && typeof d.promotedTo === "string")
       reference(d.promotedTo, file2, "promotedTo");
+    if (kind === "sync")
+      for (const id2 of schemas.sync.parse(d).proposals)
+        reference(id2, file2, "proposals");
+    if (kind === "sync") {
+      for (const path of schemas.sync.parse(d).consumedRecords)
+        if (!records.has(path)) reference(path, file2, "consumedRecords");
+    }
     if (kind === "run") {
       for (const id2 of schemas.run.parse(d).consumedRecords)
         if (!records.has(id2)) reference(id2, file2, "consumedRecords");
@@ -28425,7 +28458,15 @@ import { dirname, isAbsolute, join as join2 } from "node:path";
 
 // packages/voidra/src/ids.ts
 import { randomBytes } from "node:crypto";
-var prefixes = ["act", "idea", "q", "run", "op", "prj"];
+var prefixes = [
+  "act",
+  "idea",
+  "q",
+  "run",
+  "op",
+  "prj",
+  "sync"
+];
 var alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 function createId(prefix, existing = /* @__PURE__ */ new Set(), random = () => randomBytes(6)) {
   if (!prefixes.includes(prefix))
@@ -29229,6 +29270,35 @@ function validateTemplateAnswer(question, value) {
   return value;
 }
 
+// packages/voidra/src/sync.ts
+var text3 = external_exports.string().trim().min(1);
+var commit = schemas.sync.shape.examinedRevision;
+var proposal = { title: text3, body: text3, commits: external_exports.array(commit).min(1) };
+var syncReportSchema = external_exports.strictObject({
+  examinedRevision: commit,
+  since: commit.nullable(),
+  commits: external_exports.array(commit).min(1),
+  by: text3,
+  summary: text3,
+  profiles: external_exports.array(
+    external_exports.strictObject({
+      block: schemas.profile.shape.block,
+      id: text3,
+      value: external_exports.json().refine((value) => value !== null, "Sync needs an observed value"),
+      revision: hashSchema,
+      commit,
+      source: text3
+    })
+  ).max(100),
+  ideas: external_exports.array(external_exports.strictObject(proposal)).max(100),
+  actions: external_exports.array(
+    external_exports.strictObject({
+      ...proposal,
+      type: external_exports.enum(["feature", "bug", "improvement", "docs", "research"])
+    })
+  ).max(100)
+});
+
 // tools/run-engine/src/process.ts
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -29297,12 +29367,12 @@ import { promisify as promisify4 } from "node:util";
 
 // tools/run-engine/src/architecture.ts
 import { readFile as readFile4 } from "node:fs/promises";
-var text3 = external_exports.string().min(1);
+var text4 = external_exports.string().min(1);
 var base = {
   action: schemas.action.shape.id,
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(),
-  glossary: text3.optional(),
-  summary: text3.optional()
+  glossary: text4.optional(),
+  summary: text4.optional()
 };
 var architectureProposalSchema = external_exports.discriminatedUnion("kind", [
   external_exports.strictObject({
@@ -29315,14 +29385,14 @@ var architectureProposalSchema = external_exports.discriminatedUnion("kind", [
   external_exports.strictObject({
     ...base,
     kind: external_exports.literal("plan"),
-    requirements: text3,
-    blueprint: text3,
-    acceptance: text3
+    requirements: text4,
+    blueprint: text4,
+    acceptance: text4
   }),
   external_exports.strictObject({
     ...base,
     kind: external_exports.literal("slices"),
-    slices: external_exports.array(external_exports.strictObject({ title: text3, description: text3 })).min(2)
+    slices: external_exports.array(external_exports.strictObject({ title: text4, description: text4 })).min(2)
   })
 ]);
 async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
@@ -29751,13 +29821,13 @@ async function pendingPlanning(root) {
     const journal2 = journalSchema.parse(JSON.parse(bytes.toString()));
     if (["failed", "reconciled"].includes(journal2.phase) && owner?.id !== journal2.input.id)
       continue;
-    const commit = journal2.commit ?? await findCommit(root, journal2.input.id);
+    const commit2 = journal2.commit ?? await findCommit(root, journal2.input.id);
     const recoverable = !owner || owner.id === journal2.input.id && owner.host === hostname4() && await processIdentity(owner.pid) !== owner.started;
     pending.push({
       id: journal2.input.id,
-      commit: commit ?? null,
+      commit: commit2 ?? null,
       recoverable,
-      message: commit ? "The planning commit exists. Recover to reconcile its index without creating another commit." : "A planning attempt was interrupted. Recover it or discard the attempt before continuing."
+      message: commit2 ? "The planning commit exists. Recover to reconcile its index without creating another commit." : "A planning attempt was interrupted. Recover it or discard the attempt before continuing."
     });
   }
   return pending;
@@ -30094,7 +30164,7 @@ async function assertUnlinked(root, path) {
     }
   }
 }
-var text4 = async (root, path) => {
+var text5 = async (root, path) => {
   await assertUnlinked(root, path);
   try {
     return await readFile6(join4(root, path), "utf8");
@@ -30126,7 +30196,7 @@ async function head2(root) {
 async function runContext(root, run) {
   if (!/^run-[0-9a-hjkmnp-tv-z]{6}$/.test(run))
     throw new Error("Invalid run ID");
-  const value = await text4(root, checkpointPath(run));
+  const value = await text5(root, checkpointPath(run));
   if (value === null) throw new Error("Run checkpoint not found");
   const ctx = checkpointSchema.parse(JSON.parse(value));
   if (ctx.run !== run || ctx.actionPath !== `.voidra/actions/${ctx.action}/action.md` || !ctx.runPath.startsWith(`.voidra/actions/${ctx.action}/runs/`) || !ctx.runPath.endsWith(`-${ctx.agent}-${ctx.run}.md`))
@@ -30139,7 +30209,7 @@ async function runContext(root, run) {
   return ctx;
 }
 async function owned(root, token) {
-  const lockRaw = await text4(root, ".voidra/local/run.lock");
+  const lockRaw = await text5(root, ".voidra/local/run.lock");
   if (!lockRaw) throw new Error("Run owner lock was lost");
   const lock = schemas.lock.parse(JSON.parse(lockRaw));
   if (lock.ownerToken !== token)
@@ -30151,9 +30221,9 @@ async function owned(root, token) {
   return { ctx, lock, lockRaw };
 }
 async function save(root, ctx, changes = [], allowGlossary = false, writeCheckpoint) {
-  const path = checkpointPath(ctx.run), old = await text4(root, path);
+  const path = checkpointPath(ctx.run), old = await text5(root, path);
   if (!changes.some((change) => change.path === ".voidra/local/run.lock")) {
-    const lockRaw = await text4(root, ".voidra/local/run.lock");
+    const lockRaw = await text5(root, ".voidra/local/run.lock");
     if (lockRaw === null || schemas.lock.parse(JSON.parse(lockRaw)).ownerToken !== ctx.ownerToken)
       throw new Error("Run owner token changed before writing");
     changes = [
@@ -30190,7 +30260,7 @@ async function current(root, ctx) {
     (d) => !["stale-approval", "stale-review"].includes(d.code)
   ))
     throw new Error("Planning files are invalid or need recovery");
-  const actionRaw = await text4(root, ctx.actionPath), runRaw = await text4(root, ctx.runPath);
+  const actionRaw = await text5(root, ctx.actionPath), runRaw = await text5(root, ctx.runPath);
   if (!actionRaw || !runRaw || hash2(actionRaw) !== ctx.actionHash || hash2(runRaw) !== ctx.runHash)
     throw new Error(
       "Action or run changed outside this owner; recovery conflict"
@@ -30516,7 +30586,7 @@ Plan: ${report.reviews.plan.summary}
   ];
   const fileHashes = {};
   for (const path of paths) {
-    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text4(root, path);
+    const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text5(root, path);
     fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : await fileHash(root, path);
   }
   if (release)
@@ -30550,9 +30620,9 @@ async function findCommit2(root, ctx) {
   const values = (await git2(root, ["log", "--all", "--format=%H%x00%B%x00"])).split("\0");
   const found = [];
   for (let i = 0; i + 1 < values.length; i += 2) {
-    const commit = values[i]?.trim(), body = values[i + 1] ?? "";
-    if (commit && body.split("\n").includes(`Voidra-Action: ${ctx.action}`) && body.split("\n").includes(`Voidra-Run: ${ctx.run}`))
-      found.push(commit);
+    const commit2 = values[i]?.trim(), body = values[i + 1] ?? "";
+    if (commit2 && body.split("\n").includes(`Voidra-Action: ${ctx.action}`) && body.split("\n").includes(`Voidra-Run: ${ctx.run}`))
+      found.push(commit2);
   }
   if (found.length > 1)
     throw new Error("Conflicting duplicate run trailers; inspect Git history");
@@ -30642,10 +30712,10 @@ Voidra-Run: ${ctx.run}`
     env
   );
   await options.checkpoint?.("after-commit");
-  const commit = await findCommit2(root, ctx);
-  if (!commit) throw new Error("Commit trailer was not found");
-  await save(root, { ...pending, phase: "committed", commit });
-  return commit;
+  const commit2 = await findCommit2(root, ctx);
+  if (!commit2) throw new Error("Commit trailer was not found");
+  await save(root, { ...pending, phase: "committed", commit: commit2 });
+  return commit2;
 }
 async function reconcileIndex(root, ctx, token) {
   if (!ctx.commit) throw new Error("Missing commit for index reconciliation");
@@ -30771,7 +30841,7 @@ async function recoverRun(root, run, options = {}) {
     (record2) => record2.kind === "operation" && record2.document.data.state === "prepared" && schemas.operation.parse(record2.document.data).changes.some((change) => change.path === checkpointPath(run))
   );
   if (pending.length) {
-    const raw2 = await text4(root, ".voidra/local/run.lock"), lock2 = raw2 ? schemas.lock.parse(JSON.parse(raw2)) : null;
+    const raw2 = await text5(root, ".voidra/local/run.lock"), lock2 = raw2 ? schemas.lock.parse(JSON.parse(raw2)) : null;
     if (lock2 && (lock2.run !== run || lock2.action !== ctx.action || !(await inspectLock(lock2)).recoverable))
       throw new Error("Run owner is active or belongs to another operation");
     if (!lock2 && ctx.ownerPid && ctx.ownerHost === hostname5() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
@@ -30787,7 +30857,7 @@ async function recoverRun(root, run, options = {}) {
   }
   if (ctx.phase === "finalized" && ctx.indexReconciled || ["unsupported", "failed", "interrupted"].includes(ctx.phase))
     return ctx;
-  const raw = await text4(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
+  const raw = await text5(root, ".voidra/local/run.lock"), lock = raw ? schemas.lock.parse(JSON.parse(raw)) : null;
   if (lock && (!(await inspectLock(lock)).recoverable || lock.ownerToken !== ctx.ownerToken))
     throw new Error("Run owner is active, alive or cannot be verified");
   if (!lock && ctx.ownerPid && ctx.ownerHost === hostname5() && await processIdentity(ctx.ownerPid) === ctx.ownerProcessStartedAt)
@@ -30876,7 +30946,7 @@ async function publishPlanning(root, token, raw) {
     schemas.action.parse(
       parseRecord(
         ctx.actionPath,
-        await text4(root, ctx.actionPath)
+        await text5(root, ctx.actionPath)
       ).data
     ).stage ?? ""
   )) && changesOutside.length)
@@ -30884,7 +30954,7 @@ async function publishPlanning(root, token, raw) {
       "Planning changed non-planning files; preserve them and stop"
     );
   const result2 = await proposeArchitecture(root, input2, token, true), changes = result2.changes;
-  const actionRaw = changes?.find((c) => c.path === ctx.actionPath)?.content, runRaw = await text4(root, ctx.runPath);
+  const actionRaw = changes?.find((c) => c.path === ctx.actionPath)?.content, runRaw = await text5(root, ctx.runPath);
   if (!changes || !actionRaw || !runRaw || hash2(runRaw) !== ctx.runHash)
     throw new Error("Planning files changed outside the run");
   const action = schemas.action.parse(

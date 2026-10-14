@@ -11,6 +11,7 @@ import {
   readGitHistory,
   readGitIdentity,
   recoverPlanning,
+  syncContext,
 } from "@voidra/run-engine";
 import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
@@ -892,6 +893,15 @@ export class ProjectWorkspace {
       template: project.metadata?.template ?? null,
       identity: await readGitIdentity(this.root),
       history: await readGitHistory(this.root),
+      sync: project.metadata
+        ? await syncContext(this.root, project)
+            .then((context) => ({
+              examinedRevision: context.examinedRevision,
+              since: context.since,
+              count: context.commits.length,
+            }))
+            .catch(() => ({ examinedRevision: null, since: null, count: 0 }))
+        : { examinedRevision: null, since: null, count: 0 },
       planning: {
         ...(await previewPlanning(this.root, project)),
         pending: await pendingPlanning(this.root),

@@ -51,7 +51,7 @@ const empty = (): HistoryEntry => ({
 });
 const runIds = (project: ProjectInspection): string[] =>
   [...project.records.values()]
-    .filter((r) => r.kind === "run")
+    .filter((r) => r.kind === "run" || r.kind === "sync")
     .map((r) => String(r.document.data.id));
 const historyPath = (path: string): boolean =>
   path.startsWith(".voidra/") &&
@@ -319,7 +319,7 @@ export class UndoHistory {
     let blocked: string | null = null;
     for (const record of project.records.values())
       if (
-        record.kind === "run" &&
+        (record.kind === "run" || record.kind === "sync") &&
         !beforeRuns.includes(String(record.document.data.id))
       ) {
         const consumed = record.document.data.consumedRecords;
@@ -327,7 +327,7 @@ export class UndoHistory {
           Array.isArray(consumed) &&
           consumed.some((v) => typeof v === "string" && affected.has(v))
         ) {
-          blocked = `Run ${String(record.document.data.id)} consumed this edit. Create a revert action for finished work.`;
+          blocked = `${record.kind === "sync" ? "Sync" : "Run"} ${String(record.document.data.id)} consumed this edit. Create a revert action for finished work.`;
           break;
         }
       }

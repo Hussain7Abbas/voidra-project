@@ -373,6 +373,13 @@ export const workspaceSchema = z.strictObject({
     repository: null,
     notice: null,
   }),
+  sync: z
+    .strictObject({
+      examinedRevision: z.string().nullable(),
+      since: z.string().nullable(),
+      count: z.number().int().nonnegative(),
+    })
+    .default({ examinedRevision: null, since: null, count: 0 }),
   queue: z.array(z.string()),
   queueRevision: z.string().nullable().default(null),
   recoveries: z.array(
@@ -653,7 +660,7 @@ export const requestSchema = z.discriminatedUnion("command", [
   z.strictObject({
     command: z.literal("copy-agent-command"),
     agent: z.enum(["claude-code", "codex"]),
-    skill: z.enum(["voidra-go", "voidra-init"]).optional(),
+    skill: z.enum(["voidra-go", "voidra-init", "voidra-sync"]).optional(),
   }),
   z.strictObject({
     command: z.literal("open-recent"),

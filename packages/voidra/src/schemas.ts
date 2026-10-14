@@ -209,6 +209,19 @@ export const schemas = {
     tag: text.optional(),
     date: date.optional(),
   }),
+  sync: object({
+    id: id("sync"),
+    examinedRevision: z.string().regex(/^[a-f0-9]{40,64}$/),
+    since: z
+      .string()
+      .regex(/^[a-f0-9]{40,64}$/)
+      .nullable(),
+    commits: z.array(z.string().regex(/^[a-f0-9]{40,64}$/)).min(1),
+    proposals: z.array(z.union([id("act"), id("idea")])),
+    consumedRecords: z.array(text),
+    by: text,
+    at: date,
+  }),
   queue: object({ queuedBy: text, queuedAt: date }),
   lock: object({
     ownerToken: text,

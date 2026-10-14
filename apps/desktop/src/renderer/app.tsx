@@ -37,6 +37,7 @@ import {
   useWorkspace,
 } from "./project-profile.tsx";
 import { ProjectReleases } from "./project-releases.tsx";
+import { SyncSuggestion } from "./sync-suggestion.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -395,6 +396,7 @@ function Shell() {
             </div>
           )}
 
+          <SyncSuggestion data={workspace.data} />
           {snapshot.isPending ? (
             <div className="loading-state">
               <Spinner label="Loading workspace" />

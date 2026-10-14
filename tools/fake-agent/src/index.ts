@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  applySync,
   commitResult,
   finalizeResult,
   guardRun,
@@ -11,6 +12,7 @@ import {
   publishReleasePlan,
   publishResearch,
   startRun,
+  syncContext,
 } from "@voidra/run-engine";
 import {
   applyOperation,
@@ -22,6 +24,7 @@ import {
   serializeRecord,
 } from "voidra";
 export type Scenario =
+  | "sync"
   | "init"
   | "success"
   | "invalid-write"
@@ -35,6 +38,26 @@ export async function runFakeAgent(
   root: string,
   scenario: Scenario,
 ): Promise<{ run: string; scenario: Scenario }> {
+  if (scenario === "sync") {
+    const context = await syncContext(root);
+    if (context.examinedRevision && context.commits.length)
+      await applySync(root, {
+        examinedRevision: context.examinedRevision,
+        since: context.since,
+        commits: context.commits.map((commit) => commit.hash),
+        summary: "Scripted outside-work review; app-side evidence only.",
+        profiles: [],
+        actions: [],
+        ideas: [
+          {
+            title: "Document outside changes",
+            body: "Describe the outside changes and their usage.",
+            commits: context.commits.map((commit) => commit.hash),
+          },
+        ],
+      });
+    return { run: "", scenario };
+  }
   if (scenario === "init") {
     const template = await loadTemplate(
         fileURLToPath(

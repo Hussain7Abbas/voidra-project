@@ -107,6 +107,7 @@ export function fileKind(path: string): RecordKind | undefined {
   if (kind) return kind as RecordKind;
   if (/^\.voidra\/actions\/[^/]+\/runs\/[^/]+\.md$/.test(path)) return "run";
   if (/^\.voidra\/releases\/[^/]+\.md$/.test(path)) return "release";
+  if (/^\.voidra\/syncs\/[^/]+\.md$/.test(path)) return "sync";
   if (path === ".voidra/local/pending-actions.md") return "queue";
   if (path === ".voidra/local/run.lock") return "lock";
   if (/^\.voidra\/local\/operations\/[^/]+\.json$/.test(path))
@@ -145,6 +146,7 @@ export async function readProjectFiles(
         path === ".voidra/README.md" ||
         path === ".voidra/.gitignore" ||
         path === ".voidra/local/release-selection.json" ||
+        path === ".voidra/local/sync-selection.json" ||
         (path.endsWith(".md") && !path.startsWith(".voidra/local/")))
     )
       files.set(path, await readFile(join(root, path)));
@@ -404,6 +406,21 @@ export function inspectFiles(
     }
     if (kind === "idea" && file !== `.voidra/backlog/${d.id}.md`)
       add("identity", file, "id", "Idea ID must match its filename");
+    if (kind === "sync") {
+      const sync = schemas.sync.parse(d);
+      if (file !== `.voidra/syncs/${sync.id}.md`)
+        add("identity", file, "id", "Sync ID must match its filename");
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          file,
+          "id",
+          "Sync records require voidra ≥ 0.2.0",
+        );
+      for (const field of ["commits", "proposals"] as const)
+        if (new Set(sync[field]).size !== sync[field].length)
+          add("sync", file, field, "Sync entries must be unique");
+    }
     if (kind === "profile" && file !== `.voidra/profile/${d.block}.md`)
       add("identity", file, "block", "Profile block must match its filename");
     if (
@@ -737,6 +754,12 @@ export function inspectFiles(
     if (typeof d.action === "string") reference(d.action, file, "action");
     if (kind === "idea" && typeof d.promotedTo === "string")
       reference(d.promotedTo, file, "promotedTo");
+    if (kind === "sync")
+      for (const id of schemas.sync.parse(d).proposals)
+        reference(id, file, "proposals");
+    if (kind === "sync")
+      for (const path of schemas.sync.parse(d).consumedRecords)
+        if (!records.has(path)) reference(path, file, "consumedRecords");
     if (kind === "run")
       for (const id of schemas.run.parse(d).consumedRecords)
         if (!records.has(id)) reference(id, file, "consumedRecords");

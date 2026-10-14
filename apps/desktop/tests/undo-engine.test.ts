@@ -36,6 +36,7 @@ async function scenario(body: string): Promise<void> {
         import {ProjectWorkspace} from ${JSON.stringify(resolve("apps/desktop/src/project-service/workspace.ts"))};
         import {createIdea,editIdea,createAction,replaceActionQueue,checkProject,hash,applyOperation,recoverOperation} from ${JSON.stringify(resolve("packages/voidra/src/index.ts"))};
         import {startRun} from ${JSON.stringify(resolve("tools/run-engine/src/run.ts"))};
+        import {applySync,syncContext} from ${JSON.stringify(resolve("tools/run-engine/src/sync.ts"))};
         async function main() {
         const Database = require(${JSON.stringify(require.resolve("better-sqlite3"))});
         const root=process.argv[2], databasePath=process.argv[3];
@@ -92,6 +93,18 @@ async function scenario(body: string): Promise<void> {
       await rm(bundleDirectory, { recursive: true, force: true });
   }
 }
+
+it("blocks edits consumed by Sync across restart while later app edits remain reversible", async () => {
+  await scenario(`
+    initGit(); const id=await idea(); const context=await syncContext(root);
+    await applySync(root,{examinedRevision:context.examinedRevision,since:context.since,commits:context.commits.map(c=>c.hash),summary:'Reviewed outside baseline',profiles:[],ideas:[],actions:[]});
+    reopen(); let state=await history.state(); assert.match(state.undo.blocked,/Sync .* consumed/);
+    await assert.rejects(history.replay('undo',state.undo.revision),/consumed/);
+    await edit(id); state=await history.state(); assert.equal(state.undo.blocked,null);
+    await history.replay('undo',state.undo.revision);
+    assert.match(await readFile(join(root,'.voidra/backlog/'+id+'.md'),'utf8'),/Original idea/);
+  `);
+});
 
 it("restores exact grouped bytes across restarts and drops redo after a new edit", async () => {
   await scenario(`

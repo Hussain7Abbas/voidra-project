@@ -210,6 +210,7 @@ Voidra sends only the text a feature needs: your notes, the profile and action t
 │       ├── requirements.md, blueprint.md, acceptance.md
 │       └── runs/          # one result file per run
 ├── releases/              # one file per release
+├── syncs/                 # one record per sync of outside work
 └── local/                 # personal, never committed
     ├── pending-actions.md # your run queue
     └── run.lock

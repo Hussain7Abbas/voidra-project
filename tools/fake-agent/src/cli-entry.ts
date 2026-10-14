@@ -7,6 +7,7 @@ if (
   !scenario ||
   ![
     "init",
+    "sync",
     "success",
     "invalid-write",
     "crash-mid-run",

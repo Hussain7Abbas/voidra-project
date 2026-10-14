@@ -1007,14 +1007,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text3, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text4, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text3;
+        return text4;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text3.length <= endStep)
-        return text3;
+      if (text4.length <= endStep)
+        return text4;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1031,14 +1031,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text3, i, indent.length);
+        i = consumeMoreIndentedLines(text4, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text3[i += 1]; ) {
+      for (let ch; ch = text4[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text3[i + 1]) {
+          switch (text4[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -1055,12 +1055,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text3, i, indent.length);
+            i = consumeMoreIndentedLines(text4, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text3[i + 1];
+            const next = text4[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -1072,12 +1072,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text3[i += 1];
+                ch = text4[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text3;
+                return text4;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1092,39 +1092,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text3;
+        return text4;
       if (onFold)
         onFold();
-      let res = text3.slice(0, folds[0]);
+      let res = text4.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text3.length;
+        const end2 = folds[i2 + 1] || text4.length;
         if (fold === 0)
           res = `
-${indent}${text3.slice(0, end2)}`;
+${indent}${text4.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text3[fold]}\\`;
+            res += `${text4[fold]}\\`;
           res += `
-${indent}${text3.slice(fold + 1, end2)}`;
+${indent}${text4.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text3, i, indent) {
+    function consumeMoreIndentedLines(text4, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text3[start];
+      let ch = text4[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text3[++i];
+          ch = text4[++i];
         } else {
           do {
-            ch = text3[++i];
+            ch = text4[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text3[start];
+          ch = text4[start];
         }
       }
       return end;
@@ -16753,8 +16753,8 @@ function ko_default() {
 }
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/locales/lt.js
-var capitalizeFirstCharacter = (text3) => {
-  return text3.charAt(0).toUpperCase() + text3.slice(1);
+var capitalizeFirstCharacter = (text4) => {
+  return text4.charAt(0).toUpperCase() + text4.slice(1);
 };
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
@@ -27475,6 +27475,16 @@ var schemas = {
     tag: text.optional(),
     date: date5.optional()
   }),
+  sync: object2({
+    id: id("sync"),
+    examinedRevision: external_exports.string().regex(/^[a-f0-9]{40,64}$/),
+    since: external_exports.string().regex(/^[a-f0-9]{40,64}$/).nullable(),
+    commits: external_exports.array(external_exports.string().regex(/^[a-f0-9]{40,64}$/)).min(1),
+    proposals: external_exports.array(external_exports.union([id("act"), id("idea")])),
+    consumedRecords: external_exports.array(text),
+    by: text,
+    at: date5
+  }),
   queue: object2({ queuedBy: text, queuedAt: date5 }),
   lock: object2({
     ownerToken: text,
@@ -27755,6 +27765,7 @@ function fileKind(path) {
   if (kind) return kind;
   if (/^\.voidra\/actions\/[^/]+\/runs\/[^/]+\.md$/.test(path)) return "run";
   if (/^\.voidra\/releases\/[^/]+\.md$/.test(path)) return "release";
+  if (/^\.voidra\/syncs\/[^/]+\.md$/.test(path)) return "sync";
   if (path === ".voidra/local/pending-actions.md") return "queue";
   if (path === ".voidra/local/run.lock") return "lock";
   if (/^\.voidra\/local\/operations\/[^/]+\.json$/.test(path))
@@ -27785,7 +27796,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -27995,6 +28006,21 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "idea" && file2 !== `.voidra/backlog/${d.id}.md`)
       add("identity", file2, "id", "Idea ID must match its filename");
+    if (kind === "sync") {
+      const sync = schemas.sync.parse(d);
+      if (file2 !== `.voidra/syncs/${sync.id}.md`)
+        add("identity", file2, "id", "Sync ID must match its filename");
+      if (!extendedActions)
+        add(
+          "minimum-reader",
+          file2,
+          "id",
+          "Sync records require voidra \u2265 0.2.0"
+        );
+      for (const field of ["commits", "proposals"])
+        if (new Set(sync[field]).size !== sync[field].length)
+          add("sync", file2, field, "Sync entries must be unique");
+    }
     if (kind === "profile" && file2 !== `.voidra/profile/${d.block}.md`)
       add("identity", file2, "block", "Profile block must match its filename");
     if (["questions", "requirements", "blueprint", "acceptance", "run"].includes(
@@ -28255,6 +28281,13 @@ function inspectFiles(files, options = {}) {
     if (typeof d.action === "string") reference(d.action, file2, "action");
     if (kind === "idea" && typeof d.promotedTo === "string")
       reference(d.promotedTo, file2, "promotedTo");
+    if (kind === "sync")
+      for (const id2 of schemas.sync.parse(d).proposals)
+        reference(id2, file2, "proposals");
+    if (kind === "sync") {
+      for (const path of schemas.sync.parse(d).consumedRecords)
+        if (!records.has(path)) reference(path, file2, "consumedRecords");
+    }
     if (kind === "run") {
       for (const id2 of schemas.run.parse(d).consumedRecords)
         if (!records.has(id2)) reference(id2, file2, "consumedRecords");
@@ -28322,7 +28355,15 @@ import { dirname, isAbsolute, join as join2 } from "node:path";
 
 // packages/voidra/src/ids.ts
 import { randomBytes } from "node:crypto";
-var prefixes = ["act", "idea", "q", "run", "op", "prj"];
+var prefixes = [
+  "act",
+  "idea",
+  "q",
+  "run",
+  "op",
+  "prj",
+  "sync"
+];
 var alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 function createId(prefix, existing = /* @__PURE__ */ new Set(), random = () => randomBytes(6)) {
   if (!prefixes.includes(prefix))
@@ -29199,6 +29240,35 @@ async function initializeProject(root, input4, options, writer) {
   }
   return { paths: [...files.keys()], ...bootstrap ? { bootstrap } : {} };
 }
+
+// packages/voidra/src/sync.ts
+var text3 = external_exports.string().trim().min(1);
+var commit = schemas.sync.shape.examinedRevision;
+var proposal = { title: text3, body: text3, commits: external_exports.array(commit).min(1) };
+var syncReportSchema = external_exports.strictObject({
+  examinedRevision: commit,
+  since: commit.nullable(),
+  commits: external_exports.array(commit).min(1),
+  by: text3,
+  summary: text3,
+  profiles: external_exports.array(
+    external_exports.strictObject({
+      block: schemas.profile.shape.block,
+      id: text3,
+      value: external_exports.json().refine((value) => value !== null, "Sync needs an observed value"),
+      revision: hashSchema,
+      commit,
+      source: text3
+    })
+  ).max(100),
+  ideas: external_exports.array(external_exports.strictObject(proposal)).max(100),
+  actions: external_exports.array(
+    external_exports.strictObject({
+      ...proposal,
+      type: external_exports.enum(["feature", "bug", "improvement", "docs", "research"])
+    })
+  ).max(100)
+});
 
 // tools/run-engine/src/init.ts
 import { randomUUID as randomUUID2 } from "node:crypto";

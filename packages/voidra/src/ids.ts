@@ -1,6 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { VoidraError } from "./errors.ts";
-export const prefixes = ["act", "idea", "q", "run", "op", "prj"] as const;
+export const prefixes = [
+  "act",
+  "idea",
+  "q",
+  "run",
+  "op",
+  "prj",
+  "sync",
+] as const;
 export type IdPrefix = (typeof prefixes)[number];
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 export function createId(
