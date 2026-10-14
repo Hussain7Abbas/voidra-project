@@ -31,7 +31,7 @@ make check
 
 `make help` lists the real targets. `make dev` opens the desktop; `make e2e`, `make package-dir` and `make smoke-packaged` verify it. [Development documentation](docs/development.md) covers pins, tests and coverage. To start a phase in Claude Code or Codex, ask it to run the next phase; the agent handles implementation, checks and GitHub work.
 
-For skill development, `make skills-link PROJECT=/absolute/project` installs local links for both agents. Read [the runtime procedure](skills/voidra-go/references/runtime.md) before using the standalone skill; it requires an existing local Git repository.
+For skill development, `make skills-link PROJECT=/absolute/project` installs local links for both agents. Read [the runtime procedure](skills/voidra-go/references/runtime.md) before using the standalone skill; Discovery/Plan supports a new folder without Git. Approved Bootstrap initializes Git before implementation; existing projects must use their Git worktree root.
 
 ## License
 

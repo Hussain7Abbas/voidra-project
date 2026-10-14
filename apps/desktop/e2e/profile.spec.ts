@@ -11,7 +11,11 @@ import {
   type Page,
   test,
 } from "@playwright/test";
-import { checkProject } from "voidra";
+import { checkProject, replaceActionQueue } from "voidra";
+import {
+  publishPlanning,
+  startRun,
+} from "../../../tools/run-engine/src/run.ts";
 
 const execute = promisify(execFile);
 let app: ElectronApplication, page: Page, temp: string, root: string;
@@ -129,6 +133,36 @@ for (const value of ["light", "dark"])
     await expect(
       page.getByRole("button", { name: "Bootstrap", exact: true }),
     ).toBeVisible();
+    await axe();
+    // The actual onboarding result must reach its standalone Plan gate without Git setup.
+    const bootstrap = [...checked.records.values()].find(
+      (r) => r.kind === "action" && r.document.data.title === "Bootstrap",
+    );
+    const id = String(bootstrap?.document.data.id);
+    await replaceActionQueue(root, {
+      ids: [id],
+      revision: null,
+      by: "Verification owner",
+    });
+    const run = await startRun(root, "codex", process.pid, "plan");
+    if (!run) throw new Error("Missing Bootstrap planning run");
+    await publishPlanning(root, run.ownerToken, {
+      action: id,
+      kind: "plan",
+      requirements:
+        "## Goal\nTrack useful work locally.\n## Out of scope\nRemote services.\n",
+      blueprint:
+        "## Approach\nBootstrap after approval.\n## Testing seams\nLocal workflow.\n## Proposed ADRs\nNone.\n",
+      acceptance: "- Local behavior works.\n",
+    });
+    await page.getByRole("button", { name: "Bootstrap", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Approve plan", exact: true }),
+    ).toBeEnabled();
+    expect((await checkProject(root)).diagnostics).toEqual([]);
+    await expect(readFile(join(root, ".git/HEAD"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     await axe();
   });
 for (const value of ["light", "dark"])

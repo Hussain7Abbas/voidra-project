@@ -67,6 +67,9 @@ const checkpointSchema = z.looseObject({
   inputHashes: z.record(z.string(), z.string()).optional(),
   priorWork: z.record(z.string(), z.string().nullable()).optional(),
   baseTags: z.string().optional(),
+  gitRoot: z.string().nullable().optional(),
+  bootstrapGit: z.boolean().optional(),
+  bootstrapFiles: z.record(z.string(), z.string()).optional(),
   planRevision: z.string().optional(),
   startingChanges: z.record(z.string(), z.string().nullable()).optional(),
   paths: z.array(z.string()),
@@ -467,6 +470,46 @@ async function head(root: string): Promise<string | null> {
     return null;
   }
 }
+async function repositoryRoot(root: string): Promise<string | null> {
+  let top: string;
+  try {
+    top = await git(root, ["rev-parse", "--show-toplevel"]);
+  } catch {
+    try {
+      await lstat(join(root, ".git"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+    throw new Error("The selected Git repository is invalid");
+  }
+  const canonical = await realpath(root),
+    actual = await realpath(top);
+  if (canonical !== actual)
+    throw new Error("Select the Git repository root before running");
+  return actual;
+}
+async function tags(root: string): Promise<string> {
+  return (await repositoryRoot(root))
+    ? git(root, [
+        "for-each-ref",
+        "--format=%(refname):%(objectname)",
+        "refs/tags",
+      ])
+    : "";
+}
+async function unchangedPlanningGit(
+  root: string,
+  ctx: RunContext,
+): Promise<void> {
+  if (
+    (await repositoryRoot(root)) !==
+      (ctx.gitRoot === undefined ? await realpath(root) : ctx.gitRoot) ||
+    (await head(root)) !== ctx.baseCommit ||
+    (await tags(root)) !== ctx.baseTags
+  )
+    throw new Error("Git repository, HEAD or tags changed during planning");
+}
 export async function runContext(
   root: string,
   run: string,
@@ -488,6 +531,11 @@ export async function runContext(
     if (
       path.startsWith(".voidra/") &&
       !path.startsWith(`.voidra/actions/${ctx.action}/`) &&
+      !(
+        ctx.bootstrapGit &&
+        ctx.baseCommit === null &&
+        Object.hasOwn(ctx.bootstrapFiles ?? {}, path)
+      ) &&
       path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : "")
     )
       throw new Error("Run checkpoint contains another action's files");
@@ -634,22 +682,7 @@ export async function startRun(
     throw new Error(decision.reason ?? "Queued action cannot run");
   const identity = await processIdentity(ownerPid);
   if (!identity) throw new Error("Run owner process is missing");
-  if (
-    (await git(root, ["rev-parse", "--is-inside-work-tree"]).catch(
-      () => "false",
-    )) !== "true"
-  )
-    throw new Error(
-      "The project must be a local Git repository before running",
-    );
-  if (!action.assignee) {
-    const runner = await readGitIdentity(root);
-    if (!runner.value)
-      throw new Error(
-        "Configure Git name and email before starting unassigned work",
-      );
-    action.assignee = runner.value;
-  }
+  const repository = await repositoryRoot(root);
   const rules = projectLifecycles(checked.metadata),
     plan = readPlan(checked.files, action.id, checked.records);
   const stale =
@@ -664,6 +697,35 @@ export async function startRun(
       ));
   const boundary =
     mode === "plan" && !["discovery", "plan"].includes(action.stage ?? "");
+  const planning =
+      mode === "plan" ||
+      stale ||
+      ["discovery", "plan"].includes(action.stage ?? ""),
+    bootstrapGit =
+      !repository &&
+      !planning &&
+      action.type === "feature" &&
+      action.title === "Bootstrap" &&
+      ["implement", "verify"].includes(action.stage ?? "") &&
+      !!action.planApproval &&
+      !!plan &&
+      Object.entries(plan.hashes).every(
+        ([name, value]) =>
+          action.planApproval?.hashes[name as keyof typeof plan.hashes] ===
+          value,
+      );
+  if (!repository && !planning && !bootstrapGit)
+    throw new Error(
+      "The project must be a local Git repository before implementation",
+    );
+  if (!action.assignee) {
+    const runner = await readGitIdentity(root);
+    if (!runner.value && !planning)
+      throw new Error(
+        "Configure Git name and email before starting unassigned work",
+      );
+    if (runner.value) action.assignee = runner.value;
+  }
   if (
     action.stage === "review" &&
     action.type !== "release" &&
@@ -681,6 +743,23 @@ export async function startRun(
       resumedAfterQuestions: true,
     };
   const sourceSnapshot = await snapshotSources(root);
+  const bootstrapFiles = bootstrapGit
+    ? Object.fromEntries(
+        [...checked.files]
+          .filter(
+            ([path]) =>
+              !path.startsWith(".voidra/local/") &&
+              !path.startsWith(`.voidra/actions/${action.id}/`) &&
+              (checked.records.has(path) ||
+                [
+                  ".voidra/voidra.json",
+                  ".voidra/README.md",
+                  ".voidra/.gitignore",
+                ].includes(path)),
+          )
+          .map(([path, bytes]) => [path, hash(bytes)]),
+      )
+    : undefined;
   const previous = await listRunContexts(root),
     priorWork: Record<string, string | null> = {};
   for (const ctx of previous.filter(
@@ -718,6 +797,9 @@ export async function startRun(
       : {}),
     consumedRecords: [
       ...new Set([
+        ...Object.keys(bootstrapFiles ?? {}).filter((path) =>
+          checked.records.has(path),
+        ),
         actionId,
         actionPath,
         ".voidra/voidra.json",
@@ -795,30 +877,35 @@ export async function startRun(
         )
         .map(([path, bytes]) => [path, hash(bytes)]),
     ),
-    baseTags: await git(root, [
-      "for-each-ref",
-      "--format=%(refname):%(objectname)",
-      "refs/tags",
-    ]),
+    baseTags: await tags(root),
+    gitRoot: bootstrapGit ? await realpath(root) : repository,
+    ...(bootstrapGit ? { bootstrapGit: true, bootstrapFiles } : {}),
     ...(plan ? { planRevision: plan.revision } : {}),
     baseCommit: await head(root),
-    startingChanges: Object.fromEntries(
-      await Promise.all(
-        [
-          ...new Set(
-            (
-              await Promise.all([
-                git(root, ["diff", "--name-only", "-z"]),
-                git(root, ["diff", "--cached", "--name-only", "-z"]),
-                git(root, ["ls-files", "--others", "--exclude-standard", "-z"]),
-              ])
-            ).flatMap((list) => list.split("\0").filter(Boolean)),
+    startingChanges: repository
+      ? Object.fromEntries(
+          await Promise.all(
+            [
+              ...new Set(
+                (
+                  await Promise.all([
+                    git(root, ["diff", "--name-only", "-z"]),
+                    git(root, ["diff", "--cached", "--name-only", "-z"]),
+                    git(root, [
+                      "ls-files",
+                      "--others",
+                      "--exclude-standard",
+                      "-z",
+                    ]),
+                  ])
+                ).flatMap((list) => list.split("\0").filter(Boolean)),
+              ),
+            ]
+              .filter((path) => !path.startsWith(".voidra/"))
+              .map(async (path) => [path, await fileHash(root, path)]),
           ),
-        ]
-          .filter((path) => !path.startsWith(".voidra/"))
-          .map(async (path) => [path, await fileHash(root, path)]),
-      ),
-    ),
+        )
+      : { ...sourceSnapshot },
     paths: [],
     fileHashes: {},
   };
@@ -865,6 +952,16 @@ export async function startRun(
     },
   ]);
   if (stale || boundary) return runContext(root, run);
+  if (bootstrapGit) {
+    await guardRun(root, ownerToken, [], true);
+    await git(root, ["init", "--quiet"]);
+    if (
+      (await repositoryRoot(root)) !== ctx.gitRoot ||
+      (await head(root)) !== null ||
+      (await tags(root)) !== ""
+    )
+      throw new Error("Bootstrap Git initialization changed outside this run");
+  }
   return ctx;
 }
 export async function heartbeat(root: string, token: string): Promise<void> {
@@ -981,6 +1078,7 @@ export async function prepareResult(
   const paths = [
     ...new Set([
       ...report.paths,
+      ...Object.keys(ctx.bootstrapFiles ?? {}),
       ...(release ? [`.voidra/releases/${release.version}.md`] : []),
       ...[...project.files.keys()].filter((path) =>
         path.startsWith(`.voidra/actions/${ctx.action}/`),
@@ -1002,7 +1100,7 @@ export async function prepareResult(
         ? value === null
           ? null
           : hash(value)
-        : await fileHash(root, path);
+        : (ctx.bootstrapFiles?.[path] ?? (await fileHash(root, path)));
   }
   if (release)
     for (const member of action.releaseActions ?? []) {
@@ -1444,15 +1542,7 @@ export async function publishPlanning(
     { ctx, lockRaw } = await inspectOwnedRun(root, token);
   if (ctx.phase !== "started" || input.action !== ctx.action)
     throw new Error("Planning report does not match the active action");
-  if (
-    (await head(root)) !== ctx.baseCommit ||
-    (await git(root, [
-      "for-each-ref",
-      "--format=%(refname):%(objectname)",
-      "refs/tags",
-    ])) !== ctx.baseTags
-  )
-    throw new Error("Git HEAD or tags changed during planning");
+  await unchangedPlanningGit(root, ctx);
   const source = await snapshotSources(root),
     changesOutside = sourceChanges(ctx.sourceSnapshot ?? {}, source).filter(
       (path) => path !== "GLOSSARY.md",
@@ -1573,6 +1663,7 @@ export async function guardRun(
   root: string,
   token: string,
   paths: string[] = [],
+  initializingBootstrap = false,
 ): Promise<void> {
   const { ctx } = await owned(root, token),
     { action } = await current(root, ctx),
@@ -1581,6 +1672,13 @@ export async function guardRun(
     plan = readPlan(project.files, action.id, project.records);
   if (ctx.mode === "plan")
     throw new Error("Planning-only runs cannot edit implementation files");
+  const repository = await repositoryRoot(root);
+  if (
+    repository !==
+      (ctx.gitRoot === undefined ? await realpath(root) : ctx.gitRoot) &&
+    !(initializingBootstrap && ctx.bootstrapGit && repository === null)
+  )
+    throw new Error("Git repository changed outside this run");
   const release =
     action.type === "release" && action.stage === "review"
       ? releaseIntent(action, plan?.revision)
@@ -1596,7 +1694,7 @@ export async function guardRun(
   if (!release && !["implement", "verify"].includes(action.stage ?? ""))
     throw new Error("This stage cannot edit code");
   if (
-    rules[action.type].planGate &&
+    (rules[action.type].planGate || ctx.bootstrapGit) &&
     (!plan ||
       !action.planApproval ||
       Object.entries(plan.hashes).some(
@@ -1629,6 +1727,10 @@ export async function guardRun(
     if (hash(project.files.get(path) ?? "") !== value)
       throw new Error(`Consumed record changed: ${path}`);
   }
+  for (const [path, value] of Object.entries(ctx.bootstrapFiles ?? {})) {
+    if (hash(project.files.get(path) ?? "") !== value)
+      throw new Error(`Bootstrap planning baseline changed: ${path}`);
+  }
 }
 
 const researchReportSchema = z.strictObject({
@@ -1650,15 +1752,7 @@ async function assertPlanningEffects(
   root: string,
   ctx: RunContext,
 ): Promise<void> {
-  if (
-    (await head(root)) !== ctx.baseCommit ||
-    (await git(root, [
-      "for-each-ref",
-      "--format=%(refname):%(objectname)",
-      "refs/tags",
-    ])) !== ctx.baseTags
-  )
-    throw new Error("Git HEAD or tags changed during planning");
+  await unchangedPlanningGit(root, ctx);
   if (
     sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length
   )

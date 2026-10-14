@@ -47,11 +47,13 @@ Every check writes its result into `docs/verification/p17.md`, with the date, th
 | P17-04 | Clean install | 2 | — | The automated clean-install run passes and is recorded. |
 | P17-05 | Real-agent check | 8 | — | Every row of the real-agent coverage matrix is recorded for both agents using release-candidate skills, with model IDs, effort, validity, write paths, gate stops and git state. Every failure is classified as a skill problem (fixed) or a model limit (recorded); no skill or action type is silently omitted. |
 | P17-06 | Docs complete | 2 | — | The link check passes, and the README, user guide and changelog are current. |
-| P17-07 | Ship v1.0.0 | 2 | P17-01–P17-06 | The tag, GitHub Release, npm package and synced skills all exist and match. |
+| P17-07 | Ship v1.0.0 | 2 | P17-01–P17-06, P17-08, P17-09 | The tag, GitHub Release, npm package and synced skills all exist and match. |
+| P17-08 | Close the tracked Bootstrap Git boundary bug | 3 | P04, P08, P09 | Discovery/Plan preserves absent Git; only exact approved Bootstrap Go initializes it after durable consumption, then creates one normal first commit. Existing canonical and linked worktree roots work; selected subfolders and stale plans stop before effects. Existing source, Git presence and legacy checkpoints stay protected. Public real-file/Git regressions and both themed onboarding flows pass; real-agent outcomes distinguish scope restrictions from model limits. |
+| P17-09 | Close the discovered CLI help-version bug | 1 | P01 | Built CLI help and version both use PACKAGE_VERSION, preserving commands and usage/exit behavior; a public regression reproduces the old hardcoded 0.1.0 header and passes on the aligned release candidate. |
 
 ## Tests
 
-This phase runs everything above and adds no new test suites.
+Run the existing suites above. Tracked bugs add targeted regression checks at the seams in their approved plans; they add no new product features.
 
 ## Failure and recovery
 

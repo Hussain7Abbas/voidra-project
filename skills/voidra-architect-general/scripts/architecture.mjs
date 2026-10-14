@@ -29147,6 +29147,9 @@ var checkpointSchema = external_exports.looseObject({
   inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   baseTags: external_exports.string().optional(),
+  gitRoot: external_exports.string().nullable().optional(),
+  bootstrapGit: external_exports.boolean().optional(),
+  bootstrapFiles: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   planRevision: external_exports.string().optional(),
   startingChanges: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   paths: external_exports.array(external_exports.string()),
@@ -29224,7 +29227,7 @@ async function runContext(root, run) {
     throw new Error("Run checkpoint identity changed");
   for (const path of ctx.paths) {
     await safeGitPath(root, path);
-    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
+    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && !(ctx.bootstrapGit && ctx.baseCommit === null && Object.hasOwn(ctx.bootstrapFiles ?? {}, path)) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
       throw new Error("Run checkpoint contains another action's files");
   }
   return ctx;

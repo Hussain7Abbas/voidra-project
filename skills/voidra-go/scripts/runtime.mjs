@@ -271,11 +271,11 @@ var require_directives = __commonJS({
     };
     var escapeTagName = (tn) => tn.replace(/[!,[\]{}]/g, (ch) => escapeChars[ch]);
     var Directives = class _Directives {
-      constructor(yaml, tags) {
+      constructor(yaml, tags2) {
         this.docStart = null;
         this.docEnd = false;
         this.yaml = Object.assign({}, _Directives.defaultYaml, yaml);
-        this.tags = Object.assign({}, _Directives.defaultTags, tags);
+        this.tags = Object.assign({}, _Directives.defaultTags, tags2);
       }
       clone() {
         const copy = new _Directives(this.yaml, this.tags);
@@ -403,12 +403,12 @@ var require_directives = __commonJS({
         const tagEntries = Object.entries(this.tags);
         let tagNames;
         if (doc && tagEntries.length > 0 && identity.isNode(doc.contents)) {
-          const tags = {};
+          const tags2 = {};
           visit2.visit(doc.contents, (_key, node2) => {
             if (identity.isNode(node2) && node2.tag)
-              tags[node2.tag] = true;
+              tags2[node2.tag] = true;
           });
-          tagNames = Object.keys(tags);
+          tagNames = Object.keys(tags2);
         } else
           tagNames = [];
         for (const [handle, prefix] of tagEntries) {
@@ -773,15 +773,15 @@ var require_createNode = __commonJS({
     var identity = require_identity();
     var Scalar = require_Scalar();
     var defaultTagPrefix = "tag:yaml.org,2002:";
-    function findTagObject(value, tagName, tags) {
+    function findTagObject(value, tagName, tags2) {
       if (tagName) {
-        const match = tags.filter((t) => t.tag === tagName);
+        const match = tags2.filter((t) => t.tag === tagName);
         const tagObj = match.find((t) => !t.format) ?? match[0];
         if (!tagObj)
           throw new Error(`Tag ${tagName} not found`);
         return tagObj;
       }
-      return tags.find((t) => t.identify?.(value) && !t.format);
+      return tags2.find((t) => t.identify?.(value) && !t.format);
     }
     function createNode(value, tagName, ctx) {
       if (identity.isDocument(value))
@@ -1376,8 +1376,8 @@ ${indent}${start}${value}${end}`;
 ${indent}`);
       if (actualString) {
         const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str);
-        const { compat, tags } = ctx.doc.schema;
-        if (tags.some(test) || compat?.some(test))
+        const { compat, tags: tags2 } = ctx.doc.schema;
+        if (tags2.some(test) || compat?.some(test))
           return quotedString(value, ctx);
       }
       return implicitKey ? str : foldFlowLines.foldFlowLines(str, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
@@ -1469,9 +1469,9 @@ var require_stringify = __commonJS({
         options: opt
       };
     }
-    function getTagObject(tags, item) {
+    function getTagObject(tags2, item) {
       if (item.tag) {
-        const match = tags.filter((t) => t.tag === item.tag);
+        const match = tags2.filter((t) => t.tag === item.tag);
         if (match.length > 0)
           return match.find((t) => t.format === item.format) ?? match[0];
       }
@@ -1479,7 +1479,7 @@ var require_stringify = __commonJS({
       let obj;
       if (identity.isScalar(item)) {
         obj = item.value;
-        let match = tags.filter((t) => t.identify?.(obj));
+        let match = tags2.filter((t) => t.identify?.(obj));
         if (match.length > 1) {
           const testMatch = match.filter((t) => t.test);
           if (testMatch.length > 0)
@@ -1488,7 +1488,7 @@ var require_stringify = __commonJS({
         tagObj = match.find((t) => t.format === item.format) ?? match.find((t) => !t.format);
       } else {
         obj = item;
-        tagObj = tags.find((t) => t.nodeClass && obj instanceof t.nodeClass);
+        tagObj = tags2.find((t) => t.nodeClass && obj instanceof t.nodeClass);
       }
       if (!tagObj) {
         const name = obj?.constructor?.name ?? (obj === null ? "null" : typeof obj);
@@ -3254,10 +3254,10 @@ var require_tags = __commonJS({
       if (schemaTags && !customTags) {
         return addMergeTag && !schemaTags.includes(merge2.merge) ? schemaTags.concat(merge2.merge) : schemaTags.slice();
       }
-      let tags = schemaTags;
-      if (!tags) {
+      let tags2 = schemaTags;
+      if (!tags2) {
         if (Array.isArray(customTags))
-          tags = [];
+          tags2 = [];
         else {
           const keys = Array.from(schemas2.keys()).filter((key) => key !== "yaml11").map((key) => JSON.stringify(key)).join(", ");
           throw new Error(`Unknown schema "${schemaName}"; use one of ${keys} or define customTags array`);
@@ -3265,22 +3265,22 @@ var require_tags = __commonJS({
       }
       if (Array.isArray(customTags)) {
         for (const tag of customTags)
-          tags = tags.concat(tag);
+          tags2 = tags2.concat(tag);
       } else if (typeof customTags === "function") {
-        tags = customTags(tags.slice());
+        tags2 = customTags(tags2.slice());
       }
       if (addMergeTag)
-        tags = tags.concat(merge2.merge);
-      return tags.reduce((tags2, tag) => {
+        tags2 = tags2.concat(merge2.merge);
+      return tags2.reduce((tags3, tag) => {
         const tagObj = typeof tag === "string" ? tagsByName[tag] : tag;
         if (!tagObj) {
           const tagName = JSON.stringify(tag);
           const keys = Object.keys(tagsByName).map((key) => JSON.stringify(key)).join(", ");
           throw new Error(`Unknown custom tag ${tagName}; use one of ${keys}`);
         }
-        if (!tags2.includes(tagObj))
-          tags2.push(tagObj);
-        return tags2;
+        if (!tags3.includes(tagObj))
+          tags3.push(tagObj);
+        return tags3;
       }, []);
     }
     exports.coreKnownTags = coreKnownTags;
@@ -3296,14 +3296,14 @@ var require_Schema = __commonJS({
     var map2 = require_map();
     var seq = require_seq();
     var string4 = require_string();
-    var tags = require_tags();
+    var tags2 = require_tags();
     var sortMapEntriesByKey = (a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
     var Schema = class _Schema {
       constructor({ compat, customTags, merge: merge2, resolveKnownTags, schema, sortMapEntries, toStringDefaults }) {
-        this.compat = Array.isArray(compat) ? tags.getTags(compat, "compat") : compat ? tags.getTags(null, compat) : null;
+        this.compat = Array.isArray(compat) ? tags2.getTags(compat, "compat") : compat ? tags2.getTags(null, compat) : null;
         this.name = typeof schema === "string" && schema || "core";
-        this.knownTags = resolveKnownTags ? tags.coreKnownTags : {};
-        this.tags = tags.getTags(customTags, this.name, merge2);
+        this.knownTags = resolveKnownTags ? tags2.coreKnownTags : {};
+        this.tags = tags2.getTags(customTags, this.name, merge2);
         this.toStringOptions = toStringDefaults ?? null;
         Object.defineProperty(this, identity.MAP, { value: map2.map });
         Object.defineProperty(this, identity.SCALAR, { value: string4.string });
@@ -29864,6 +29864,9 @@ var checkpointSchema = external_exports.looseObject({
   inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   baseTags: external_exports.string().optional(),
+  gitRoot: external_exports.string().nullable().optional(),
+  bootstrapGit: external_exports.boolean().optional(),
+  bootstrapFiles: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   planRevision: external_exports.string().optional(),
   startingChanges: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   paths: external_exports.array(external_exports.string()),
@@ -30193,6 +30196,35 @@ async function head2(root) {
     return null;
   }
 }
+async function repositoryRoot(root) {
+  let top;
+  try {
+    top = await git2(root, ["rev-parse", "--show-toplevel"]);
+  } catch {
+    try {
+      await lstat5(join4(root, ".git"));
+    } catch (error62) {
+      if (error62.code === "ENOENT") return null;
+      throw error62;
+    }
+    throw new Error("The selected Git repository is invalid");
+  }
+  const canonical = await realpath3(root), actual = await realpath3(top);
+  if (canonical !== actual)
+    throw new Error("Select the Git repository root before running");
+  return actual;
+}
+async function tags(root) {
+  return await repositoryRoot(root) ? git2(root, [
+    "for-each-ref",
+    "--format=%(refname):%(objectname)",
+    "refs/tags"
+  ]) : "";
+}
+async function unchangedPlanningGit(root, ctx) {
+  if (await repositoryRoot(root) !== (ctx.gitRoot === void 0 ? await realpath3(root) : ctx.gitRoot) || await head2(root) !== ctx.baseCommit || await tags(root) !== ctx.baseTags)
+    throw new Error("Git repository, HEAD or tags changed during planning");
+}
 async function runContext(root, run) {
   if (!/^run-[0-9a-hjkmnp-tv-z]{6}$/.test(run))
     throw new Error("Invalid run ID");
@@ -30203,7 +30235,7 @@ async function runContext(root, run) {
     throw new Error("Run checkpoint identity changed");
   for (const path of ctx.paths) {
     await safeGitPath(root, path);
-    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
+    if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && !(ctx.bootstrapGit && ctx.baseCommit === null && Object.hasOwn(ctx.bootstrapFiles ?? {}, path)) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
       throw new Error("Run checkpoint contains another action's files");
   }
   return ctx;
@@ -30305,25 +30337,27 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     throw new Error(decision.reason ?? "Queued action cannot run");
   const identity = await processIdentity(ownerPid2);
   if (!identity) throw new Error("Run owner process is missing");
-  if (await git2(root, ["rev-parse", "--is-inside-work-tree"]).catch(
-    () => "false"
-  ) !== "true")
-    throw new Error(
-      "The project must be a local Git repository before running"
-    );
-  if (!action.assignee) {
-    const runner = await readGitIdentity(root);
-    if (!runner.value)
-      throw new Error(
-        "Configure Git name and email before starting unassigned work"
-      );
-    action.assignee = runner.value;
-  }
+  const repository = await repositoryRoot(root);
   const rules = projectLifecycles(checked.metadata), plan = readPlan(checked.files, action.id, checked.records);
   const stale = rules[action.type].planGate && ["implement", "verify", "review"].includes(action.stage ?? "") && (!action.planApproval || !plan || Object.entries(plan.hashes).some(
     ([name, value]) => action.planApproval?.hashes[name] !== value
   ));
   const boundary = mode === "plan" && !["discovery", "plan"].includes(action.stage ?? "");
+  const planning = mode === "plan" || stale || ["discovery", "plan"].includes(action.stage ?? ""), bootstrapGit = !repository && !planning && action.type === "feature" && action.title === "Bootstrap" && ["implement", "verify"].includes(action.stage ?? "") && !!action.planApproval && !!plan && Object.entries(plan.hashes).every(
+    ([name, value]) => action.planApproval?.hashes[name] === value
+  );
+  if (!repository && !planning && !bootstrapGit)
+    throw new Error(
+      "The project must be a local Git repository before implementation"
+    );
+  if (!action.assignee) {
+    const runner = await readGitIdentity(root);
+    if (!runner.value && !planning)
+      throw new Error(
+        "Configure Git name and email before starting unassigned work"
+      );
+    if (runner.value) action.assignee = runner.value;
+  }
   if (action.stage === "review" && action.type !== "release" && !checked.records.get(`.voidra/actions/${action.id}/questions.md`))
     throw new Error("Review needs a human decision");
   let startedAction = { ...action, status: "running" };
@@ -30337,6 +30371,15 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
       resumedAfterQuestions: true
     };
   const sourceSnapshot = await snapshotSources(root);
+  const bootstrapFiles = bootstrapGit ? Object.fromEntries(
+    [...checked.files].filter(
+      ([path]) => !path.startsWith(".voidra/local/") && !path.startsWith(`.voidra/actions/${action.id}/`) && (checked.records.has(path) || [
+        ".voidra/voidra.json",
+        ".voidra/README.md",
+        ".voidra/.gitignore"
+      ].includes(path))
+    ).map(([path, bytes]) => [path, hash2(bytes)])
+  ) : void 0;
   const previous = await listRunContexts(root), priorWork = {};
   for (const ctx2 of previous.filter(
     (c) => c.action === action.id && c.phase === "finalized" && c.indexReconciled
@@ -30362,6 +30405,9 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     ...stale || boundary ? { endedAt: at, toStage: startedAction.stage, planningOnly: true } : {},
     consumedRecords: [
       .../* @__PURE__ */ new Set([
+        ...Object.keys(bootstrapFiles ?? {}).filter(
+          (path) => checked.records.has(path)
+        ),
         actionId,
         actionPath,
         ".voidra/voidra.json",
@@ -30415,26 +30461,29 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
         ) || path.startsWith(`.voidra/actions/${action.id}/`) && ![actionPath].includes(path) && !path.includes("/runs/")
       ).map(([path, bytes]) => [path, hash2(bytes)])
     ),
-    baseTags: await git2(root, [
-      "for-each-ref",
-      "--format=%(refname):%(objectname)",
-      "refs/tags"
-    ]),
+    baseTags: await tags(root),
+    gitRoot: bootstrapGit ? await realpath3(root) : repository,
+    ...bootstrapGit ? { bootstrapGit: true, bootstrapFiles } : {},
     ...plan ? { planRevision: plan.revision } : {},
     baseCommit: await head2(root),
-    startingChanges: Object.fromEntries(
+    startingChanges: repository ? Object.fromEntries(
       await Promise.all(
         [
           ...new Set(
             (await Promise.all([
               git2(root, ["diff", "--name-only", "-z"]),
               git2(root, ["diff", "--cached", "--name-only", "-z"]),
-              git2(root, ["ls-files", "--others", "--exclude-standard", "-z"])
+              git2(root, [
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "-z"
+              ])
             ])).flatMap((list) => list.split("\0").filter(Boolean))
           )
         ].filter((path) => !path.startsWith(".voidra/")).map(async (path) => [path, await fileHash(root, path)])
       )
-    ),
+    ) : { ...sourceSnapshot },
     paths: [],
     fileHashes: {}
   };
@@ -30477,6 +30526,12 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
     }
   ]);
   if (stale || boundary) return runContext(root, run);
+  if (bootstrapGit) {
+    await guardRun(root, ownerToken, [], true);
+    await git2(root, ["init", "--quiet"]);
+    if (await repositoryRoot(root) !== ctx.gitRoot || await head2(root) !== null || await tags(root) !== "")
+      throw new Error("Bootstrap Git initialization changed outside this run");
+  }
   return ctx;
 }
 async function heartbeat(root, token) {
@@ -30576,6 +30631,7 @@ Plan: ${report.reviews.plan.summary}
   const paths = [
     .../* @__PURE__ */ new Set([
       ...report.paths,
+      ...Object.keys(ctx.bootstrapFiles ?? {}),
       ...release ? [`.voidra/releases/${release.version}.md`] : [],
       ...[...project.files.keys()].filter(
         (path) => path.startsWith(`.voidra/actions/${ctx.action}/`)
@@ -30587,7 +30643,7 @@ Plan: ${report.reviews.plan.summary}
   const fileHashes = {};
   for (const path of paths) {
     const value = path === ctx.actionPath ? preparedAction : path === ctx.runPath ? preparedRun : await text5(root, path);
-    fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : await fileHash(root, path);
+    fileHashes[path] = path === ctx.actionPath || path === ctx.runPath ? value === null ? null : hash2(value) : ctx.bootstrapFiles?.[path] ?? await fileHash(root, path);
   }
   if (release)
     for (const member of action.releaseActions ?? []) {
@@ -30933,12 +30989,7 @@ async function publishPlanning(root, token, raw) {
   const input2 = architectureProposalSchema.parse(raw), { ctx, lockRaw } = await inspectOwnedRun(root, token);
   if (ctx.phase !== "started" || input2.action !== ctx.action)
     throw new Error("Planning report does not match the active action");
-  if (await head2(root) !== ctx.baseCommit || await git2(root, [
-    "for-each-ref",
-    "--format=%(refname):%(objectname)",
-    "refs/tags"
-  ]) !== ctx.baseTags)
-    throw new Error("Git HEAD or tags changed during planning");
+  await unchangedPlanningGit(root, ctx);
   const source = await snapshotSources(root), changesOutside = sourceChanges(ctx.sourceSnapshot ?? {}, source).filter(
     (path) => path !== "GLOSSARY.md"
   );
@@ -31031,10 +31082,13 @@ function sourceChanges(before, after) {
     (path) => before[path] !== after[path]
   );
 }
-async function guardRun(root, token, paths = []) {
+async function guardRun(root, token, paths = [], initializingBootstrap = false) {
   const { ctx } = await owned(root, token), { action } = await current(root, ctx), project = await checkProject(root), rules = projectLifecycles(project.metadata), plan = readPlan(project.files, action.id, project.records);
   if (ctx.mode === "plan")
     throw new Error("Planning-only runs cannot edit implementation files");
+  const repository = await repositoryRoot(root);
+  if (repository !== (ctx.gitRoot === void 0 ? await realpath3(root) : ctx.gitRoot) && !(initializingBootstrap && ctx.bootstrapGit && repository === null))
+    throw new Error("Git repository changed outside this run");
   const release = action.type === "release" && action.stage === "review" ? releaseIntent(action, plan?.revision) : void 0;
   if (release && (ctx.planRevision !== plan?.revision || paths.some((path) => !action.releaseFiles?.includes(path))))
     throw new Error(
@@ -31042,7 +31096,7 @@ async function guardRun(root, token, paths = []) {
     );
   if (!release && !["implement", "verify"].includes(action.stage ?? ""))
     throw new Error("This stage cannot edit code");
-  if (rules[action.type].planGate && (!plan || !action.planApproval || Object.entries(plan.hashes).some(
+  if ((rules[action.type].planGate || ctx.bootstrapGit) && (!plan || !action.planApproval || Object.entries(plan.hashes).some(
     ([name, value]) => action.planApproval?.hashes[name] !== value
   ) || ctx.planRevision && ctx.planRevision !== plan.revision))
     throw new Error(
@@ -31061,6 +31115,10 @@ async function guardRun(root, token, paths = []) {
     if (hash2(project.files.get(path) ?? "") !== value)
       throw new Error(`Consumed record changed: ${path}`);
   }
+  for (const [path, value] of Object.entries(ctx.bootstrapFiles ?? {})) {
+    if (hash2(project.files.get(path) ?? "") !== value)
+      throw new Error(`Bootstrap planning baseline changed: ${path}`);
+  }
 }
 var researchReportSchema = external_exports.strictObject({
   findings: external_exports.string().min(1),
@@ -31078,12 +31136,7 @@ var humanReportSchema = external_exports.strictObject({
   steps: external_exports.array(external_exports.string().min(1)).min(1)
 });
 async function assertPlanningEffects(root, ctx) {
-  if (await head2(root) !== ctx.baseCommit || await git2(root, [
-    "for-each-ref",
-    "--format=%(refname):%(objectname)",
-    "refs/tags"
-  ]) !== ctx.baseTags)
-    throw new Error("Git HEAD or tags changed during planning");
+  await unchangedPlanningGit(root, ctx);
   if (sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length)
     throw new Error(
       "Planning changed repository files; preserve them and stop"
