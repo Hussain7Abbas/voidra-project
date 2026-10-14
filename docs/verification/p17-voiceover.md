@@ -1,10 +1,10 @@
-# P17 VoiceOver check
+# P17 VoiceOver check — passed
 
 Prepared app: local unsigned **1.0.0** candidate, source **a6c13169c8f1d201c9b35e2a161427072a2a5774** (candidate implementation c07550d). All 398 quality tests, 66 desktop/accessibility flows, packaging, mounted-DMG copy/startup and six-skill installation pass. These automated checks do not substitute for this human pass.
 
 The local DMG is `apps/desktop/release/Voidra-Project-1.0.0-arm64.dmg`. The implementing agent prepares the disposable project and starts the app; no terminal commands are required from the person testing it.
 
-This is the remaining human accessibility check required by P17. Automated axe and keyboard results do not establish VoiceOver behavior. Record the person, date, candidate version/source, macOS version and actual result. This checklist is pending until a person completes it.
+**Recorded result:** the user reported **Passed in both themes** on **2026-10-15**, selecting option a after the agent presented this checklist and requested the actual testing result. Tester: repository owner (user). Prepared candidate: **1.0.0**, source **a6c13169c8f1d201c9b35e2a161427072a2a5774**; local macOS **26.5.2 (25F84)**. No blocking issue was reported. This is human-reported evidence, distinct from the automated checks; the agent does not claim to have performed VoiceOver testing.
 
 Use the prepared candidate with a disposable project. Turn on VoiceOver with Command–F5 (or the keyboard’s equivalent). Test light and dark appearance. Keep your normal VoiceOver settings and report anything that prevents understanding or completing a step.
 
@@ -23,4 +23,4 @@ Use the prepared candidate with a disposable project. Turn on VoiceOver with Com
 | Settings | Read appearance/update/skill settings; open and close a dialog with predictable focus return. |
 | Errors | Hear an invalid field, stale-file message and a blocked/recovery state, then reach the available next step. |
 
-For a problem, record the flow, control/text, what VoiceOver announced, what you expected, and whether you could finish the step. The implementing agent fixes blocking problems and reruns affected automated checks. A completed check must be recorded honestly in P17 evidence; absence of a report remains pending.
+For a problem, record the flow, control/text, what VoiceOver announced, what you expected, and whether you could finish the step. The implementing agent fixes blocking problems and reruns affected automated checks. The user’s completed result is recorded in [P17 evidence](p17.md).

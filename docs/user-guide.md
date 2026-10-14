@@ -2,7 +2,7 @@
 
 [Documentation](intro.md) · [Installation](../README.md#install-on-macos) · [Glossary](../GLOSSARY.md)
 
-This guide describes the 1.0.0 candidate; [P17 evidence](verification/p17.md) records checks still pending before publication.
+This guide describes Voidra 1.0.0; [P17 evidence](verification/p17.md) records its verification and publication.
 
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 

@@ -4,7 +4,7 @@
 
 Complete v1 planning and tracking for local projects: onboarding and the general profile, backlog and all action types, dependencies and human checklists, exact questions/plan/review gates, ordered standalone Go/Plan execution, releases and Sync, commit history, persistent undo/redo, searchable decisions and documents, offline skill installation, optional editable AI suggestions and update notices. Includes the user guide, approved Bootstrap Git initialization with valid first-commit project records, canonical worktree protection, and matching CLI version/help output. App, library and all six bundled skills share the release version; format and template versions remain independent.
 
-This entry prepares the candidate. P17 records remaining verification, account access and the actual human VoiceOver pass before publication.
+Regression, desktop accessibility, packaging, both-agent skill verification and the user-reported VoiceOver pass are recorded in P17 evidence.
 
 ## 0.2.2
 
