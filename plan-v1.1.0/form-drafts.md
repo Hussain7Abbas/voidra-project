@@ -30,3 +30,26 @@ Draft values are private durable app data, excluded from Git and shared planning
 ## Acceptance and recovery coverage
 
 Test each exit route plus one badge per draft, whole-form restoration, badge/draft switching, multiple unfinished records, invalid partial values, explicit discard, successful/failed submission, no-key AI errors and late AI responses. Prove a fresh form starts in Agentic after the user previously chose Normal, while restoring a Normal draft keeps Normal. Verify private app-data storage, no draft Git changes, restart, project switch, concurrent windows, storage failure, versioned draft-schema upgrade, cache rebuild and stale record/gate restoration. Resume a release draft without creating commits/tags or reusing stale approval; resume a question without sending an answer. Test both themes and keyboard/screen-reader navigation. Keep evidence as actual phase verification, not a claim that this contract has run.
+
+## Source form inventory — implementation audit
+
+This inventory comes from the current renderer. It identifies required adapters, not completed draft support. P04 records actual adoption and test evidence for each row; P07/P09 retain those adapters as the UI moves.
+
+| Form family | Source | Values/context to retain | Owner |
+| --- | --- | --- | --- |
+| Task creation / Backlog / promotion | `project-actions.tsx`, `project-backlog.tsx` | Mode, source prompt, title, description, type, assignment, release, idea status/reason, generated result, original promoted idea revision | P04 |
+| Action description / relationships | `project-actions.tsx` | Action ID, original revision, description, parent and blockers | P04 |
+| Review rejection | `project-actions.tsx` | Action/review context and revision, feedback | P04/P07 |
+| Profile setup | `project-profile.tsx` | Project name, template/version, every partial answer, inference/confirmation choices | P04 |
+| Profile answer edit | `project-profile.tsx` | Block/answer ID, original block revision, partial value and status | P04 |
+| Release package source | `project-release-source.tsx` | Partial path and original metadata revision | P04 |
+| Team member entry | P03 Team settings | Partial name/email or identity; selected edit target and original roster context | P04 |
+| OpenRouter key entry | `ai-settings.tsx` | Unsubmitted key through the encrypted credential boundary only; never ordinary labels/blobs | P04 |
+| AI request/review | `ai-suggestion.tsx` | Original intent/context, notes, generated result and edited fields; no pending request replay | P04 |
+| Profile follow-up prompts | `profile-ai.tsx` | Editable generated questions and originating profile answer | P04 |
+| Planning commit | `planning-commit.tsx` | Selected paths, message, exact preview revision and operation identity; no commit on restore | P04 |
+| Question answer | `action-gates.tsx` | Action/question/round, original revision, selected options, delegation/free-text state and text | P04/P07 |
+| Plan change request | `action-gates.tsx` | Action and original plan revision, feedback | P04/P07 |
+| Release preparation | `project-releases.tsx` | Member IDs/hashes now; wizard step/version/notes/keep-move decision under P09 | P04/P09 |
+
+Search/filter controls are view state. Theme/client/Me/membership/model preferences and checklist/queue actions apply immediately and retain their existing persistence/error handling. Pure confirmations, fixed recovery commands, read-only viewers and the OS folder chooser contain no unfinished app data-entry values; they do not create empty draft badges. This distinction does not exempt the actual entry/review forms above.

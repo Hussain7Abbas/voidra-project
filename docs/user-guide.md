@@ -50,6 +50,10 @@ Choose an action type that matches the work:
 
 Assign work to an agent or make it human work with a checklist. Dependencies block an action until the required work is complete. The board lets you filter and group actions; it does not override their lifecycle or approval gates. Large work can be split into demonstrable child slices, each with its own planning loop.
 
+## Edit Markdown
+
+Action and Backlog descriptions render Markdown inside the input. Put the cursor on a line to reveal its source; selecting multiple lines reveals those lines. Headings, lists, tables, checklists and code remain readable around the text you edit. Copy and paste use Markdown source. Undo/Redo in the field change its text, independently of project history. Use Cmd/Ctrl+S in an edit dialog to activate its enabled Save button. Invalid text stays available for correction; saving still checks for outside file edits.
+
 ## Run the queue
 
 Add eligible actions to the **Run** queue and arrange their order. The queue is personal, while actions and results are shared planning records. Start your chosen coding agent in the project and invoke Go or Plan. The agent processes the queue, records ownership and consumed inputs before work, and stops each action when it needs a decision.

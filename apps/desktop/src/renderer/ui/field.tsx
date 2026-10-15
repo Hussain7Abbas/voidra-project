@@ -5,6 +5,7 @@ type ControlProps = {
   id?: string;
   "aria-invalid"?: boolean | undefined;
   "aria-describedby"?: string | undefined;
+  "aria-labelledby"?: string | undefined;
 };
 
 /** Visible label, optional hint and an inline error tied to one control. */
@@ -28,13 +29,23 @@ export function Field({
 
   return (
     <div className={className}>
-      <label className="field-label" htmlFor={id}>
+      <label
+        className="field-label"
+        htmlFor={id}
+        id={`${id}-label`}
+        onClick={() => document.getElementById(id)?.focus()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ")
+            document.getElementById(id)?.focus();
+        }}
+      >
         {label}
       </label>
       {cloneElement(children, {
         id,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": describedBy,
+        "aria-labelledby": `${id}-label`,
       })}
       {hint && (
         <p id={hintId} className="field-hint">

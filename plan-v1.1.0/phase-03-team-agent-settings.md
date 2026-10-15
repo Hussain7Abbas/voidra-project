@@ -1,6 +1,6 @@
 # V11-P03 — Team and coding-client settings
 
-> **Needs:** P01 · **Status:** Not started · **Confirmed:** C05; operational-client details in A06
+> **Needs:** P01 · **Status:** In progress — 2026-10-15 · **Confirmed:** C05; operational-client details in A06
 
 ## Outcome
 

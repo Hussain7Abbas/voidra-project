@@ -53,6 +53,36 @@ export function Dialog({
       onClose={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
+      onKeyDownCapture={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest("dialog") !== event.currentTarget
+        )
+          return;
+        if (
+          !(event.metaKey || event.ctrlKey) ||
+          event.altKey ||
+          event.key.toLowerCase() !== "s" ||
+          event.nativeEvent.isComposing
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        const forms = event.currentTarget.querySelectorAll("form");
+        const form =
+          event.target instanceof Element
+            ? (event.target.closest("form") ??
+              (forms.length === 1 ? forms[0] : null))
+            : null;
+        if (!form || closeDisabled) return;
+        const submit = Array.from(form.elements).find(
+          (element): element is HTMLButtonElement =>
+            element instanceof HTMLButtonElement &&
+            element.type === "submit" &&
+            !element.disabled,
+        );
+        submit?.click();
+      }}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => {

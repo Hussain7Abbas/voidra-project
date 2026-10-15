@@ -35,6 +35,7 @@ import {
   APP_ORIGIN,
   contentPolicy,
   isTrustedFrame,
+  rendererDocument,
   resolveAsset,
 } from "./security.ts";
 import { ProjectService } from "./service.ts";
@@ -268,16 +269,15 @@ async function start(): Promise<void> {
       const path = await resolveAsset(renderer, request.url);
       let body: Uint8Array = await readFile(path);
       const extension = extname(path);
+      let policy = contentPolicy("");
       if (extension === ".html") {
         const theme = resolveTheme(
           (await store.read()).theme,
           nativeTheme.shouldUseDarkColors,
         );
-        body = Buffer.from(
-          Buffer.from(body)
-            .toString()
-            .replace(/<html\b/, `<html data-theme="${theme}"`),
-        );
+        const document = rendererDocument(Buffer.from(body).toString(), theme);
+        body = Buffer.from(document.html);
+        policy = document.policy;
       }
       const type =
         (
@@ -293,9 +293,7 @@ async function start(): Promise<void> {
       return new Response(Uint8Array.from(body), {
         headers: {
           "Content-Type": type,
-          "Content-Security-Policy": contentPolicy(
-            extension === ".html" ? Buffer.from(body).toString() : "",
-          ),
+          "Content-Security-Policy": policy,
         },
       });
     } catch {

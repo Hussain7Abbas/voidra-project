@@ -116,9 +116,16 @@ export function EditHistory({
   useEffect(() =>
     window.voidra.subscribe((event) => {
       if (event.type !== "edit-history") return;
-      if (typing())
-        void request({ command: "text-edit", direction: event.direction });
-      else void act(event.direction);
+      if (typing()) {
+        const command = new CustomEvent("voidra-text-edit", {
+          detail: event.direction,
+          bubbles: true,
+          cancelable: true,
+        });
+        document.activeElement?.dispatchEvent(command);
+        if (!command.defaultPrevented)
+          void request({ command: "text-edit", direction: event.direction });
+      } else void act(event.direction);
     }),
   );
   useEffect(() => {

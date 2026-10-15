@@ -1,6 +1,6 @@
 # V11-P02 — Markdown rendering and editing in place
 
-> **Needs:** P01 · **Status:** Not started
+> **Needs:** P01 · **Status:** Done — 2026-10-15
 
 ## Outcome
 
@@ -42,3 +42,7 @@ Cursor and multiline behavior are demonstrated in Electron, not just a static pr
 ## Hand-off
 
 Document the component contract, sanitizer, selection behavior, draft lifecycle and undo routing. P04/P07/P08 reuse it; they must not introduce their own Markdown dialects or raw-text card renderers.
+
+## Executed outcome
+
+All four stories are complete. [Verification](../docs/verification/v1.1.0-p02.md) records 431 passing quality tests and all 73 unique desktop scenarios across the full run and the focused AI assertion rerun, including real cursor/selection, native clipboard/menu history, composition, source retention and guarded outside-edit recovery.

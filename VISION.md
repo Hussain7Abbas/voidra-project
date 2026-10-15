@@ -2,7 +2,7 @@
 
 > **Status:** approved on 2026-10-06. Updated on 2026-10-12 with the approved review corrections: approval invalidation and the planning skill's glossary permission (see [plan/main.md](plan/main.md)). Ideas adapted from [mattpocock/skills](https://github.com/mattpocock/skills) were added on 2026-10-11.
 > This document fixes *what* Voidra is and how it behaves. Architecture comes after it is approved.
-> **v1.1.0 direction (2026-10-15):** the user requested a Tasks-centered agentic coding workspace. [Section 17](#17-v110-product-direction) records those changes and supersedes the affected v1 UI descriptions below as the future target. The user authorized starting the [v1.1.0 plan](plan-v1.1.0/main.md); V11-P01 is complete; V11-P02 is next and later phases have not started.
+> **v1.1.0 direction (2026-10-15):** the user requested a Tasks-centered agentic coding workspace. [Section 17](#17-v110-product-direction) records those changes and supersedes the affected v1 UI descriptions below as the future target. The user authorized starting the [v1.1.0 plan](plan-v1.1.0/main.md); V11-P01 is complete; V11-P02 is complete; V11-P03 is in progress under the user’s explicit authorization to complete all phases non-stop.
 
 ## 1. In one paragraph
 
@@ -302,3 +302,5 @@ The user requested the following on 2026-10-15. These requirements change the pr
 - **Documentation is a page.** Show a directory view beside the rendered page, with its own global search across supported project documentation. Search filters directory files and shows match counts. Opening a result highlights the searched text in the document. Keep source containment and safe link handling; do not expose arbitrary/private files.
 
 The user selected option b on 2026-10-15: ignore the incomplete sentence “always when writing in the form make sure to ~”. It adds no requirement (R17/U01 resolved). The user requested implementation questions and answered the first six with **1a, 2a, 3a, 4a, 5c, 6a**, followed by the all-forms draft requirement R18 and **7a, 8a, 9b**. The [clarification register](plan-v1.1.0/main.md#confirmed-clarification-answers--2026-10-15) records C01–C09; both rounds and U01–U10 are resolved. Creating this plan does not authorize implementing every phase or publishing v1.1.0. The original v1 delegated approvals do not extend to this release.
+
+The user subsequently authorized **“complete all phases non-stop”** on 2026-10-15. Continue the release tracker through P10 without another phase go-ahead, preserving explicit account/product gates and actual verification requirements.

@@ -36,3 +36,7 @@ Theme changes switch the complete palette before paint with transitions temporar
 Theme colors switch immediately on every control; hover/border/text colors do not interpolate between palettes. Button disabled opacity also switches immediately with its semantic state: an enabled button must never fade through an inaccessible text contrast. The temporary two-frame transition override was replaced in P08 after deferred board rendering exposed a contrast failure. Do not blanket-defer above-fold board columns.
 
 Project Undo/Redo controls live in the top bar with accessible operation labels. Overwrite confirmation uses the native dialog pattern. Dialog content is a section so its heading/footer remain local to the dialog when rendered beneath another landmark; light/dark axe checks cover this nesting. Native Edit menu commands and renderer shortcuts preserve text-field undo.
+
+## Markdown controls
+
+Use the shared safe GFM viewer for prose and `MarkdownEditor` for Markdown input. Formatting stays inside the input; cursor and selected physical lines reveal their source. Titles, versions and names remain plain controls. Preserve the visible Field label, keyboard focus, validation associations and the existing source revision. Text undo belongs to the active control, while persistent project undo remains separate. [Editor contract](architecture/markdown-editing.md).

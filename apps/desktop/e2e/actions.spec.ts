@@ -19,7 +19,7 @@ for (const theme of ["light", "dark"] as const)
       serializeRecord(
         doc,
         doc.data,
-        "## Useful heading\n\n**Readable** description.\n\n<script>window.__voidraAttack=true</script>\n\n[Unsafe link](javascript:alert(1))\n\n<img src=x onerror='window.__voidraAttack=true'>\n",
+        "## Useful heading\n\n**Readable** description.\n\n| Step | Result |\n| --- | --- |\n| Format | **Preserved** |\n\n- [x] Safe checklist\n\n<script>window.__voidraAttack=true</script>\n\n[Unsafe link](javascript:alert(1))\n\n<img src=x onerror='window.__voidraAttack=true'>\n",
       ),
     );
     const runPath =
@@ -98,6 +98,12 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("heading", { name: "Useful heading" }),
       ).toBeVisible();
       await expect(page.getByText("Readable", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("cell", { name: "Preserved", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.locator(".markdown input[type=checkbox]"),
+      ).toBeDisabled();
       expect(
         await page.evaluate(
           () =>

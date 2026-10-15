@@ -6,6 +6,8 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [V11-P01 — Tasks and project releases](v1.1.0-p01.md): completed foundation: 424 tests, 70 desktop workflows, explicit migration, guarded movement and old-client refusal.
 
+- [V11-P02 — Markdown editing](v1.1.0-p02.md): active-line/selection reveal, exact source history, clipboard/IME, guarded descriptions and both-theme accessibility; 431 tests and 73 covered desktop scenarios.
+
 - [P00 — Repository foundation](p00.md): tooling, scanner, documentation and macOS CI.
 
 - [P01 — Format package](p01.md): library, CLI, fixtures, recovery checks and publication status.

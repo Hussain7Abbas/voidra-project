@@ -11,6 +11,7 @@ import { actionLabels } from "./action-labels.ts";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { MarkdownEditor } from "./markdown-editor.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -57,7 +58,6 @@ export function ProjectBacklog() {
     [status, setStatus] = useState<Status>("new"),
     [reason, setReason] = useState(""),
     [targetRelease, setTargetRelease] = useState(""),
-    [preview, setPreview] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const errorRef = useRef<HTMLParagraphElement>(null);
@@ -88,7 +88,6 @@ export function ProjectBacklog() {
         ? (idea.data.targetRelease ?? "")
         : (data.projectRelease.version ?? ""),
     );
-    setPreview(false);
     setError("");
     setOpen(true);
   };
@@ -344,26 +343,18 @@ export function ProjectBacklog() {
           )}
           <Field
             label="Description"
-            hint="Markdown is supported. Preview the text before saving."
+            hint="Write Markdown; formatting stays visible around the line you edit."
           >
-            <textarea
-              className="input"
-              name="description"
+            <MarkdownEditor
+              documentKey={`idea:${editing?.data.id ?? "new"}:${promoting ? "promote" : "edit"}`}
+              disabled={busy}
               required
               rows={6}
               maxLength={20000}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
             />
           </Field>
-          <Button aria-pressed={preview} onClick={() => setPreview((v) => !v)}>
-            Preview
-          </Button>
-          {preview && (
-            <div className="idea-preview">
-              <SafeMarkdown body={description} />
-            </div>
-          )}
           {promoting && (
             <Field label="Action type">
               <select

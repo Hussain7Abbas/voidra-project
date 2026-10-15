@@ -47,9 +47,9 @@ for (const theme of ["light", "dark"] as const)
         .fill(
           "Export **private** notes.\n\n<script>window.__voidraAttack=true</script>",
         );
-      await page.getByRole("button", { name: "Preview", exact: true }).click();
-      await expect(page.locator(".idea-preview strong")).toHaveText("private");
-      expect(await page.locator(".idea-preview script").count()).toBe(0);
+      await page.getByLabel("Title", { exact: true }).click();
+      await expect(page.locator(".cm-md-strong")).toHaveText("private");
+      expect(await page.locator(".markdown-editor script").count()).toBe(0);
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();

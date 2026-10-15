@@ -159,6 +159,11 @@ for (const theme of ["light", "dark"] as const)
       expect(parseRecord(path, await readFile(join(root, path))).body).toBe(
         "A teammate changed this description.",
       );
+      await page.getByLabel("Description", { exact: true }).click();
+      await page.keyboard.press("ControlOrMeta+a");
+      await expect(page.locator(".cm-md-source")).toHaveText(
+        "My intended updated description.",
+      );
       await page
         .getByRole("button", {
           name: "Overwrite current description",

@@ -9,6 +9,7 @@ import { actionLabels } from "./action-labels.ts";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
 import { request } from "./app.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { MarkdownEditor } from "./markdown-editor.tsx";
 import { PlanningCommit } from "./planning-commit.tsx";
 import { ProjectInbox } from "./project-inbox.tsx";
 import { RunQueue } from "./run-queue.tsx";
@@ -734,21 +735,17 @@ export function ProjectActions({
             }}
           >
             {editMode === "description" ? (
-              <>
-                <Field label="Description">
-                  <textarea
-                    className="input"
-                    required
-                    rows={7}
-                    maxLength={20000}
-                    value={editBody}
-                    onChange={(e) => setEditBody(e.target.value)}
-                  />
-                </Field>
-                <div className="idea-preview">
-                  <SafeMarkdown body={editBody} />
-                </div>
-              </>
+              <Field label="Description">
+                <MarkdownEditor
+                  documentKey={`action:${current.data.id}:description`}
+                  required
+                  disabled={busy}
+                  rows={7}
+                  maxLength={20000}
+                  value={editBody}
+                  onChange={setEditBody}
+                />
+              </Field>
             ) : (
               <>
                 <Field label="Parent action">
@@ -1420,13 +1417,14 @@ export function ProjectActions({
             label="Description"
             hint="Include the change and how to check it."
           >
-            <textarea
-              className="input"
+            <MarkdownEditor
+              documentKey="action:new"
               required
+              disabled={busy}
               rows={6}
               maxLength={20000}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
             />
           </Field>
           {error && (

@@ -427,9 +427,9 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("dialog", { name: "Edit description", exact: true }),
       ).toBeVisible();
-      await expect(page.getByLabel("Description", { exact: true })).toHaveValue(
-        /Draft release notes/,
-      );
+      await expect(
+        page.getByLabel("Description", { exact: true }),
+      ).toContainText(/Draft release notes/);
       await page
         .getByRole("button", { name: "Save changes", exact: true })
         .click();
