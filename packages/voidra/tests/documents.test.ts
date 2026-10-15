@@ -75,3 +75,23 @@ it("lists unreadable or invalid ADRs as problems and bounds document bodies", as
   const empty = await listProjectAdrs(await materialize());
   expect(empty).toEqual({ entries: [], problems: [] });
 });
+it("inventories bounded nested docs without following linked folders or exposing other sources", async () => {
+  const { listProjectDocuments } = await import("../src/documents.ts");
+  const root = await materialize(),
+    outside = await materialize();
+  await mkdir(join(root, "docs/nested"), { recursive: true });
+  await writeFile(join(root, "docs/nested/page.md"), "# Page\n\nOriginal\r\n");
+  await writeFile(join(root, "GLOSSARY.md"), "# Glossary\n");
+  await writeFile(join(root, "docs/ignored.txt"), "not indexed");
+  await writeFile(join(outside, "hidden.md"), "secret");
+  await symlink(outside, join(root, "docs/linked"));
+  const result = await listProjectDocuments(root);
+  expect(result.entries.map((doc) => doc.path)).toEqual([
+    "GLOSSARY.md",
+    "docs/nested/page.md",
+  ]);
+  expect(result.entries[1]?.body).toContain("Original\r\n");
+  expect(result.problems).toEqual([
+    { path: "docs/linked", message: "Document path contains a symlink" },
+  ]);
+});

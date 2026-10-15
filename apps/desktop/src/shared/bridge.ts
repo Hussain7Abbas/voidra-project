@@ -150,6 +150,20 @@ export const knowledgeDataSchema = z.discriminatedUnion("kind", [
     ),
   }),
   z.strictObject({
+    kind: z.literal("documents"),
+    items: z.array(
+      z.strictObject({
+        path: z.string(),
+        title: z.string(),
+        revision: z.string(),
+        matches: z.number().int().nonnegative(),
+      }),
+    ),
+    problems: z.array(
+      z.strictObject({ path: z.string(), message: z.string() }),
+    ),
+  }),
+  z.strictObject({
     kind: z.literal("document"),
     document: z.strictObject({
       path: z.string(),
@@ -164,6 +178,10 @@ export type KnowledgeEntry = z.infer<typeof knowledgeEntrySchema>;
 export const knowledgeRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("ai-context"), intent: aiIntentSchema }),
   knowledgeSearchSchema.extend({ command: z.literal("search-decisions") }),
+  z.strictObject({
+    command: z.literal("search-documents"),
+    q: z.string().max(256),
+  }),
   z.strictObject({
     command: z.literal("read-document"),
     path: z.string().min(1).max(4096),

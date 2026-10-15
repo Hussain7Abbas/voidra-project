@@ -285,6 +285,8 @@ type ResizeGesture = {
 };
 export function PaneResize({
   panel,
+  label,
+  controls,
   orientation,
   value,
   preferred,
@@ -297,6 +299,8 @@ export function PaneResize({
   onToggle,
 }: {
   panel: WorkspacePanel;
+  label?: string;
+  controls?: string;
   orientation: "horizontal" | "vertical";
   value: number;
   preferred: number;
@@ -333,11 +337,12 @@ export function PaneResize({
     };
   }, [cancel]);
   const name =
-    panel === "navigation"
+    label ??
+    (panel === "navigation"
       ? "Project navigation"
       : panel === "actions"
         ? "Actions"
-        : "Waiting for you";
+        : "Waiting for you");
   return (
     <section
       className={`pane-resize-control pane-resize-control-${orientation}`}
@@ -348,7 +353,7 @@ export function PaneResize({
         tabIndex={0}
         className={`pane-resizer pane-resizer-${orientation}`}
         aria-label={`Resize ${name}`}
-        aria-controls={paneId[panel]}
+        aria-controls={controls ?? paneId[panel]}
         aria-orientation={orientation}
         aria-valuemin={min}
         aria-valuemax={max}

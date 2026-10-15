@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import type { KnowledgeEntry } from "../shared/bridge.ts";
-import { request } from "./app.tsx";
+import { request, useSnapshot } from "./app.tsx";
 import { useOpenDocument } from "./document-viewer.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { useWorkspace } from "./project-profile.tsx";
@@ -217,11 +217,7 @@ export function ProjectDecisions({
                   ? ` · ${entry.at.length === 10 ? entry.at : new Date(entry.at).toLocaleString()}`
                   : ""}
               </p>
-              <p className="whitespace-pre-wrap text-sm">
-                {entry.text.length > 1200
-                  ? `${entry.text.slice(0, 1200)}…`
-                  : entry.text}
-              </p>
+              <SafeMarkdown body={entry.text} source={entry.path} />
               <div className="flex gap-2 mt-3">
                 <Button
                   variant="ghost"
@@ -296,9 +292,10 @@ export function ProjectDecisions({
   );
 }
 export function ProjectGlossary() {
+  const snapshot = useSnapshot();
   const [search, setSearch] = useState("");
   const document = useQuery({
-    queryKey: ["document", "GLOSSARY.md"],
+    queryKey: ["document", snapshot.data?.project?.path, "GLOSSARY.md"],
     retry: false,
     queryFn: async () => {
       const result = await request({
@@ -310,14 +307,6 @@ export function ProjectGlossary() {
       return result.document;
     },
   });
-  const blocks =
-    document.data?.body
-      .split(/\n\s*\n/)
-      .filter(
-        (block) =>
-          !search || block.toLowerCase().includes(search.toLowerCase()),
-      )
-      .join("\n\n") ?? "";
   return (
     <>
       <PageHeader
@@ -350,8 +339,12 @@ export function ProjectGlossary() {
         </section>
       ) : (
         <section className="card action-detail">
-          {blocks ? (
-            <SafeMarkdown body={blocks} source="GLOSSARY.md" />
+          {document.data?.body ? (
+            <SafeMarkdown
+              body={document.data.body}
+              source="GLOSSARY.md"
+              search={search}
+            />
           ) : (
             <p>No matching terms.</p>
           )}

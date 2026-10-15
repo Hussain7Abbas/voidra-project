@@ -26,7 +26,10 @@ import type {
 import { ActionsSidebar } from "./actions-sidebar.tsx";
 import { AiSettingsPanel } from "./ai-settings.tsx";
 import { CodingClientSetting } from "./coding-client.tsx";
-import { DocumentViewerProvider } from "./document-viewer.tsx";
+import {
+  DocumentationPage,
+  DocumentViewerProvider,
+} from "./document-viewer.tsx";
 import { DraftRecovery } from "./draft-recovery.tsx";
 import { EditHistory } from "./edit-history.tsx";
 import { flushFormDrafts } from "./form-drafts.tsx";
@@ -144,8 +147,15 @@ function Shell() {
     | "inbox"
     | "decisions"
     | "glossary"
+    | "documentation"
     | "releases"
   >("tasks");
+  useEffect(() => {
+    const openDocumentation = () => setNavigationTarget("documentation");
+    window.addEventListener("voidra-open-document", openDocumentation);
+    return () =>
+      window.removeEventListener("voidra-open-document", openDocumentation);
+  }, []);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<string | null>(null);
   const showAction = useCallback(
@@ -267,6 +277,7 @@ function Shell() {
     { label: "Profile", icon: BookOpen },
     { label: "Decisions", icon: BookOpen },
     { label: "Glossary", icon: BookOpen },
+    { label: "Documentation", icon: BookOpen },
     { label: "Run", icon: Activity },
     { label: "Releases", icon: Package },
   ];
@@ -447,7 +458,7 @@ function Shell() {
                   <button
                     type="button"
                     aria-label={item.label}
-                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "documentation" ? "Documentation" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                     disabled={
                       hasPlanning
                         ? ![
@@ -459,6 +470,7 @@ function Shell() {
                             "Waiting for you",
                             "Decisions",
                             "Glossary",
+                            "Documentation",
                             "Releases",
                           ].includes(item.label)
                         : index !== 0
@@ -484,17 +496,19 @@ function Shell() {
                             ? "releases"
                             : item.label === "Decisions"
                               ? "decisions"
-                              : item.label === "Glossary"
-                                ? "glossary"
-                                : item.label === "Waiting for you"
-                                  ? "inbox"
-                                  : item.label === "Run"
-                                    ? "run"
-                                    : item.label === "Backlog"
-                                      ? "backlog"
-                                      : item.label === "Profile"
-                                        ? "profile"
-                                        : "actions",
+                              : item.label === "Documentation"
+                                ? "documentation"
+                                : item.label === "Glossary"
+                                  ? "glossary"
+                                  : item.label === "Waiting for you"
+                                    ? "inbox"
+                                    : item.label === "Run"
+                                      ? "run"
+                                      : item.label === "Backlog"
+                                        ? "backlog"
+                                        : item.label === "Profile"
+                                          ? "profile"
+                                          : "actions",
                       );
                     }}
                     aria-current={
@@ -511,15 +525,17 @@ function Shell() {
                                   ? "Run"
                                   : navigationTarget === "decisions"
                                     ? "Decisions"
-                                    : navigationTarget === "releases"
-                                      ? "Releases"
-                                      : navigationTarget === "glossary"
-                                        ? "Glossary"
-                                        : navigationTarget === "profile"
-                                          ? "Profile"
-                                          : navigationTarget === "backlog"
-                                            ? "Backlog"
-                                            : "Actions")
+                                    : navigationTarget === "documentation"
+                                      ? "Documentation"
+                                      : navigationTarget === "releases"
+                                        ? "Releases"
+                                        : navigationTarget === "glossary"
+                                          ? "Glossary"
+                                          : navigationTarget === "profile"
+                                            ? "Profile"
+                                            : navigationTarget === "backlog"
+                                              ? "Backlog"
+                                              : "Actions")
                           : index === 0
                       )
                         ? "page"
@@ -833,6 +849,7 @@ const Content = memo(function Content({
     | "inbox"
     | "decisions"
     | "glossary"
+    | "documentation"
     | "releases";
 }) {
   const project = data.project;
@@ -855,6 +872,8 @@ const Content = memo(function Content({
         onAction={onAction}
         onProfile={onProfile}
       />
+    ) : navigationTarget === "documentation" ? (
+      <DocumentationPage key={project.path} />
     ) : navigationTarget === "glossary" ? (
       <ProjectGlossary key={navigationEpoch} />
     ) : navigationTarget === "profile" ? (

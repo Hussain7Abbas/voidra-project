@@ -28,6 +28,7 @@ function documentPath(path: string, directory = false): boolean {
       .split("/")
       .some((part) => part === "" || part === "." || part === "..") &&
     (path === "GLOSSARY.md" ||
+      (directory && path === "docs") ||
       (path.startsWith("docs/") && (directory || path.endsWith(".md"))))
   );
 }
@@ -123,6 +124,59 @@ export async function readProjectDocument(
   const raw = await bytes(root, path),
     doc = parts(path, raw);
   return { path, title: doc.title, body: doc.body, revision: hash(raw) };
+}
+/** Bounded public Markdown inventory; every body passes the ordinary contained reader. */
+export async function listProjectDocuments(root: string): Promise<{
+  entries: ProjectDocument[];
+  problems: DocumentProblem[];
+}> {
+  const entries: ProjectDocument[] = [],
+    problems: DocumentProblem[] = [];
+  let visited = 0,
+    total = 0;
+  const problem = (path: string, error: unknown) =>
+    problems.push({
+      path,
+      message: error instanceof Error ? error.message : "Document unreadable",
+    });
+  async function read(path: string): Promise<void> {
+    try {
+      const doc = await readProjectDocument(root, path);
+      total += Buffer.byteLength(doc.body);
+      if (total > 8 * 1024 * 1024)
+        throw Error("Documentation exceeds the 8 MiB index limit");
+      entries.push(doc);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+        problem(path, error);
+    }
+  }
+  async function visit(path: string, depth: number): Promise<void> {
+    try {
+      if (depth > 24)
+        throw Error("Documentation exceeds the directory depth limit");
+      const target = await checkedPath(root, path, true);
+      const listing = await readdir(target);
+      for (const name of listing.sort()) {
+        if (++visited > 2048 || total > 8 * 1024 * 1024) {
+          problem(path, Error("Documentation index limit reached"));
+          break;
+        }
+        const item = `${path}/${name}`,
+          info = await lstat(join(target, name));
+        if (info.isSymbolicLink())
+          problem(item, Error("Document path contains a symlink"));
+        else if (info.isDirectory()) await visit(item, depth + 1);
+        else if (name.endsWith(".md")) await read(item);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+        problem(path, error);
+    }
+  }
+  await read("GLOSSARY.md");
+  await visit("docs", 0);
+  return { entries, problems };
 }
 export function parseAdr(path: string, raw: Buffer): AdrDocument {
   const doc = parts(path, raw),

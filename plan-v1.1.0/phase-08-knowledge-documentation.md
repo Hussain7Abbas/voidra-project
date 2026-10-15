@@ -1,6 +1,6 @@
 # V11-P08 — Markdown knowledge and documentation workspace
 
-> **Needs:** P02, P07 · **Status:** Not started · **Proposal:** A05
+> **Needs:** P02, P07 · **Status:** Done — 2026-10-16 · **Proposal:** A05
 
 ## Outcome
 

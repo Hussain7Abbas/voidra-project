@@ -58,6 +58,19 @@ it("indexes every knowledge kind from real sources through validated correlated 
     expect(
       search.data.items.filter((e) => e.assumed).length,
     ).toBeGreaterThanOrEqual(2);
+    const docs = await invoke({
+      command: "search-documents",
+      q: "local files",
+    });
+    expect(
+      docs.ok && docs.data.kind === "documents" && docs.data.items,
+    ).toMatchObject([{ path: "docs/adr/2026-10-13-storage.md", matches: 1 }]);
+    const allDocs = await invoke({ command: "search-documents", q: "" });
+    expect(
+      allDocs.ok &&
+        allDocs.data.kind === "documents" &&
+        allDocs.data.items.map((item) => item.path),
+    ).toContain("GLOSSARY.md");
     const results = await Promise.all([
       invoke({
         command: "search-decisions",

@@ -76,6 +76,7 @@ import {
   workspaceSchema,
 } from "../shared/bridge.ts";
 import { collectAiContext } from "./ai-context.ts";
+import { DocumentIndex } from "./documents.ts";
 import { FormSubmissions } from "./form-submissions.ts";
 import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
@@ -87,6 +88,8 @@ export class ProjectWorkspace {
   private history: UndoHistory;
   private knowledge: KnowledgeIndex;
   private knowledgeReady = false;
+  private documents: DocumentIndex;
+  private documentVersion = 0;
   private knowledgeProblems: { path: string; message: string }[] = [];
   private watcher: FSWatcher | null = null;
   private packageWatch = "";
@@ -112,6 +115,7 @@ export class ProjectWorkspace {
     this.notify = notify;
     this.templatesDirectory = templatesDirectory;
     this.root = root;
+    this.documents = new DocumentIndex(root);
     this.submissions = new FormSubmissions(root, submissionsDirectory);
     this.databasePath = databasePath;
     this.database = this.open();
@@ -137,7 +141,14 @@ export class ProjectWorkspace {
       },
     );
     const watcher = this.watcher;
-    watcher.on("all", () => {
+    watcher.on("all", (_event, path) => {
+      if (
+        path.startsWith(join(this.root, "docs")) ||
+        path === join(this.root, "GLOSSARY.md")
+      ) {
+        this.documents.invalidate();
+        this.documentVersion++;
+      }
       clearTimeout(this.timer);
       this.timer = setTimeout(() => {
         void this.publish().catch(() => this.notify());
@@ -155,7 +166,10 @@ export class ProjectWorkspace {
   }
   publish(announce = true): Promise<void> {
     const next = this.publishQueue.then(async () => {
-      const value = JSON.stringify(await this.snapshot());
+      const value = JSON.stringify([
+        await this.snapshot(),
+        this.documentVersion,
+      ]);
       if (value !== this.delivered) {
         this.delivered = value;
         if (announce) this.notify();
@@ -239,6 +253,8 @@ export class ProjectWorkspace {
         context: collectAiContext(project, catalog.templates, request.intent),
       };
     }
+    if (request.command === "search-documents")
+      return this.documents.search(request.q);
     if (request.command === "read-document")
       return {
         kind: "document",

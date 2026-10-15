@@ -1,15 +1,22 @@
+import { memo } from "react";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { resolveDocumentLink } from "../shared/document-links.ts";
+import {
+  documentHighlights,
+  documentImages,
+} from "../shared/document-search.ts";
 
 /** Shared read-only policy: GFM, no raw HTML, no remote resources or arbitrary navigation. */
-export function MarkdownContent({
+export const MarkdownContent = memo(function MarkdownContent({
   body,
   source,
   onOpen,
+  search = "",
 }: {
   body: string;
+  search?: string;
   source?: string;
   onOpen?: (path: string) => void;
 }) {
@@ -18,7 +25,11 @@ export function MarkdownContent({
       <Markdown
         skipHtml
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
+        rehypePlugins={[
+          rehypeSanitize,
+          documentImages,
+          [documentHighlights, { query: search }],
+        ]}
         components={{
           h1: ({ children }) => <h3>{children}</h3>,
           h2: ({ children }) => <h3>{children}</h3>,
@@ -60,7 +71,7 @@ export function MarkdownContent({
       </Markdown>
     </div>
   );
-}
+});
 
 /** Phrasing-only labels: render Markdown without nested links, buttons or form controls. */
 export function InlineMarkdown({ body }: { body: string }) {

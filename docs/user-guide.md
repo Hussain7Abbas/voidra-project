@@ -102,7 +102,9 @@ Undo and redo cover app planning edits and survive restart. A record already con
 
 The decisions view gathers answered questions, plan/review decisions and assumptions so you can search them. Revisit an assumption from its current source to create follow-up work; the original decision remains history.
 
-Read the root glossary and repository Markdown documents in the app’s read-only viewer. Edit those files with your editor. ADRs are reserved for decisions that are hard to reverse, surprising without context and involve a real tradeoff; smaller decisions stay with their action.
+Decisions and Glossary render complete Markdown, including tables, lists and code. Glossary search highlights matches without hiding parts of a definition.
+
+Open **Documentation** to browse `docs/` and the root `GLOSSARY.md` as pages. Search documentation (Cmd/Ctrl+F) filters the directory by visible text and shows each file's match count. Select a result, then use Next/Previous match; document back/forward preserves your search. Matching is literal and case-insensitive, including text across bold or italic formatting. Filenames and hidden link destinations do not count. Added, changed and removed files refresh automatically. Toggle **Directory**, drag its divider or use arrow keys to resize it. A narrow workspace shows the directory over the article and closes it after you choose a file. Invalid or unsupported documents show a useful error while search stays available. These views are read-only. Use **Open in editor** to edit a source file. ADRs are reserved for decisions that are hard to reverse, surprising without context and involve a real tradeoff; smaller decisions stay with their action.
 
 ## Settings and optional AI
 

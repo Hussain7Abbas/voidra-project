@@ -77,7 +77,7 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "profile architecture", exact: true })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Architecture", exact: true }),
+        page.getByRole("article", { name: "Document content", exact: true }),
       ).toContainText("private planning files");
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
@@ -88,15 +88,20 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "plan architecture", exact: true })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Architecture", exact: true }),
+        page.getByRole("article", { name: "Document content", exact: true }),
       ).toBeVisible();
-      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
+      await page
+        .getByRole("button", { name: "feature discovery", exact: true })
+        .click();
       await page
         .getByRole("button", { name: "missing page", exact: true })
         .click();
-      await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
-        "document is missing",
-      );
+      await expect(
+        page
+          .getByRole("article", { name: "Document content" })
+          .getByRole("alert"),
+      ).toContainText("document is missing");
       await page.keyboard.press("Escape");
       await page
         .getByRole("button", { name: "Decisions", exact: true })
@@ -105,7 +110,11 @@ for (const theme of ["light", "dark"] as const)
         .getByLabel("Search decisions", { exact: true })
         .fill("storage");
       await expect(
-        page.getByRole("heading", { name: "Offline storage", exact: true }),
+        page.getByRole("heading", {
+          name: "Offline storage",
+          exact: true,
+          level: 2,
+        }),
       ).toBeVisible();
       await page
         .getByRole("button", {
@@ -114,13 +123,14 @@ for (const theme of ["light", "dark"] as const)
         })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Offline storage", exact: true }),
+        page.getByRole("article", { name: "Document content", exact: true }),
       ).toBeVisible();
       await page
+        .getByRole("article", { name: "Document content" })
         .getByRole("button", { name: "architecture", exact: true })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Architecture", exact: true }),
+        page.getByRole("article", { name: "Document content", exact: true }),
       ).toContainText("private planning files");
       expect(
         (await new AxeBuilder({ page }).setLegacyMode(true).analyze())
