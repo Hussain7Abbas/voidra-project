@@ -56,6 +56,7 @@ export function ProjectBacklog() {
     [description, setDescription] = useState(""),
     [status, setStatus] = useState<Status>("new"),
     [reason, setReason] = useState(""),
+    [targetRelease, setTargetRelease] = useState(""),
     [preview, setPreview] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -82,6 +83,11 @@ export function ProjectBacklog() {
     setDescription(idea?.body ?? "");
     setStatus((idea?.data.status as Status) ?? "new");
     setReason(idea?.data.reason ?? "");
+    setTargetRelease(
+      idea
+        ? (idea.data.targetRelease ?? "")
+        : (data.projectRelease.version ?? ""),
+    );
     setPreview(false);
     setError("");
     setOpen(true);
@@ -103,6 +109,7 @@ export function ProjectBacklog() {
       } else if (editing && revision)
         await request({
           command: "edit-idea",
+          targetRelease: data.taskTracking ? targetRelease || null : undefined,
           id: editing.data.id,
           revision,
           title,
@@ -115,6 +122,7 @@ export function ProjectBacklog() {
           throw new Error("Promote an existing idea through its action.");
         await request({
           command: "create-idea",
+          targetRelease: data.taskTracking ? targetRelease || null : undefined,
           title,
           description,
           status,
@@ -306,6 +314,34 @@ export function ProjectBacklog() {
               onChange={(e) => setTitle(e.target.value)}
             />
           </Field>
+          {data.taskTracking && !promoting && (
+            <Field
+              label="Target release"
+              hint="Backlog may have no release. An existing assignment is preserved when promoted."
+            >
+              <select
+                className="input"
+                value={targetRelease}
+                onChange={(event) => setTargetRelease(event.target.value)}
+              >
+                <option value="">No release</option>
+                {[
+                  ...new Set(
+                    [
+                      data.projectRelease.version,
+                      targetRelease,
+                      ...data.releases.map((release) => release.data.version),
+                    ].filter((value): value is string => !!value),
+                  ),
+                ].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                    {value === data.projectRelease.version ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field
             label="Description"
             hint="Markdown is supported. Preview the text before saving."

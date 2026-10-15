@@ -17,6 +17,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
 - `docs/`: development, compatibility, architecture, ADRs and verification evidence; `docs/architecture/v2/` holds source-linked future designs governed by its [local instructions](docs/architecture/v2/AGENTS.md). Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
+- `plan-v1.1.0/`: Tasks/Kanban workspace implementation plan, with its own [tracker](plan-v1.1.0/main.md) and [instructions](plan-v1.1.0/AGENTS.md). The user authorized starting implementation on 2026-10-15; V11-P01 is complete with a Tasks projection, release-source selection, explicit migration and guarded movement. V11-P02 is next; later phases have not started. The aligned 1.1.0 source is a development candidate, not a published release. Preserve completed v1 phase history. The product direction is recorded in [VISION.md section 17](VISION.md#17-v110-product-direction); the original v1 delegation is not blanket approval for these phases.
 - `.github/workflows/ci.yml`: the macOS frozen-install and `make check` pipeline, triggered only by pushed `vX.Y.Z` tags with three numeric components. Branch pushes, pull requests and manual dispatch do not start CI. CI never runs authenticated coding agents.
 - Root config: pinned pnpm and Node, strict TypeScript, Biome, Vitest and the Makefile. Native Electron modules still require Electron-specific rebuilding in P02; matching Node major versions alone is insufficient.
 - Future app, executable skill and template directories are created when their phases give them real content. Do not add placeholders or implement later-phase scope early.
@@ -65,15 +66,15 @@ As part of every task, keep project instructions and documentation synchronized 
 
 When the user asks to run the next phase, to continue, or to run a specific phase (for example "run P03"):
 
-1. **Pick the phase.** "Next" means the phase marked **In progress** in `plan/main.md`; otherwise the first **Not started** phase whose needs are all **Done**. If no phase can start, say why and stop.
-2. **Read** this file, `VISION.md`, `plan/main.md`, `plan/AGENTS.md`, the phase file, and the evidence files (`docs/verification/`) of the phases it needs.
+1. **Pick the phase.** Use the tracker for the release the user names. For the newly requested workspace work, use `plan-v1.1.0/main.md` and IDs `V11-PXX`; unqualified "next" now refers to that tracker. "Next" means the phase marked **In progress**; otherwise the first **Not started** phase whose needs are all **Done**. Explicit original `P00`–`P17` requests still refer to `plan/main.md`. If no phase can start, say why and stop.
+2. **Read** this file, `VISION.md`, the selected tracker and its directory's `AGENTS.md`, the phase file, and the evidence files (`docs/verification/`) of the phases it needs.
 3. **Check your understanding.** Reply with the stories you will implement, the files you expect to create or change, the testing seams you will test at, any risks or contradictions, and your questions. Then stop and wait for the user's go-ahead, unless the user has explicitly authorized continuing through all phases. Under that authorization, report each phase's understanding in commentary and continue; resolve named product approvals when the user expressly delegates them (D24), recording the rationale. Stop only for required account access or checks that cannot be performed by the agent.
-4. **Implement.** Set the phase to **In progress** in `plan/main.md`. Work story by story, writing tests at the agreed seams first. Once P00 has created the Makefile, run `make check` after each story.
+4. **Implement.** Set the phase to **In progress** in its selected tracker. Work story by story, writing tests at the agreed seams first. Once P00 has created the Makefile, run `make check` after each story.
 5. **Do every step yourself.** That includes all GitHub work with the `gh` CLI and the real-agent checks described below. Ask the user only for decisions, for the approvals the phase names, and for anything that needs their accounts. Never ask the user to copy or paste anything.
 6. **Finish.** When every exit criterion is met:
-   - write `docs/verification/pXX.md`;
+   - write `docs/verification/pXX.md` for the original plan, or `docs/verification/v1.1.0-pXX.md` for v1.1.0;
    - update the docs and `AGENTS.md` files that changed;
-   - set the phase to **Done** with the date in `plan/main.md`;
+   - set the phase to **Done** with the date in its selected tracker;
    - commit and push.
 7. **Report** what was done, anything unverified and why, and which phase is next.
 

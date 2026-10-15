@@ -9,6 +9,12 @@ import { nativeCoverageDirectory } from "./coverage-setup.ts";
 interface Workspace {
   hasVoidra: boolean;
   readOnly: boolean;
+  tasks: {
+    id: string;
+    sourceIdea: string | null;
+    column: string;
+    parent: string | null;
+  }[];
   actions: {
     data: { id: string; title: string };
     body: string;
@@ -57,6 +63,11 @@ it("loads records through the package and rebuilds deleted, corrupt and obsolete
     expect(before.hasVoidra).toBe(true);
     expect(before.diagnostics).toEqual([]);
     expect(before.actions.length).toBeGreaterThan(5);
+    expect(before.tasks.length).toBe(before.actions.length);
+    expect(before.tasks.some((task) => task.sourceIdea === "idea-000000")).toBe(
+      true,
+    );
+    expect(before.tasks.some((task) => task.parent !== null)).toBe(true);
     expect(before.actions.some((action) => action.runs.length > 0)).toBe(true);
     const database = join(
       data,

@@ -23,6 +23,8 @@ Install the matching [voidra 1.0.0 library and CLI](https://www.npmjs.com/packag
 
 ## Development
 
+The [v1.1.0 plan](plan-v1.1.0/main.md) tracks the Tasks-centered workspace redesign. The development candidate includes the first task/release foundation; drag/drop, shared Markdown editing and durable form drafts are scheduled in subsequent phases. The published download remains 1.0.0.
+
 Use Node 24.13.0 and pnpm 10.30.3, then:
 
 ```sh

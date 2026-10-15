@@ -2,6 +2,8 @@
 
 Extends [root instructions](../../AGENTS.md). This scope implements deterministic Node run/intake helpers shared by the desktop and standalone skill runtime. It has no Electron, SQLite or authenticated agent dependency.
 
+For projects explicitly opted into `taskTracking: 1`, new architecture slices and human blockers use the shared `newTaskFields` defaults. Preserve target-release/placement fields through existing action transitions. Backlog work is not runnable; use shared queue eligibility rather than bypassing it in runtime helpers. Legacy projects retain their previous behavior. Regenerate bundled assets whenever these shared rules change.
+
 - Keep planning-file rules and writes in `voidra`. Own local process identity, run ownership/checkpoints and git side-effect reconciliation here.
 - Heartbeat age is a warning, never proof that a live owner may be cleared. Compare host, PID/start identity and token before recovery or further effects.
 - Intake uses shared atomic profile creation, preserves existing glossary/instruction bytes and executes no Git command. Its only writes outside planning are the explicitly authorized glossary and AGENTS.md/CLAUDE.md pointers. Keep every inferred answer source-linked; null remains unresolved. Standalone generated assets resolve relative to the copied skill folder.
@@ -15,6 +17,7 @@ Extends [root instructions](../../AGENTS.md). This scope implements deterministi
 
 - P08 planning proposals share the active run token and stop atomically with its result and lock release. `voidra-plan` uses explicit plan mode; source snapshots, HEAD/tags and existing glossary bytes must be preserved. Public CLI summaries must not expose full source fingerprints.
 - Implementation preparation requires approved bytes, no overlap with starting user edits, passing checks and both review parts for gated types. Research and human blockers finish without implementation commits. Keep runtime bundles and shared planning guides synchronized for both Go and Plan skills.
+- In opted-in task-tracking projects, runtime-created Research follow-up ideas, architecture slices and human blockers use shared release defaults. Keep standalone generated runtimes synchronized and test both adapter labels without describing deterministic engine checks as authenticated agent evidence.
 
 - `scripts/knowledge-goldens.ts` creates valid, exactly approved examples of ADR criteria/naming and settled glossary additions. Generate/check them with the other catalogs; never describe their scripted documentation outputs as real-agent execution.
 

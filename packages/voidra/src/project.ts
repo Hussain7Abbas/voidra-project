@@ -22,6 +22,7 @@ import {
   schemas,
   validateRecord,
 } from "./schemas.ts";
+import { taskColumn } from "./task-view.ts";
 import { FORMAT_VERSION, PACKAGE_VERSION } from "./versions.ts";
 
 export { FORMAT_VERSION, PACKAGE_VERSION } from "./versions.ts";
@@ -372,6 +373,21 @@ export function inspectFiles(
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result;
+  const taskAware =
+    (minimumParts[0] ?? 0) > 1 ||
+    ((minimumParts[0] ?? 0) === 1 && (minimumParts[1] ?? 0) >= 1);
+  if (metadata.taskTracking === 1 && !taskAware)
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Task tracking requires voidra ≥ 1.1.0",
+    );
+  const ranActions = new Set(
+    [...records.values()]
+      .filter((r) => r.kind === "run")
+      .map((r) => r.document.data.action),
+  );
   const actions = new Map<string, { action: Action; file: string }>();
   const ids = new Set<string>([metadata.project.id]);
   const questions = new Map<string, Question[]>();
@@ -388,6 +404,41 @@ export function inspectFiles(
     }
     if (kind === "action") {
       const action = schemas.action.parse(d);
+      if (action.taskColumn !== undefined && metadata.taskTracking !== 1)
+        add(
+          "task-tracking",
+          file,
+          "taskColumn",
+          "Enable task tracking through the previewed upgrade before using board placement",
+        );
+      if (metadata.taskTracking === 1) {
+        const terminal =
+          action.status === "complete" || action.stage === "cancelled";
+        if (
+          !terminal &&
+          (action.taskColumn === undefined ||
+            action.targetRelease === undefined)
+        )
+          add(
+            "task-metadata",
+            file,
+            "targetRelease",
+            "Active tracked tasks require explicit placement and target release (nullable in Backlog)",
+          );
+        if (
+          (action.taskColumn !== undefined ||
+            action.targetRelease !== undefined ||
+            !terminal) &&
+          taskColumn(action, ranActions.has(action.id)) !== "backlog" &&
+          !action.targetRelease
+        )
+          add(
+            "task-release",
+            file,
+            "targetRelease",
+            "Tasks outside Backlog require a release",
+          );
+      }
       actions.set(action.id, { action, file });
       if (file !== `.voidra/actions/${action.id}/action.md`)
         add("identity", file, "id", "Action ID must match its directory");
@@ -406,6 +457,18 @@ export function inspectFiles(
     }
     if (kind === "idea" && file !== `.voidra/backlog/${d.id}.md`)
       add("identity", file, "id", "Idea ID must match its filename");
+    if (
+      kind === "idea" &&
+      metadata.taskTracking === 1 &&
+      !["promoted", "rejected"].includes(String(d.status)) &&
+      d.targetRelease === undefined
+    )
+      add(
+        "task-metadata",
+        file,
+        "targetRelease",
+        "Tracked Backlog items require an explicit target release or null",
+      );
     if (kind === "sync") {
       const sync = schemas.sync.parse(d);
       if (file !== `.voidra/syncs/${sync.id}.md`)

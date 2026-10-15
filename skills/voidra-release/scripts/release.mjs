@@ -1151,16 +1151,16 @@ var require_stringifyString = __commonJS({
     function lineLengthOverLimit(str, lineWidth, indentLength) {
       if (!lineWidth || lineWidth < 0)
         return false;
-      const limit = lineWidth - indentLength;
+      const limit2 = lineWidth - indentLength;
       const strLen = str.length;
-      if (strLen <= limit)
+      if (strLen <= limit2)
         return false;
       for (let i = 0, start = 0; i < strLen; ++i) {
         if (str[i] === "\n") {
-          if (i - start > limit)
+          if (i - start > limit2)
             return true;
           start = i + 1;
-          if (strLen - start <= limit)
+          if (strLen - start <= limit2)
             return false;
         }
       }
@@ -7372,7 +7372,7 @@ var require_dist = __commonJS({
 
 // tools/run-engine/src/release-intake.ts
 import { execFile as execFile2 } from "node:child_process";
-import { readFile as readFile3, realpath as realpath2 } from "node:fs/promises";
+import { readFile as readFile3, realpath as realpath3 } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify as promisify2 } from "node:util";
 
@@ -27283,6 +27283,14 @@ var id = (prefix) => external_exports.string().regex(new RegExp(`^${prefix}-[0-9
 var date5 = external_exports.iso.datetime({ offset: true });
 var version2 = external_exports.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 var hashSchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
+var releasePackageSchema = external_exports.string().max(4096).refine(
+  (path) => (path === "package.json" || path.endsWith("/package.json")) && !path.includes("\\") && !path.includes("\0") && !path.split("/").some(
+    (part) => !part || [".", "..", ".git", ".voidra", "node_modules"].includes(
+      part.toLowerCase()
+    )
+  ),
+  "Choose a contained project package.json path"
+);
 var types = [
   "feature",
   "bug",
@@ -27357,6 +27365,8 @@ var actionSchema = object2({
   ]),
   doneBy: external_exports.enum(["agent", "you"]),
   assignee: text.optional(),
+  targetRelease: version2.nullable().optional(),
+  taskColumn: external_exports.enum(["backlog", "todo"]).optional(),
   parent: id("act").optional(),
   blockedBy: external_exports.array(id("act")).optional(),
   links: external_exports.array(text).optional(),
@@ -27402,6 +27412,8 @@ var schemas = {
     project: object2({ id: id("prj"), name: text }),
     template: object2({ id: slug, version: version2 }).nullable(),
     createdWith: text,
+    releasePackage: releasePackageSchema.optional(),
+    taskTracking: external_exports.literal(1).optional(),
     lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
@@ -27422,6 +27434,7 @@ var schemas = {
   idea: object2({
     id: id("idea"),
     title: text,
+    targetRelease: version2.nullable().optional(),
     status: external_exports.enum(["new", "needs-info", "ready", "promoted", "rejected"]),
     reason: text.optional(),
     promotedTo: id("act").optional(),
@@ -27681,9 +27694,21 @@ function actionComplete(action) {
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+// packages/voidra/src/task-view.ts
+function taskColumn(action, hasRun = false) {
+  if (action.stage === "cancelled") return "backlog";
+  if (action.status === "complete" || action.releasedIn) return "done";
+  if (action.stage === "review") return "review";
+  if (action.status === "running" || action.status === "failed" || action.stage === "verify" || hasRun || action.doneBy === "you" && action.status === "waiting")
+    return "in-progress";
+  if (action.status === "draft" || action.taskColumn === "backlog")
+    return "backlog";
+  return "todo";
+}
+
 // packages/voidra/src/versions.ts
 var FORMAT_VERSION = 1;
-var PACKAGE_VERSION = "1.0.0";
+var PACKAGE_VERSION = "1.1.0";
 function upgradePrototype(files) {
   const upgraded = new Map(files);
   const raw = files.get(".voidra/voidra.json");
@@ -27986,6 +28011,17 @@ function inspectFiles(files, options = {}) {
   for (const message of validateLifecycles(rules))
     add("lifecycle", metaPath, "lifecycles", message);
   if (validateLifecycles(rules).length) return result2;
+  const taskAware = (minimumParts[0] ?? 0) > 1 || (minimumParts[0] ?? 0) === 1 && (minimumParts[1] ?? 0) >= 1;
+  if (metadata.taskTracking === 1 && !taskAware)
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Task tracking requires voidra \u2265 1.1.0"
+    );
+  const ranActions = new Set(
+    [...records.values()].filter((r) => r.kind === "run").map((r) => r.document.data.action)
+  );
   const actions = /* @__PURE__ */ new Map();
   const ids = /* @__PURE__ */ new Set([metadata.project.id]);
   const questions = /* @__PURE__ */ new Map();
@@ -28002,6 +28038,30 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "action") {
       const action = schemas.action.parse(d);
+      if (action.taskColumn !== void 0 && metadata.taskTracking !== 1)
+        add(
+          "task-tracking",
+          file2,
+          "taskColumn",
+          "Enable task tracking through the previewed upgrade before using board placement"
+        );
+      if (metadata.taskTracking === 1) {
+        const terminal = action.status === "complete" || action.stage === "cancelled";
+        if (!terminal && (action.taskColumn === void 0 || action.targetRelease === void 0))
+          add(
+            "task-metadata",
+            file2,
+            "targetRelease",
+            "Active tracked tasks require explicit placement and target release (nullable in Backlog)"
+          );
+        if ((action.taskColumn !== void 0 || action.targetRelease !== void 0 || !terminal) && taskColumn(action, ranActions.has(action.id)) !== "backlog" && !action.targetRelease)
+          add(
+            "task-release",
+            file2,
+            "targetRelease",
+            "Tasks outside Backlog require a release"
+          );
+      }
       actions.set(action.id, { action, file: file2 });
       if (file2 !== `.voidra/actions/${action.id}/action.md`)
         add("identity", file2, "id", "Action ID must match its directory");
@@ -28015,6 +28075,13 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "idea" && file2 !== `.voidra/backlog/${d.id}.md`)
       add("identity", file2, "id", "Idea ID must match its filename");
+    if (kind === "idea" && metadata.taskTracking === 1 && !["promoted", "rejected"].includes(String(d.status)) && d.targetRelease === void 0)
+      add(
+        "task-metadata",
+        file2,
+        "targetRelease",
+        "Tracked Backlog items require an explicit target release or null"
+      );
     if (kind === "sync") {
       const sync = schemas.sync.parse(d);
       if (file2 !== `.voidra/syncs/${sync.id}.md`)
@@ -28182,10 +28249,10 @@ function inspectFiles(files, options = {}) {
     for (const link of a.links ?? [])
       if (/^(act|idea|q|run|prj)-[0-9a-hjkmnp-tv-z]{6}$/.test(link))
         reference(link, file2, "links");
-    const open3 = (questions.get(id2) ?? []).some((q) => !q.answer);
-    if (open3 && a.status !== "waiting")
+    const open4 = (questions.get(id2) ?? []).some((q) => !q.answer);
+    if (open4 && a.status !== "waiting")
       add("status", file2, "status", "Open questions require waiting status");
-    if (!open3 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
+    if (!open4 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
       add(
         "status",
         file2,
@@ -28207,7 +28274,7 @@ function inspectFiles(files, options = {}) {
           "requiredVoidra",
           "Aggregate completion without a parent plan requires voidra \u2265 0.2.0"
         );
-      if (a.stage === "plan" && a.status === "waiting" && !open3 && !plan)
+      if (a.stage === "plan" && a.status === "waiting" && !open4 && !plan)
         add(
           "missing-plan",
           file2,
@@ -28847,9 +28914,92 @@ async function applyOperation(root, input2, options = {}, migration = false) {
   }
 }
 
+// packages/voidra/src/project-release.ts
+import { constants } from "node:fs";
+import { lstat as lstat3, open as open3, realpath as realpath2 } from "node:fs/promises";
+import { join as join3 } from "node:path";
+var limit = 256 * 1024;
+async function packagePath(root, path) {
+  releasePackageSchema.parse(path);
+  let cursor = await realpath2(root);
+  const parts = path.split("/");
+  for (const [index, part] of parts.entries()) {
+    cursor = join3(cursor, part);
+    const info = await lstat3(cursor);
+    if (info.isSymbolicLink()) throw Error("Package path contains a symlink");
+    if (index === parts.length - 1 ? !info.isFile() : !info.isDirectory())
+      throw Error(
+        "Package path must use directories and a regular package file"
+      );
+  }
+  return cursor;
+}
+async function readProjectRelease(root, selected) {
+  const path = selected ?? (await checkProject(root)).metadata?.releasePackage ?? "package.json";
+  const result2 = {
+    path,
+    version: null,
+    revision: null,
+    message: null
+  };
+  try {
+    const target = await packagePath(root, path);
+    const file2 = await open3(target, constants.O_RDONLY | constants.O_NOFOLLOW);
+    let bytes;
+    try {
+      await packagePath(root, path);
+      const info = await file2.stat();
+      if (!info.isFile()) throw Error("Package must be a regular file");
+      if (info.size > limit)
+        throw Error("Package exceeds the 256 KiB reading limit");
+      const buffer = Buffer.alloc(limit + 1);
+      let total = 0;
+      while (total <= limit) {
+        const { bytesRead } = await file2.read(
+          buffer,
+          total,
+          buffer.length - total,
+          total
+        );
+        if (!bytesRead) break;
+        total += bytesRead;
+        if (total > limit)
+          throw Error("Package exceeds the 256 KiB reading limit");
+      }
+      bytes = buffer.subarray(0, total);
+      await packagePath(root, path);
+    } finally {
+      await file2.close();
+    }
+    result2.revision = hash2(bytes);
+    let data;
+    try {
+      data = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+      );
+    } catch {
+      throw Error("Package must contain valid UTF-8 JSON");
+    }
+    const parsed = external_exports.looseObject({ version: version2 }).safeParse(data);
+    if (!parsed.success) throw Error("Package needs a valid X.Y.Z version");
+    result2.version = parsed.data.version;
+  } catch (error62) {
+    const code = error62.code;
+    result2.message = code === "ENOENT" ? "Package not found; choose the project's package.json" : error62 instanceof external_exports.ZodError ? "Choose a contained project package.json path" : error62 instanceof Error ? error62.message : "Package version is unavailable";
+  }
+  return result2;
+}
+var selectionSchema = external_exports.strictObject({
+  path: releasePackageSchema,
+  revision: hashSchema
+});
+
+// packages/voidra/src/task-tracking.ts
+var enableInput = external_exports.strictObject({ revision: hashSchema });
+
 // packages/voidra/src/cli.ts
 var help = `Voidra ${PACKAGE_VERSION}
-Commands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--json]
+Commands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--tasks --revision <fingerprint>] [--json]
 `;
 
 // packages/voidra/src/documents.ts
@@ -28868,6 +29018,32 @@ var answerInput = external_exports.strictObject({
   ])
 });
 
+// packages/voidra/src/task-metadata.ts
+var taskInputFields = {
+  targetRelease: version2.nullable().optional(),
+  taskColumn: external_exports.enum(["backlog", "todo"]).optional()
+};
+var inputSchema = external_exports.strictObject(taskInputFields);
+async function newTaskFields(root, project, kind, requested = {}) {
+  const input2 = inputSchema.parse(requested);
+  if (project.metadata?.taskTracking !== 1) {
+    if (input2.targetRelease !== void 0 || input2.taskColumn !== void 0)
+      throw Error("Enable task tracking before using task release fields");
+    return {};
+  }
+  const release = input2.targetRelease === void 0 ? (await readProjectRelease(
+    root,
+    project.metadata.releasePackage ?? "package.json"
+  )).version : input2.targetRelease;
+  if (kind === "idea") return { targetRelease: release };
+  const column = input2.taskColumn ?? (release ? "todo" : "backlog");
+  if (column !== "backlog" && !release)
+    throw Error(
+      "Tasks outside Backlog require a release; choose a valid project package"
+    );
+  return { targetRelease: release, taskColumn: column };
+}
+
 // packages/voidra/src/knowledge.ts
 var revisitInput = external_exports.strictObject({
   id: external_exports.string().min(1),
@@ -28879,6 +29055,7 @@ var revisitInput = external_exports.strictObject({
 var title = external_exports.string().trim().min(1).max(160);
 var description = external_exports.string().min(1).max(2e4);
 var ideaInput = external_exports.strictObject({
+  targetRelease: taskInputFields.targetRelease,
   title,
   description,
   by: external_exports.string().min(1),
@@ -28900,6 +29077,7 @@ var promotionInput = external_exports.strictObject({
   assignee: external_exports.string().min(1).optional()
 });
 var actionInput = external_exports.strictObject({
+  ...taskInputFields,
   type: schemas.action.shape.type,
   title,
   description,
@@ -28909,6 +29087,7 @@ var actionInput = external_exports.strictObject({
   steps: external_exports.array(external_exports.string().trim().min(1)).optional()
 });
 var actionEditInput = external_exports.strictObject({
+  targetRelease: taskInputFields.targetRelease,
   id: schemas.action.shape.id,
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
   title: title.optional(),
@@ -29021,6 +29200,7 @@ async function createReleaseAction(root, raw) {
             id: id2,
             type: "release",
             title: "New release",
+            ...await newTaskFields(root, project, "action"),
             stage: projectLifecycles(project.metadata).release.stages[0],
             status: "ready",
             doneBy: "agent",
@@ -29147,6 +29327,15 @@ var syncReportSchema = external_exports.strictObject({
   ).max(100)
 });
 
+// packages/voidra/src/task-move.ts
+var moveInput = external_exports.strictObject({
+  id: external_exports.union([schemas.action.shape.id, schemas.idea.shape.id]),
+  revision: hashSchema,
+  column: external_exports.enum(["backlog", "todo", "in-progress", "review", "done"]),
+  type: schemas.action.shape.type.optional(),
+  by: external_exports.string().min(1).default("You")
+});
+
 // tools/run-engine/src/git.ts
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -29186,7 +29375,7 @@ async function startRelease(root, raw = {}) {
     cwd: root,
     encoding: "utf8"
   }).catch(() => null);
-  if (!top || await realpath2(top.stdout.trim()) !== await realpath2(root))
+  if (!top || await realpath3(top.stdout.trim()) !== await realpath3(root))
     throw new Error("Start a release from the project Git root");
   const identity = await readGitIdentity(root);
   if (!identity.value)

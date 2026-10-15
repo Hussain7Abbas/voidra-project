@@ -10,6 +10,7 @@ import {
 import { parseRecord, serializeRecord } from "./records.ts";
 import type { Action } from "./schemas.ts";
 import { schemas } from "./schemas.ts";
+import { newTaskFields } from "./task-metadata.ts";
 import { applyOperation } from "./writer.ts";
 
 export interface ReleaseCandidate {
@@ -156,6 +157,7 @@ export async function createReleaseAction(
             id,
             type: "release",
             title: "New release",
+            ...(await newTaskFields(root, project, "action")),
             stage: projectLifecycles(project.metadata).release.stages[0],
             status: "ready",
             doneBy: "agent",

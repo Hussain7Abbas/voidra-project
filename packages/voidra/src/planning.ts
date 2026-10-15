@@ -17,11 +17,13 @@ import {
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { type Action, schemas } from "./schemas.ts";
+import { newTaskFields, taskInputFields } from "./task-metadata.ts";
 import { applyOperation, type WriteManifest } from "./writer.ts";
 
 const title = z.string().trim().min(1).max(160);
 const description = z.string().min(1).max(20000);
 const ideaInput = z.strictObject({
+  targetRelease: taskInputFields.targetRelease,
   title,
   description,
   by: z.string().min(1),
@@ -39,7 +41,8 @@ async function planningProject(root: string): Promise<ProjectInspection> {
   if (!project.metadata || blockingPlanningDiagnostics(project).length > 0)
     throw new Error("Fix planning-file problems before editing");
   if (
-    project.records.has(".voidra/local/run.lock") ||
+    project.files.has(".voidra/local/run.lock") ||
+    project.files.has(".voidra/local/planning.lock") ||
     [...project.records.values()].some(
       (r) =>
         (r.kind === "run" && r.document.data.outcome === "running") ||
@@ -84,6 +87,19 @@ export async function promoteIdea(
     ),
     actionPath = `.voidra/actions/${id}/action.md`;
   const action = schemas.action.parse({
+    ...(await newTaskFields(
+      root,
+      project,
+      "action",
+      project.metadata?.taskTracking === 1
+        ? {
+            taskColumn: "todo",
+            ...(idea.targetRelease
+              ? { targetRelease: idea.targetRelease }
+              : {}),
+          }
+        : {},
+    )),
     id,
     title: input.title ?? idea.title,
     type: input.type,
@@ -116,6 +132,16 @@ export async function promoteIdea(
         ).toString(),
       },
       { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+      {
+        path: ".voidra/local/planning.lock",
+        expectedHash: null,
+        content: null,
+      },
+      {
+        path: ".voidra/voidra.json",
+        expectedHash: hash(project.files.get(".voidra/voidra.json") as Buffer),
+        content: project.files.get(".voidra/voidra.json")?.toString() ?? null,
+      },
     ],
   });
   return id;
@@ -125,6 +151,7 @@ function rejection(status: string, reason: string | undefined): void {
     throw new Error("A rejection reason is required");
 }
 const actionInput = z.strictObject({
+  ...taskInputFields,
   type: schemas.action.shape.type,
   title,
   description,
@@ -134,6 +161,7 @@ const actionInput = z.strictObject({
   steps: z.array(z.string().trim().min(1)).optional(),
 });
 const actionEditInput = z.strictObject({
+  targetRelease: taskInputFields.targetRelease,
   id: schemas.action.shape.id,
   revision: z.string().regex(/^[a-f0-9]{64}$/),
   title: title.optional(),
@@ -249,6 +277,12 @@ async function applyActionChange(
         continue;
       const next: Action = {
         ...parent,
+        ...(project.metadata?.taskTracking === 1
+          ? await newTaskFields(root, project, "action", {
+              taskColumn: "todo",
+              targetRelease: parent.targetRelease ?? undefined,
+            })
+          : {}),
         status: "complete",
         completedBySlices: true,
         updatedAt: new Date().toISOString(),
@@ -325,6 +359,8 @@ export async function editAction(
       "Action changed on disk; reload or explicitly overwrite its current revision",
     );
   let action = schemas.action.parse(record.document.data);
+  if (input.targetRelease !== undefined)
+    action.targetRelease = input.targetRelease;
   if (input.title !== undefined) action.title = input.title;
   if (input.assignee === null) delete action.assignee;
   else if (input.assignee !== undefined) action.assignee = input.assignee;
@@ -373,6 +409,17 @@ export async function setHumanStep(
       ? "complete"
       : "waiting"
     : "ready";
+  if (
+    project.metadata?.taskTracking === 1 &&
+    ["complete", "waiting"].includes(action.status)
+  )
+    Object.assign(
+      action,
+      await newTaskFields(root, project, "action", {
+        taskColumn: "todo",
+        targetRelease: action.targetRelease ?? undefined,
+      }),
+    );
   action.updatedAt = new Date().toISOString();
   await applyActionChange(root, project, action, record.document.body);
 }
@@ -394,6 +441,10 @@ export async function createAction(
     ),
     path = `.voidra/actions/${id}/action.md`;
   const data = schemas.action.parse({
+    ...(await newTaskFields(root, project, "action", {
+      taskColumn: input.taskColumn,
+      targetRelease: input.targetRelease,
+    })),
     id,
     type: input.type,
     title: input.title,
@@ -444,6 +495,9 @@ export async function createIdea(
     ),
     path = `.voidra/backlog/${id}.md`;
   const data = schemas.idea.parse({
+    ...(await newTaskFields(root, project, "idea", {
+      targetRelease: input.targetRelease,
+    })),
     id,
     title: input.title,
     status,
@@ -485,6 +539,8 @@ export async function editIdea(
     throw new Error("Promotion must use the linked action workflow");
   rejection(input.status, input.reason);
   const data = { ...old, title: input.title, status: input.status };
+  if (input.targetRelease !== undefined)
+    data.targetRelease = input.targetRelease;
   if (input.status === "rejected") data.reason = input.reason?.trim();
   else delete data.reason;
   await applyOperation(root, {

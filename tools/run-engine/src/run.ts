@@ -17,6 +17,7 @@ import {
   checkProject,
   createId,
   hash,
+  newTaskFields,
   parseRecord,
   projectLifecycles,
   queueDecision,
@@ -1874,6 +1875,7 @@ export async function publishResearch(
           id,
           title: idea.title,
           status: "new",
+          ...(await newTaskFields(root, project, "idea")),
           createdBy: ctx.agent,
           createdAt: new Date().toISOString(),
         },
@@ -1916,6 +1918,7 @@ export async function publishHumanBlocker(
   if (ctx.mode === "plan" || ["discovery", "plan"].includes(action.stage ?? ""))
     await assertPlanningEffects(root, ctx);
   const human = schemas.action.parse({
+    ...(await newTaskFields(root, project, "action")),
     id,
     type: "docs",
     title: input.title,

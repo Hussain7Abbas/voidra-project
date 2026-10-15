@@ -14,6 +14,8 @@ Add optional fields or new record files before removing anything. Readers ignore
 
 P12 adds optional Release selection/version/tag fields and the owning action link on release records. Structured writers declare reader 0.2.0; legacy forms retain their contract. Structured Review revisions include selection/notes and plan files; changed proposals need acceptance again.
 
+The 1.1.0 candidate adds explicit `taskTracking: 1` project opt-in, `releasePackage` selection, action `taskColumn` and nullable action/idea `targetRelease`. Opted-in projects require reader 1.1.0. A previewed grouped migration assigns active work without inventing target versions for completed history, preserves unknown fields and refuses changed previews/pending operations. Legacy projects remain readable and editable under their existing contract until opt-in. New shared creation paths, including Sync/profile/release/slices/human blockers, use the same version defaults. The published 1.0.0 CLI has been checked to refuse an upgraded project with the update notice; see [P01 evidence](verification/v1.1.0-p01.md).
+
 ## 3. Dated deprecations
 
 Every deprecated production API or schema field carries an actual source-comment tag with its replacement and final supported date, for example:

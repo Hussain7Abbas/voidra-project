@@ -10,6 +10,17 @@
       "type": "string",
       "minLength": 1
     },
+    "targetRelease": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "status": {
       "type": "string",
       "enum": [

@@ -2,6 +2,7 @@
 
 > **Status:** implementation started on 2026-10-12. P00–P17 are Done; v1.0.0 is published and the actual downloaded app is verified. M4 was reached on 2026-10-15. M1 and M2 were reached on 2026-10-13. Review corrections were incorporated on 2026-10-12.
 > Product decisions live in [VISION.md](../VISION.md). The rules for this folder are in [AGENTS.md](AGENTS.md).
+> **Next release:** the user's 2026-10-15 Tasks/Kanban direction is tracked separately in [plan-v1.1.0/main.md](../plan-v1.1.0/main.md). V11-P01 is complete under the user's implementation request; V11-P02 is next. This file and its completed phase evidence remain the v1 delivery history; the new plan does not reopen them or inherit blanket implementation approval.
 
 ## Session hand-off — 2026-10-15
 

@@ -31,18 +31,22 @@ import {
   detectCode,
   editAction,
   editIdea,
+  enableTaskTracking,
   FORMAT_VERSION,
   hash,
   initializeProject,
   lifecycles,
   listProjectAdrs,
+  moveTask,
   PACKAGE_VERSION,
   planFiles,
   projectLifecycles,
+  projectTasks,
   promoteIdea,
   queueDecision,
   readPlan,
   readProjectDocument,
+  readProjectRelease,
   readTemplates,
   releaseCandidates,
   replaceActionQueue,
@@ -51,6 +55,8 @@ import {
   revisitAssumption,
   schemas,
   setHumanStep,
+  setReleasePackage,
+  taskTrackingPreview,
   updateProfileAnswer,
 } from "voidra";
 import {
@@ -66,7 +72,7 @@ import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 6;
+const INDEX_VERSION = 7;
 export class ProjectWorkspace {
   private database: Database.Database;
   private history: UndoHistory;
@@ -74,6 +80,7 @@ export class ProjectWorkspace {
   private knowledgeReady = false;
   private knowledgeProblems: { path: string; message: string }[] = [];
   private watcher: FSWatcher | null = null;
+  private packageWatch = "";
   private timer: ReturnType<typeof setTimeout> | undefined;
   private delivered = "";
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
@@ -108,6 +115,7 @@ export class ProjectWorkspace {
         join(this.root, ".git/index"),
         join(this.root, "docs"),
         join(this.root, "GLOSSARY.md"),
+        join(this.root, "package.json"),
       ],
       {
         ignoreInitial: true,
@@ -152,7 +160,7 @@ export class ProjectWorkspace {
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
         db.exec(
-          "drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists releases; drop table if exists release_candidates; drop table if exists decision_index; drop table if exists decisions_fts;",
+          "drop table if exists tasks; drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists releases; drop table if exists release_candidates; drop table if exists decision_index; drop table if exists decisions_fts;",
         );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
@@ -164,6 +172,9 @@ export class ProjectWorkspace {
     }
     db.exec(
       "create table if not exists actions (id text primary key, value text not null); create table if not exists runs (id text primary key, action text not null, value text not null); create table if not exists profiles (id text primary key, value text not null); create table if not exists ideas (id text primary key, value text not null); create table if not exists releases (id text primary key, value text not null); create table if not exists release_candidates (id text primary key, value text not null);",
+    );
+    db.exec(
+      "create table if not exists tasks (id text primary key, value text not null)",
     );
     return db;
   }
@@ -211,6 +222,55 @@ export class ProjectWorkspace {
   private async applyRequest(
     request: WorkspaceRequest,
   ): Promise<WorkspaceSnapshot> {
+    if (request.command === "move-task") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw Error("Finish or recover pending work before moving tasks");
+      await moveTask(this.root, {
+        id: request.id,
+        revision: request.revision,
+        column: request.column,
+        type: request.type,
+        by: "You",
+      });
+      await this.publish();
+    }
+    if (request.command === "enable-task-tracking") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw Error(
+          "Finish or recover pending work before upgrading task tracking",
+        );
+      await enableTaskTracking(this.root, { revision: request.revision });
+      await this.publish();
+    }
+    if (request.command === "set-release-package") {
+      const current = await this.snapshot();
+      if (
+        current.readOnly ||
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw Error(
+          "Finish or recover pending work before selecting a package",
+        );
+      await setReleasePackage(this.root, {
+        path: request.path,
+        revision: request.revision,
+      });
+      await this.publish();
+    }
     if (request.command === "create-release") {
       const current = await this.snapshot();
       if (
@@ -323,6 +383,7 @@ export class ProjectWorkspace {
           parent: request.parent,
           blockedBy: request.blockedBy,
           cancel: request.cancel,
+          targetRelease: request.targetRelease,
         });
       else
         await setHumanStep(this.root, {
@@ -351,6 +412,7 @@ export class ProjectWorkspace {
           description: request.description,
           status: request.status,
           reason: request.reason,
+          targetRelease: request.targetRelease,
           by: "You",
         });
       else if (request.command === "promote-idea")
@@ -370,6 +432,7 @@ export class ProjectWorkspace {
           description: request.description,
           status: request.status,
           reason: request.reason,
+          targetRelease: request.targetRelease,
         });
       await this.publish();
     }
@@ -535,6 +598,8 @@ export class ProjectWorkspace {
       by: "You",
       assignee: options?.assignee,
       steps: options?.steps,
+      targetRelease: options?.targetRelease,
+      taskColumn: options?.taskColumn,
     });
     await this.publish();
   }
@@ -582,6 +647,14 @@ export class ProjectWorkspace {
       this.knowledgeReady = false;
     }
     const project = await checkProject(this.root);
+    const releasePackage = project.metadata?.releasePackage ?? "package.json";
+    const projectRelease = await readProjectRelease(this.root, releasePackage);
+    if (this.watcher && releasePackage !== this.packageWatch) {
+      if (this.packageWatch && this.packageWatch !== "package.json")
+        await this.watcher.unwatch(join(this.root, this.packageWatch));
+      this.watcher.add(join(this.root, releasePackage));
+      this.packageWatch = releasePackage;
+    }
     const hasVoidra = [...project.files.keys()].some(
       (path) => !path.startsWith(".voidra/local/"),
     );
@@ -715,6 +788,12 @@ export class ProjectWorkspace {
         this.database.exec(
           "delete from actions; delete from runs; delete from profiles; delete from ideas; delete from releases; delete from release_candidates;",
         );
+        this.database.exec("delete from tasks");
+        const addTask = this.database.prepare(
+          "insert into tasks values (?, ?)",
+        );
+        for (const task of projectTasks(project))
+          addTask.run(task.id, JSON.stringify(task));
         const addAction = this.database.prepare(
           "insert into actions values (?, ?)",
         );
@@ -892,6 +971,25 @@ export class ProjectWorkspace {
       };
     });
     return workspaceSchema.parse({
+      taskTracking: project.metadata?.taskTracking === 1,
+      taskMigration: (() => {
+        try {
+          return project.metadata?.taskTracking !== 1
+            ? taskTrackingPreview(project, projectRelease)
+            : null;
+        } catch {
+          return null;
+        }
+      })(),
+      metadataRevision: project.files.has(".voidra/voidra.json")
+        ? hash(project.files.get(".voidra/voidra.json") as Buffer)
+        : null,
+      projectRelease,
+      tasks: (
+        this.database.prepare("select value from tasks order by id").all() as {
+          value: string;
+        }[]
+      ).map((row) => JSON.parse(row.value) as unknown),
       format: project.metadata?.format ?? null,
       editing: await this.history.state(),
       name: project.metadata?.project.name ?? basename(this.root),

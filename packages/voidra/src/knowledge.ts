@@ -15,6 +15,7 @@ import {
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { schemas } from "./schemas.ts";
+import { newTaskFields } from "./task-metadata.ts";
 import { applyOperation } from "./writer.ts";
 
 export interface PlanningDecision {
@@ -198,6 +199,14 @@ export async function revisitAssumption(
     path = `.voidra/actions/${id}/action.md`,
     type = entry.kind === "profile" ? "profile-change" : "research";
   const action = schemas.action.parse({
+    ...(await newTaskFields(
+      root,
+      project,
+      "action",
+      project.metadata?.taskTracking === 1 && type === "profile-change"
+        ? { taskColumn: "backlog" }
+        : {},
+    )),
     id,
     type,
     title: `Revisit: ${entry.title}`.slice(0, 160),

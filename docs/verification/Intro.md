@@ -4,6 +4,8 @@
 
 Each implemented phase records actual checks, results, remaining limitations and dates in its own evidence file. The [phase index](../../plan/main.md#phase-index) links completed evidence. Missing evidence means verification has not been recorded; a planned test or golden example alone is not proof of a completed run.
 
+- [V11-P01 — Tasks and project releases](v1.1.0-p01.md): completed foundation: 424 tests, 70 desktop workflows, explicit migration, guarded movement and old-client refusal.
+
 - [P00 — Repository foundation](p00.md): tooling, scanner, documentation and macOS CI.
 
 - [P01 — Format package](p01.md): library, CLI, fixtures, recovery checks and publication status.

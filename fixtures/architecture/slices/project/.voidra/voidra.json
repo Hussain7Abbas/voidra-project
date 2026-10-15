@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "requiredVoidra": "1.0.0",
+  "requiredVoidra": "1.1.0",
   "project": {
     "id": "prj-000000",
     "name": "Example"
@@ -9,6 +9,6 @@
     "id": "general",
     "version": "1.0.0"
   },
-  "createdWith": "voidra/1.0.0",
+  "createdWith": "voidra/1.1.0",
   "lifecycleOverrides": {}
 }

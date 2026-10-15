@@ -14,6 +14,25 @@ const id = (prefix: string) =>
 const date = z.iso.datetime({ offset: true });
 export const version = z.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 export const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const releasePackageSchema = z
+  .string()
+  .max(4096)
+  .refine(
+    (path) =>
+      (path === "package.json" || path.endsWith("/package.json")) &&
+      !path.includes("\\") &&
+      !path.includes("\0") &&
+      !path
+        .split("/")
+        .some(
+          (part) =>
+            !part ||
+            [".", "..", ".git", ".voidra", "node_modules"].includes(
+              part.toLowerCase(),
+            ),
+        ),
+    "Choose a contained project package.json path",
+  );
 export const types = [
   "feature",
   "bug",
@@ -88,6 +107,8 @@ export const actionSchema = object({
   ]),
   doneBy: z.enum(["agent", "you"]),
   assignee: text.optional(),
+  targetRelease: version.nullable().optional(),
+  taskColumn: z.enum(["backlog", "todo"]).optional(),
   parent: id("act").optional(),
   blockedBy: z.array(id("act")).optional(),
   links: z.array(text).optional(),
@@ -135,6 +156,8 @@ export const schemas = {
     project: object({ id: id("prj"), name: text }),
     template: object({ id: slug, version }).nullable(),
     createdWith: text,
+    releasePackage: releasePackageSchema.optional(),
+    taskTracking: z.literal(1).optional(),
     lifecycleOverrides: z.json().optional(),
   }),
   profile: object({
@@ -155,6 +178,7 @@ export const schemas = {
   idea: object({
     id: id("idea"),
     title: text,
+    targetRelease: version.nullable().optional(),
     status: z.enum(["new", "needs-info", "ready", "promoted", "rejected"]),
     reason: text.optional(),
     promotedTo: id("act").optional(),

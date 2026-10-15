@@ -4,6 +4,8 @@
 
 This guide describes Voidra 1.0.0; [P17 evidence](verification/p17.md) records its verification and publication.
 
+The 1.1.0 development candidate adds **Tasks** alongside the existing pages. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade before enabling release-aware work. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The remaining workspace redesign is tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
+
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 
 ## Open or create a project

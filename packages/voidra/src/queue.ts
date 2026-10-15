@@ -7,6 +7,7 @@ import {
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { schemas } from "./schemas.ts";
+import { newTaskFields } from "./task-metadata.ts";
 import { applyOperation, type WriteOptions } from "./writer.ts";
 
 export function queueDecision(
@@ -26,6 +27,16 @@ export function queueDecision(
   if (!parsed.success)
     return refused("Repair this action’s fields before queueing");
   const action = parsed.data;
+  if (
+    (action.taskColumn === "backlog" ||
+      (project.metadata?.taskTracking === 1 && action.status === "draft")) &&
+    !(
+      options.activatingProfileDraft &&
+      action.type === "profile-change" &&
+      action.status === "draft"
+    )
+  )
+    return refused("Move this task to TODO with a release before queueing it");
   const questionData = project.records.get(`.voidra/actions/${id}/questions.md`)
     ?.document.data;
   const questions = questionData
@@ -151,6 +162,20 @@ export async function replaceActionQueue(
   const doc = bytes
     ? parseRecord(path, bytes)
     : parseRecord(path, "---\n{}\n---\n");
+  const draft = project.records.get(
+    `.voidra/actions/${input.activate?.id}/action.md`,
+  )?.document.data;
+  const activation =
+    project.metadata.taskTracking === 1 &&
+    input.ids.includes(input.activate?.id ?? "") &&
+    draft?.type === "profile-change" &&
+    draft.status === "draft"
+      ? await newTaskFields(root, project, "action", {
+          taskColumn: "todo",
+          targetRelease:
+            (draft.targetRelease as string | undefined) || undefined,
+        })
+      : {};
   await applyOperation(
     root,
     {
@@ -174,6 +199,7 @@ export async function replaceActionQueue(
             const record = project.records.get(path);
             const activate =
               path === `.voidra/actions/${input.activate?.id}/action.md` &&
+              input.ids.includes(String(record?.document.data.id)) &&
               record?.document.data.type === "profile-change" &&
               record.document.data.status === "draft";
             return {
@@ -183,6 +209,7 @@ export async function replaceActionQueue(
                 activate && record
                   ? serializeRecord(record.document, {
                       ...record.document.data,
+                      ...activation,
                       status: "ready",
                       activatedBy: input.by,
                       activatedAt: new Date().toISOString(),

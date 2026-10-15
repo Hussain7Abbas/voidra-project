@@ -28,3 +28,5 @@ An `apply` manifest creates a new glossary only when the caller also passes `--g
 ```
 
 Pass the returned operation ID to `recover` after interruption. `--rollback` requests the recorded before state. A completed receipt is returned on a repeated matching recovery; a rollback cannot be replayed as a commit. `apply` refuses a prepared or rolled-back operation ID. `--help` and `help` list the commands. Their header and usage-error help identify the installed package version, matching `version`. `check` paths in diagnostics are relative to the selected project.
+
+The 1.1.0 candidate adds explicit task-tracking migration. With that reader installed, `voidra migrate ./project --tasks --dry-run --json` returns the current package, assignments, changed paths and exact preview `revision`. Applying requires `voidra migrate ./project --tasks --revision <returned-revision>`; a changed package/task/metadata preview is refused. The existing prototype migration remains unchanged when `--tasks` is absent. These operations write planning data only and create no Git commit or tag.

@@ -5,6 +5,9 @@
 | Term | Meaning |
 | --- | --- |
 | Action | A unit of work with a type, lifecycle and actor, recorded in `.voidra/actions/`. |
+| Task | A board card for an idea or executable action; a promoted idea/action pair appears once, with linked child tasks for larger work. |
+| Target release | A task's planned package version, nullable in Backlog and distinct from completed historical `releasedIn` membership. |
+| Board column | Backlog, TODO, In progress, Review or Done; organization and progress derived without granting lifecycle approval. |
 | Idea | A backlog item that must be promoted into an action before it can run. |
 | Slice | A child action delivering a thin, independently demonstrable path through the necessary layers. |
 | Gate | A human checkpoint for answers, plan approval or result acceptance. |
@@ -23,4 +26,4 @@
 | Approval revision | The exact contents of the plan files or review proposal accepted by a person. |
 | Operation checkpoint | A durable record used to reconcile an interrupted mutation or external side effect. |
 
-The product glossary is distinct from this repository's phase plan: product actions are not created for this project's phases until dogfooding begins in P09.
+The product glossary describes app concepts. This repository's release phases live in [the v1 plan](plan/main.md) and [the v1.1.0 plan](plan-v1.1.0/main.md); its own `.voidra/` has tracked product work since P09.

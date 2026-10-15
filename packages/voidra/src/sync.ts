@@ -9,6 +9,7 @@ import {
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { hashSchema, schemas } from "./schemas.ts";
+import { newTaskFields } from "./task-metadata.ts";
 import {
   type Template,
   validateTemplate,
@@ -180,6 +181,14 @@ export async function applySyncReport(
             {
               id: proposed,
               type: "profile-change",
+              ...(await newTaskFields(
+                root,
+                project,
+                "action",
+                project.metadata?.taskTracking === 1
+                  ? { taskColumn: "backlog" }
+                  : {},
+              )),
               title: `Review ${profile.title}: ${answer.question}`,
               stage: projectLifecycles(project.metadata)["profile-change"]
                 .stages[0],
@@ -220,6 +229,7 @@ export async function applySyncReport(
       {
         id: proposed,
         title: idea.title,
+        ...(await newTaskFields(root, project, "idea")),
         status: "new",
         createdBy: input.by,
         createdAt: at,
@@ -236,6 +246,7 @@ export async function applySyncReport(
       {
         id: proposed,
         title: action.title,
+        ...(await newTaskFields(root, project, "action")),
         type: action.type,
         stage: projectLifecycles(project.metadata)[action.type].stages[0],
         status: "ready",

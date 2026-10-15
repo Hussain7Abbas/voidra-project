@@ -22,6 +22,7 @@ import {
 } from "./project.ts";
 import { fieldLine, parseRecord, serializeRecord } from "./records.ts";
 import { lifecycleOverridesSchema, schemas, version } from "./schemas.ts";
+import { newTaskFields } from "./task-metadata.ts";
 import {
   applyOperation,
   type WriteManifest,
@@ -506,6 +507,14 @@ export async function updateProfileAnswer(
         {
           id: action,
           type: "profile-change",
+          ...(await newTaskFields(
+            root,
+            checked,
+            "action",
+            checked.metadata?.taskTracking === 1
+              ? { taskColumn: "backlog" }
+              : {},
+          )),
           title: `Update ${profile.title}: ${current.question}`,
           stage: "discovery",
           status: "draft",

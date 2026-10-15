@@ -6,6 +6,8 @@
 
 Frontmatter: `id`, `type`, `title`, `status`, `doneBy`, optional `stage`, `assignee`, `parent`, `blockedBy`, `links`, `commits`, `createdBy`, `createdAt`, `updatedAt`, `planApproval`, `approvalHistory`, `planFeedback`, `reviewDecision`, `profileChange`, `steps`. Types: feature, bug, improvement, docs, profile-change, research, release. Statuses: draft, ready, running, waiting, failed, complete. Agent actions require a lifecycle stage; human actions have no agent stage (except the Cancelled end state) and use steps `{id, title, done}`. Terminal agent stages require complete status; complete status requires a terminal stage. Human completion requires every step to be done. Cancellation preserves unticked steps and does not satisfy dependent actions. Parent completion requires all children done/released. ID links refer to existing records; other links are opaque references for P11.
 
+With `taskTracking: 1` in project metadata, active actions additionally carry `taskColumn: backlog | todo` and `targetRelease: X.Y.Z | null`. These are organization/target-version fields, separate from lifecycle `stage`/`status` and historical `releasedIn`. Runtime progress determines In progress/Review/Done; the two stored placements cannot grant those transitions. Outside Backlog, an explicit target release is required. New shared writers default to the current project version, falling back to Backlog capture if no usable version exists; explicit TODO without a version is refused. Backlog work cannot be queued. Legacy completed history remains readable without fabricated target versions. These semantics require reader 1.1.0.
+
 ## Example
 
 ```markdown

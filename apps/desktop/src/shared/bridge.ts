@@ -179,6 +179,61 @@ export const gitHistorySchema = z.strictObject({
   notice: z.string().nullable(),
 });
 export const workspaceSchema = z.strictObject({
+  taskTracking: z.boolean().default(false),
+  taskMigration: z
+    .strictObject({
+      enabled: z.boolean(),
+      revision: z.string(),
+      path: z.string(),
+      version: z.string(),
+      paths: z.array(z.string()),
+      tasks: z.array(
+        z.strictObject({
+          id: z.string(),
+          title: z.string(),
+          targetRelease: z.string().nullable(),
+        }),
+      ),
+    })
+    .nullable()
+    .default(null),
+  metadataRevision: z.string().nullable().default(null),
+  projectRelease: z
+    .strictObject({
+      path: z.string(),
+      version: z.string().nullable(),
+      revision: z.string().nullable(),
+      message: z.string().nullable(),
+    })
+    .default({
+      path: "package.json",
+      version: null,
+      revision: null,
+      message: "Choose the project's package.json",
+    }),
+  tasks: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        kind: z.enum(["action", "idea"]),
+        title: z.string(),
+        body: z.string(),
+        path: z.string(),
+        revision: z.string(),
+        column: z.enum(["backlog", "todo", "in-progress", "review", "done"]),
+        archived: z.boolean(),
+        stage: z.string().nullable(),
+        status: z.string(),
+        type: z.string().nullable(),
+        assignee: z.string().nullable(),
+        parent: z.string().nullable(),
+        blockedBy: z.array(z.string()),
+        sourceIdea: z.string().nullable(),
+        targetRelease: z.string().nullable(),
+        releaseAssigned: z.boolean(),
+      }),
+    )
+    .default([]),
   format: z.number().int().nullable().default(null),
   editing: z.strictObject({
     undo: historyEntrySchema,
@@ -230,6 +285,7 @@ export const workspaceSchema = z.strictObject({
         id: z.string(),
         title: z.string(),
         status: z.string(),
+        targetRelease: z.string().nullable().optional(),
         reason: z.string().optional(),
         promotedTo: z.string().optional(),
       }),
@@ -270,6 +326,8 @@ export const workspaceSchema = z.strictObject({
         stage: z.string().optional(),
         status: z.string(),
         doneBy: z.string(),
+        targetRelease: z.string().nullable().optional(),
+        taskColumn: z.enum(["backlog", "todo"]).optional(),
         assignee: z.string().optional(),
         parent: z.string().optional(),
         blockedBy: z.array(z.string()).optional(),
@@ -441,6 +499,22 @@ export const serviceStateSchema = z.enum([
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({
+    command: z.literal("move-task"),
+    id: z.string().regex(/^(act|idea)-[0-9a-hjkmnp-tv-z]{6}$/),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    column: z.enum(["backlog", "todo", "in-progress", "review", "done"]),
+    type: actionTypeSchema.optional(),
+  }),
+  z.strictObject({
+    command: z.literal("enable-task-tracking"),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  z.strictObject({
+    command: z.literal("set-release-package"),
+    path: z.string().min(1).max(4096),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  z.strictObject({
     command: z.literal("create-release"),
     actions: z
       .array(
@@ -518,6 +592,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("create-voidra") }),
   z.strictObject({
     command: z.literal("edit-action"),
+    targetRelease: z.string().min(1).max(80).nullable().optional(),
     id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
     title: z.string().trim().min(1).max(160).optional(),
@@ -550,6 +625,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("create-idea"),
+    targetRelease: z.string().min(1).max(80).nullable().optional(),
     title: z.string().trim().min(1).max(160),
     description: z.string().min(1).max(20000),
     status: z.enum(["new", "needs-info", "ready", "rejected"]).optional(),
@@ -557,6 +633,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("edit-idea"),
+    targetRelease: z.string().min(1).max(80).nullable().optional(),
     id: z.string().regex(/^idea-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
     title: z.string().trim().min(1).max(160),
@@ -606,6 +683,8 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("create-action"),
+    targetRelease: z.string().min(1).max(80).nullable().optional(),
+    taskColumn: z.enum(["backlog", "todo"]).optional(),
     title: z.string().trim().min(1).max(160),
     description: z.string().min(1).max(20000),
     type: actionTypeSchema.optional(),
@@ -617,6 +696,9 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
 /** Exhaustive classification: a new project command must declare its edit label. */
 export const workspaceEdits = {
+  "move-task": "Move task",
+  "enable-task-tracking": "Enable task tracking",
+  "set-release-package": "Select release package",
   "create-release": "Create release",
   "revisit-assumption": "Revisit assumption",
   workspace: null,

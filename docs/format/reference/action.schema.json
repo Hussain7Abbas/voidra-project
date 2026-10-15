@@ -57,6 +57,24 @@
       "type": "string",
       "minLength": 1
     },
+    "targetRelease": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "taskColumn": {
+      "type": "string",
+      "enum": [
+        "backlog",
+        "todo"
+      ]
+    },
     "parent": {
       "type": "string",
       "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"

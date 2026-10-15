@@ -6,13 +6,14 @@ import { VoidraError } from "./errors.ts";
 import { createId, type IdPrefix, prefixes } from "./ids.ts";
 import { migrateProject } from "./migration.ts";
 import { checkProject, PACKAGE_VERSION } from "./project.ts";
+import { enableTaskTracking, previewTaskTracking } from "./task-tracking.ts";
 import { applyOperation, manifestSchema, recoverOperation } from "./writer.ts";
 export interface CliResult {
   exitCode: 0 | 1 | 2;
   stdout: string;
   stderr: string;
 }
-const help = `Voidra ${PACKAGE_VERSION}\nCommands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--json]\n`;
+const help = `Voidra ${PACKAGE_VERSION}\nCommands: check [project] [--json]; version; id <prefix>; plan <action> [--project folder] [--json]; approve <action> --by <actor> --revision <fingerprint> [--project folder] [--json]; apply <manifest.json> [--project folder] [--glossary] [--json]; recover <operation> [--project folder] [--rollback] [--glossary] [--json]; migrate [project] [--dry-run] [--tasks --revision <fingerprint>] [--json]\n`;
 const configuration: Record<
   string,
   {
@@ -48,7 +49,12 @@ const configuration: Record<
   },
   migrate: {
     positional: [0, 1],
-    options: { "dry-run": "boolean", json: "boolean" },
+    options: {
+      "dry-run": "boolean",
+      json: "boolean",
+      tasks: "boolean",
+      revision: "string",
+    },
   },
 };
 export async function runCli(
@@ -95,6 +101,18 @@ export async function runCli(
   )
     return usage("Approval requires --by and a SHA-256 --revision");
   const json = values.json === true;
+  if (
+    command === "migrate" &&
+    values.tasks &&
+    !values["dry-run"] &&
+    (typeof values.revision !== "string" ||
+      !/^[a-f0-9]{64}$/.test(values.revision))
+  )
+    return usage(
+      "Task upgrade requires --dry-run first, then --revision <fingerprint>",
+    );
+  if (command === "migrate" && !values.tasks && values.revision !== undefined)
+    return usage("--revision belongs to --tasks migration");
   const root = resolve(
     cwd,
     (command === "check" || command === "migrate"
@@ -109,6 +127,15 @@ export async function runCli(
     stderr: "",
   });
   try {
+    if (command === "migrate" && values.tasks) {
+      if (values["dry-run"])
+        return output(
+          await previewTaskTracking(root),
+          "Task tracking upgrade preview (use --json to review assignments and revision)",
+        );
+      await enableTaskTracking(root, { revision: values.revision as string });
+      return output({ enabled: true }, "Task tracking enabled");
+    }
     if (command === "version")
       return output({ version: PACKAGE_VERSION }, PACKAGE_VERSION);
     if (command === "id") {

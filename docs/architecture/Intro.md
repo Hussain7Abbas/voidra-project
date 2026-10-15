@@ -19,6 +19,7 @@
 - [General template](general-template.md): approved questions, architecture proposals, slices and gate/write boundaries.
 
 - [Backlog and actions](backlog-actions.md): editing, promotion, dependencies, aggregate completion and board views.
+- [Tasks](tasks.md): v1.1.0 task projection and project release identity; implementation in progress.
 
 - [Questions, gates and inbox](questions-gates-inbox.md): saved rounds, assumptions, exact revisions and Waiting for you.
 
