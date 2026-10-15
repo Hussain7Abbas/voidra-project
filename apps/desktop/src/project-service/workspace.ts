@@ -17,6 +17,7 @@ import Database from "better-sqlite3";
 import { type FSWatcher, watch } from "chokidar";
 import {
   actionComplete,
+  actionSequencePreview,
   answerQuestion,
   applyOperation,
   approveAction,
@@ -31,6 +32,7 @@ import {
   detectCode,
   editAction,
   editIdea,
+  enableActionSequence,
   enableTaskTracking,
   FORMAT_VERSION,
   hash,
@@ -44,12 +46,14 @@ import {
   projectTasks,
   promoteIdea,
   queueDecision,
+  readActionSequence,
   readPlan,
   readProjectDocument,
   readProjectRelease,
   readTemplates,
   releaseCandidates,
   replaceActionQueue,
+  replaceActionSequence,
   requestPlanChanges,
   reviewRevision,
   revisitAssumption,
@@ -59,6 +63,10 @@ import {
   taskTrackingPreview,
   updateProfileAnswer,
 } from "voidra";
+import {
+  actionSequenceViewSchema,
+  emptyActionSequence,
+} from "../shared/action-sequence.ts";
 import {
   type KnowledgeData,
   type KnowledgeRequest,
@@ -73,7 +81,7 @@ import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
-const INDEX_VERSION = 7;
+const INDEX_VERSION = 8;
 export class ProjectWorkspace {
   private database: Database.Database;
   private history: UndoHistory;
@@ -164,7 +172,7 @@ export class ProjectWorkspace {
         throw new Error("Corrupt cache");
       if (db.pragma("user_version", { simple: true }) !== INDEX_VERSION) {
         db.exec(
-          "drop table if exists tasks; drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists releases; drop table if exists release_candidates; drop table if exists decision_index; drop table if exists decisions_fts;",
+          "drop table if exists sequence_snapshot; drop table if exists tasks; drop table if exists actions; drop table if exists runs; drop table if exists profiles; drop table if exists ideas; drop table if exists releases; drop table if exists release_candidates; drop table if exists decision_index; drop table if exists decisions_fts;",
         );
         db.pragma(`user_version = ${INDEX_VERSION}`);
       }
@@ -179,6 +187,9 @@ export class ProjectWorkspace {
     );
     db.exec(
       "create table if not exists tasks (id text primary key, value text not null)",
+    );
+    db.exec(
+      "create table if not exists sequence_snapshot (id text primary key,value text not null)",
     );
     return db;
   }
@@ -244,6 +255,34 @@ export class ProjectWorkspace {
   private async applyRequest(
     request: WorkspaceRequest,
   ): Promise<WorkspaceSnapshot> {
+    if (
+      request.command === "enable-action-sequence" ||
+      request.command === "replace-action-sequence"
+    ) {
+      const current = await this.snapshot();
+      if (
+        current.lock.state !== "none" ||
+        current.recoveries.length ||
+        current.planning.pending.length
+      )
+        throw Error(
+          "Finish or recover pending work before editing the Actions sequence",
+        );
+      if (request.command === "enable-action-sequence")
+        await enableActionSequence(this.root, {
+          revision: request.revision,
+          by: current.identity.value ?? "You",
+        });
+      else
+        await replaceActionSequence(this.root, {
+          order: request.order,
+          revision: request.revision,
+          queueRevision: request.queueRevision,
+          revisions: request.revisions,
+          by: current.identity.value ?? "You",
+        });
+      await this.publish();
+    }
     if (request.command === "move-task") {
       const current = await this.snapshot();
       if (
@@ -583,8 +622,10 @@ export class ProjectWorkspace {
     await replaceActionQueue(this.root, {
       ids: [
         ...new Set([
-          ...current.queue.filter((value) =>
-            current.actions.some((a) => a.data.id === value && a.queueable),
+          ...current.queue.filter(
+            (value) =>
+              current.sequence.enabled ||
+              current.actions.some((a) => a.data.id === value && a.queueable),
           ),
           id,
         ]),
@@ -812,6 +853,29 @@ export class ProjectWorkspace {
     }
     if (!pending)
       this.database.transaction(() => {
+        let sequence: WorkspaceSnapshot["sequence"] = {
+          ...emptyActionSequence,
+        };
+        if (project.metadata?.taskTracking === 1) {
+          sequence = { ...readActionSequence(project), preview: null };
+          if (!sequence.enabled) {
+            try {
+              sequence.preview = actionSequencePreview(project);
+            } catch {
+              sequence.preview = null;
+            }
+          }
+        } else {
+          const ids = [
+            ...(project.records
+              .get(".voidra/local/pending-actions.md")
+              ?.document.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []),
+          ].map((match) => match[0]);
+          sequence = { ...sequence, order: ids, pending: ids };
+        }
+        this.database
+          .prepare("insert or replace into sequence_snapshot values (?,?)")
+          .run("current", JSON.stringify(sequence));
         this.database.exec(
           "delete from actions; delete from runs; delete from profiles; delete from ideas; delete from releases; delete from release_candidates;",
         );
@@ -997,7 +1061,25 @@ export class ProjectWorkspace {
           ),
       };
     });
+    const savedSequence = this.database
+      .prepare("select value from sequence_snapshot where id=?")
+      .get("current") as { value: string } | undefined;
+    let sequence: WorkspaceSnapshot["sequence"] = { ...emptyActionSequence };
+    try {
+      if (savedSequence)
+        sequence = actionSequenceViewSchema.parse(
+          JSON.parse(savedSequence.value),
+        );
+    } catch {
+      sequence = {
+        ...sequence,
+        problems: [
+          "Actions sequence view is unavailable until the project recovers",
+        ],
+      };
+    }
     return workspaceSchema.parse({
+      sequence,
       taskTracking: project.metadata?.taskTracking === 1,
       taskMigration: (() => {
         try {

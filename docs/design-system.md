@@ -23,7 +23,7 @@ The token stylesheet preserves Tailwind v4 mapping, Inter Variable, 0.65rem cont
 
 The window-height shell gives the sidebar and main content independent `overflow: auto` regions, stable scrollbar gutters and contained overscroll. The workspace toolbar stays above the main scroller. The recent-project list expands within the sidebar so it stays reachable when the sidebar scrolls.
 
-Settings uses General and Appearance tabs with arrow/Home/End navigation and selected-tab focus. Appearance contains the theme and a labeled checkbox switch for Custom titlebar, on by default. The custom titlebar uses Ink & Iris and Lucide, with window controls on the left on macOS and Settings on the right (reversed on other platforms). Dragging uses Electron's app region; all buttons are excluded from dragging. Native titlebar mode applies to newly opened windows, preserving existing windows and unsaved controls.
+Settings uses General, Appearance and Team tabs with arrow/Home/End navigation and selected-tab focus. Appearance contains the theme and a labeled checkbox switch for Custom titlebar, on by default. The custom titlebar uses Ink & Iris and Lucide, with window controls on the left on macOS and Settings on the right (reversed on other platforms). Dragging uses Electron's app region; all buttons are excluded from dragging. Native titlebar mode applies to newly opened windows, preserving existing windows and unsaved controls.
 
 Light/dark/system preference persists in app data. The protocol inserts the resolved theme on the HTML root before paint; the window's initial background also matches. Native theme updates and media-query change listeners keep system mode current. Fonts and assets are local. The frontend has no network server or remote font request.
 
@@ -40,3 +40,7 @@ Project Undo/Redo controls live in the top bar with accessible operation labels.
 ## Markdown controls
 
 Use the shared safe GFM viewer for prose and `MarkdownEditor` for Markdown input. Formatting stays inside the input; cursor and selected physical lines reveal their source. Titles, versions and names remain plain controls. Preserve the visible Field label, keyboard focus, validation associations and the existing source revision. Text undo belongs to the active control, while persistent project undo remains separate. [Editor contract](architecture/markdown-editing.md).
+
+## Actions sequence
+
+The right Actions sidebar has its own bounded scroll region, dedicated grips, selectable task text, visible Up/Down controls and keyboard arrow reordering. It stays global when board filters change. Dependency warnings are nonmodal and show the relevant prerequisite plus optional Rearrange. A refused stale drag retains its proposed order for review rather than applying newly refreshed hashes. Semantic Ink & Iris tokens apply in both themes; P07 adds shared resizing/toggling.

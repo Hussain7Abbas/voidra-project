@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { createId } from "./ids.ts";
 import {
   approvalCurrent,
@@ -227,40 +228,43 @@ export async function revisitAssumption(
   });
   const metadata = project.records.get(".voidra/voidra.json")?.document;
   if (!metadata) throw new Error("Project metadata missing");
-  await applyOperation(root, {
-    changes: [
-      {
-        path,
-        expectedHash: null,
-        content: serializeRecord(
-          parseRecord(path, "---\n{}\n---\n"),
-          action,
-          `Re-evaluate the assumption at ${entry.path}#${entry.anchor} and its impact. Read the original answer there. Ask for missing facts and leave the proposal at its human gate.\n`,
-        ).toString(),
-      },
-      {
-        path: entry.path,
-        expectedHash: entry.revision,
-        content: doc.raw.toString(),
-      },
-      {
-        path: metadata.file,
-        expectedHash: hash(metadata.raw),
-        content:
-          project.metadata?.requiredVoidra === PACKAGE_VERSION
-            ? metadata.raw.toString()
-            : serializeRecord(metadata, {
-                ...metadata.data,
-                requiredVoidra: PACKAGE_VERSION,
-              }).toString(),
-      },
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      {
-        path: ".voidra/local/planning.lock",
-        expectedHash: null,
-        content: null,
-      },
-    ],
-  });
+  await applyOperation(
+    root,
+    withActionSequence(project, {
+      changes: [
+        {
+          path,
+          expectedHash: null,
+          content: serializeRecord(
+            parseRecord(path, "---\n{}\n---\n"),
+            action,
+            `Re-evaluate the assumption at ${entry.path}#${entry.anchor} and its impact. Read the original answer there. Ask for missing facts and leave the proposal at its human gate.\n`,
+          ).toString(),
+        },
+        {
+          path: entry.path,
+          expectedHash: entry.revision,
+          content: doc.raw.toString(),
+        },
+        {
+          path: metadata.file,
+          expectedHash: hash(metadata.raw),
+          content:
+            project.metadata?.requiredVoidra === PACKAGE_VERSION
+              ? metadata.raw.toString()
+              : serializeRecord(metadata, {
+                  ...metadata.data,
+                  requiredVoidra: PACKAGE_VERSION,
+                }).toString(),
+        },
+        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        {
+          path: ".voidra/local/planning.lock",
+          expectedHash: null,
+          content: null,
+        },
+      ],
+    }),
+  );
   return id;
 }

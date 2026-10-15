@@ -643,22 +643,22 @@ var require_Alias = __commonJS({
       resolve(doc, ctx) {
         if (ctx?.maxAliasCount === 0)
           throw new ReferenceError("Alias resolution is disabled");
-        let nodes;
+        let nodes2;
         if (ctx?.aliasResolveCache) {
-          nodes = ctx.aliasResolveCache;
+          nodes2 = ctx.aliasResolveCache;
         } else {
-          nodes = [];
+          nodes2 = [];
           visit2.visit(doc, {
             Node: (_key, node2) => {
               if (identity.isAlias(node2) || identity.hasAnchor(node2))
-                nodes.push(node2);
+                nodes2.push(node2);
             }
           });
           if (ctx)
-            ctx.aliasResolveCache = nodes;
+            ctx.aliasResolveCache = nodes2;
         }
         let found = void 0;
-        for (const node2 of nodes) {
+        for (const node2 of nodes2) {
           if (node2 === this)
             break;
           if (node2.anchor === this.source)
@@ -5830,11 +5830,11 @@ var require_lexer = __commonJS({
       hasChars(n) {
         return this.pos + n <= this.buffer.length;
       }
-      setNext(state) {
+      setNext(state2) {
         this.buffer = this.buffer.substring(this.pos);
         this.pos = 0;
         this.lineEndPos = null;
-        this.next = state;
+        this.next = state2;
         return null;
       }
       peek(n) {
@@ -7376,34 +7376,6 @@ import { readFile as readFile4, realpath as realpath3 } from "node:fs/promises";
 import { join as join4, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify as promisify2 } from "node:util";
-
-// packages/voidra/src/errors.ts
-var VoidraError = class extends Error {
-  code;
-  file;
-  field;
-  line;
-  constructor(code, file2, message, field = "$", line = 1) {
-    super(message);
-    this.name = "VoidraError";
-    this.code = code;
-    this.file = file2;
-    this.field = field;
-    this.line = line;
-  }
-  diagnostic() {
-    return {
-      code: this.code,
-      file: this.file,
-      field: this.field,
-      line: this.line,
-      message: this.message
-    };
-  }
-};
-
-// packages/voidra/src/lifecycle.ts
-import { createHash } from "node:crypto";
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -12612,11 +12584,11 @@ function settle(inst, answer) {
 function isRecursiveSchema(inst) {
   return isRecursive(inst, /* @__PURE__ */ new Set(), true) !== NONE;
 }
-function bucketFor(state, inst) {
-  let bucket = state.buckets.get(inst);
+function bucketFor(state2, inst) {
+  let bucket = state2.buckets.get(inst);
   if (!bucket) {
     bucket = /* @__PURE__ */ new WeakMap();
-    state.buckets.set(inst, bucket);
+    state2.buckets.set(inst, bucket);
   }
   return bucket;
 }
@@ -12674,16 +12646,16 @@ var memo = {
         const input2 = payload.value;
         if (!isRef(input2))
           return base(payload, ctx);
-        let state = ctx[STATE];
-        if (!state) {
-          state = { buckets: /* @__PURE__ */ new WeakMap(), backEdges: void 0 };
-          ctx[STATE] = state;
+        let state2 = ctx[STATE];
+        if (!state2) {
+          state2 = { buckets: /* @__PURE__ */ new WeakMap(), backEdges: void 0 };
+          ctx[STATE] = state2;
         }
         let bucket;
         if (lastCtx === ctx) {
           bucket = lastBucket;
         } else {
-          bucket = bucketFor(state, inst);
+          bucket = bucketFor(state2, inst);
           lastCtx = ctx;
           lastBucket = bucket;
         }
@@ -12695,8 +12667,8 @@ var memo = {
               payload.issues.push(...cloneIssues(hit.issues));
           } else {
             payload.memo = true;
-            state.backEdges ?? (state.backEdges = /* @__PURE__ */ new WeakSet());
-            state.backEdges.add(hit.value);
+            state2.backEdges ?? (state2.backEdges = /* @__PURE__ */ new WeakSet());
+            state2.backEdges.add(hit.value);
           }
           return payload;
         }
@@ -27122,6 +27094,34 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
+// packages/voidra/src/lifecycle.ts
+import { createHash } from "node:crypto";
+
+// packages/voidra/src/errors.ts
+var VoidraError = class extends Error {
+  code;
+  file;
+  field;
+  line;
+  constructor(code, file2, message, field = "$", line = 1) {
+    super(message);
+    this.name = "VoidraError";
+    this.code = code;
+    this.file = file2;
+    this.field = field;
+    this.line = line;
+  }
+  diagnostic() {
+    return {
+      code: this.code,
+      file: this.file,
+      field: this.field,
+      line: this.line,
+      message: this.message
+    };
+  }
+};
+
 // packages/voidra/src/records.ts
 var import_yaml = __toESM(require_dist(), 1);
 import { isDeepStrictEqual } from "node:util";
@@ -27464,6 +27464,11 @@ var schemas = {
     agent: external_exports.enum(["claude-code", "codex"]),
     startedAt: date5,
     consumedRecords: external_exports.array(text),
+    orderedIntent: object2({
+      version: external_exports.literal(1),
+      revision: hashSchema,
+      queueRevision: hashSchema
+    }).optional(),
     endedAt: date5.optional(),
     fromStage: external_exports.enum(stages),
     toStage: external_exports.enum(stages).optional(),
@@ -27502,7 +27507,26 @@ var schemas = {
     by: text,
     at: date5
   }),
-  queue: object2({ queuedBy: text, queuedAt: date5 }),
+  queue: object2({
+    queuedBy: text.optional(),
+    queuedAt: date5.optional(),
+    orderedIntent: external_exports.literal(1).optional()
+  }).superRefine((value, ctx) => {
+    if (value.orderedIntent !== 1) {
+      if (value.queuedBy === void 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedBy"],
+          message: "Legacy queues require queuedBy"
+        });
+      if (value.queuedAt === void 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedAt"],
+          message: "Legacy queues require queuedAt"
+        });
+    }
+  }),
   lock: object2({
     ownerToken: text,
     pid: external_exports.number().int().positive(),
@@ -27697,6 +27721,17 @@ function actionComplete(action) {
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+// packages/voidra/src/sequence-state.ts
+var ACTION_SEQUENCE_PATH = ".voidra/local/action-sequence.json";
+var ACTION_QUEUE_PATH = ".voidra/local/pending-actions.md";
+var actionSequenceSchema = external_exports.looseObject({
+  version: external_exports.literal(1),
+  order: external_exports.array(external_exports.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Duplicate sequence entry"
+  )
+});
+
 // packages/voidra/src/task-view.ts
 function taskColumn(action, hasRun = false) {
   if (action.stage === "cancelled") return "backlog";
@@ -27707,6 +27742,56 @@ function taskColumn(action, hasRun = false) {
   if (action.status === "draft" || action.taskColumn === "backlog")
     return "backlog";
   return "todo";
+}
+function projectTasks(project) {
+  const valid = [...project.records.entries()].filter(
+    ([path]) => !project.diagnostics.some(
+      (d) => d.file === path && ["identity", "duplicate-id"].includes(d.code)
+    )
+  );
+  const actionIds = new Set(
+    valid.filter(([, r]) => r.kind === "action").map(([, r]) => r.document.data.id)
+  );
+  const sources = /* @__PURE__ */ new Map();
+  const promoted = /* @__PURE__ */ new Set();
+  const ran = new Set(
+    valid.filter(([, r]) => r.kind === "run").map(([, r]) => r.document.data.action)
+  );
+  for (const [, record2] of valid) {
+    if (record2.kind !== "idea") continue;
+    const idea = schemas.idea.parse(record2.document.data);
+    if (idea.status === "promoted" && idea.promotedTo && actionIds.has(idea.promotedTo)) {
+      sources.set(idea.promotedTo, idea.id);
+      promoted.add(idea.id);
+    }
+  }
+  const tasks = [];
+  for (const [path, record2] of valid) {
+    if (record2.kind !== "action" && record2.kind !== "idea") continue;
+    const data = record2.kind === "action" ? schemas.action.parse(record2.document.data) : schemas.idea.parse(record2.document.data);
+    if (record2.kind === "idea" && promoted.has(data.id)) continue;
+    const action = record2.kind === "action" ? schemas.action.parse(data) : null;
+    tasks.push({
+      id: data.id,
+      kind: record2.kind,
+      title: data.title,
+      body: record2.document.body,
+      path,
+      revision: hash2(record2.document.raw),
+      column: action ? taskColumn(action, ran.has(data.id)) : "backlog",
+      archived: action?.stage === "cancelled" || data.status === "rejected",
+      stage: action?.stage ?? null,
+      status: data.status,
+      type: data.type ?? null,
+      assignee: data.assignee ?? null,
+      parent: action?.parent ?? null,
+      blockedBy: action?.blockedBy ?? [],
+      sourceIdea: sources.get(data.id) ?? null,
+      targetRelease: data.targetRelease ?? null,
+      releaseAssigned: data.targetRelease !== void 0
+    });
+  }
+  return tasks.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // packages/voidra/src/versions.ts
@@ -27833,7 +27918,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ACTION_SEQUENCE_PATH || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -28340,10 +28425,10 @@ function inspectFiles(files, options = {}) {
       );
   }
   for (const edge of ["blockedBy", "parent"]) {
-    const active = /* @__PURE__ */ new Set();
+    const active2 = /* @__PURE__ */ new Set();
     const visited = /* @__PURE__ */ new Set();
     const visit2 = (id2) => {
-      if (active.has(id2)) {
+      if (active2.has(id2)) {
         add(
           edge === "parent" ? "parent-cycle" : "dependency-cycle",
           actions.get(id2)?.file ?? metaPath,
@@ -28353,11 +28438,11 @@ function inspectFiles(files, options = {}) {
         return;
       }
       if (visited.has(id2)) return;
-      active.add(id2);
+      active2.add(id2);
       const a = actions.get(id2)?.action;
       for (const dep of edge === "parent" ? a?.parent ? [a.parent] : [] : a?.blockedBy ?? [])
         if (actions.has(dep)) visit2(dep);
-      active.delete(id2);
+      active2.delete(id2);
       visited.add(id2);
     };
     for (const id2 of actions.keys()) visit2(id2);
@@ -28374,6 +28459,13 @@ function inspectFiles(files, options = {}) {
       for (const path of schemas.sync.parse(d).consumedRecords)
         if (!records.has(path)) reference(path, file2, "consumedRecords");
     }
+    if (kind === "run" && d.orderedIntent && metadata.taskTracking !== 1)
+      add(
+        "sequence",
+        file2,
+        "orderedIntent",
+        "Ordered-intent run receipts require tracked tasks"
+      );
     if (kind === "run") {
       for (const id2 of schemas.run.parse(d).consumedRecords)
         if (!records.has(id2)) reference(id2, file2, "consumedRecords");
@@ -28416,6 +28508,37 @@ function inspectFiles(files, options = {}) {
         `Incomplete operation ${d.id}: ${schemas.operation.parse(d).changes.map((c) => c.path).join(", ")}; recover explicitly`
       );
   }
+  const sequenceBytes = files.get(ACTION_SEQUENCE_PATH);
+  const intentQueue = records.get(".voidra/local/pending-actions.md")?.document.data.orderedIntent === 1;
+  if (sequenceBytes) {
+    try {
+      actionSequenceSchema.parse(
+        JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(sequenceBytes)
+        )
+      );
+      if (metadata.taskTracking !== 1 || !intentQueue)
+        add(
+          "sequence",
+          ACTION_SEQUENCE_PATH,
+          "$",
+          "Actions sequence requires tracked tasks and its ordered-intent queue"
+        );
+    } catch {
+      add(
+        "sequence",
+        ACTION_SEQUENCE_PATH,
+        "$",
+        "Invalid Actions sequence; preserve it and recover explicitly"
+      );
+    }
+  } else if (intentQueue)
+    add(
+      "sequence",
+      ".voidra/local/pending-actions.md",
+      "orderedIntent",
+      "Ordered intent requires its versioned Actions sequence"
+    );
   return result2;
 }
 async function checkProject(root, options = {}) {
@@ -28943,6 +29066,253 @@ async function recoverOperation(root, id2, options = {}) {
   }
 }
 
+// packages/voidra/src/action-sequence.ts
+function dependenciesOf(id2, nodes2) {
+  const result2 = [], seen = /* @__PURE__ */ new Set();
+  const visit2 = (current, path) => {
+    if (seen.has(current)) return;
+    seen.add(current);
+    for (const dependency of nodes2.get(current)?.dependencies ?? []) {
+      const node2 = nodes2.get(dependency);
+      if (node2?.complete) continue;
+      const next = [...path, dependency];
+      result2.push({ id: dependency, path: next });
+      visit2(dependency, next);
+    }
+  };
+  visit2(id2, [id2]);
+  return result2;
+}
+function sequenceWarnings(ids, graph) {
+  const positions = new Map(ids.map((id2, index) => [id2, index]));
+  const nodes2 = new Map(graph.map((node2) => [node2.id, node2]));
+  const warnings = [];
+  for (const [taskIndex, task] of ids.entries()) {
+    if (!nodes2.has(task)) {
+      warnings.push({ task, dependency: task, kind: "missing", path: [task] });
+      continue;
+    }
+    const emitted = /* @__PURE__ */ new Set();
+    for (const dependency of dependenciesOf(task, nodes2)) {
+      if (emitted.has(dependency.id)) continue;
+      emitted.add(dependency.id);
+      const position = positions.get(dependency.id);
+      const kind = !nodes2.has(dependency.id) ? "missing" : position === void 0 ? "absent" : position > taskIndex ? "later" : null;
+      if (kind)
+        warnings.push({
+          task,
+          dependency: dependency.id,
+          kind,
+          path: dependency.path
+        });
+    }
+  }
+  return warnings;
+}
+function rearrangeSequence(ids, graph) {
+  if (new Set(ids).size !== ids.length) throw Error("Duplicate sequence entry");
+  const included = new Set(ids), nodes2 = new Map(graph.map((node2) => [node2.id, node2]));
+  if (ids.some((id2) => !nodes2.has(id2)))
+    throw Error("Repair missing task sources before rearranging");
+  const needed = /* @__PURE__ */ new Map();
+  const dependents = /* @__PURE__ */ new Map();
+  for (const id2 of ids) {
+    const prerequisites = new Set(
+      dependenciesOf(id2, nodes2).map((node2) => node2.id).filter((dependency) => included.has(dependency))
+    );
+    needed.set(id2, prerequisites);
+    for (const dependency of prerequisites) {
+      const users = dependents.get(dependency) ?? /* @__PURE__ */ new Set();
+      users.add(id2);
+      dependents.set(dependency, users);
+    }
+  }
+  const positions = new Map(ids.map((id2, index) => [id2, index]));
+  const ready = ids.filter((id2) => !needed.get(id2)?.size), output2 = [];
+  while (ready.length) {
+    ready.sort((a, b) => (positions.get(a) ?? 0) - (positions.get(b) ?? 0));
+    const next = ready.shift();
+    if (!next) break;
+    output2.push(next);
+    for (const user of dependents.get(next) ?? []) {
+      const prerequisites = needed.get(user);
+      prerequisites?.delete(next);
+      if (!prerequisites?.size) ready.push(user);
+    }
+  }
+  if (output2.length !== ids.length)
+    throw Error("Dependency cycle prevents rearranging this sequence");
+  return output2;
+}
+function nodes(project) {
+  const actions = [...project.records.values()].filter((record2) => record2.kind === "action").map((record2) => schemas.action.parse(record2.document.data));
+  const children = /* @__PURE__ */ new Map();
+  for (const action of actions)
+    if (action.parent)
+      children.set(action.parent, [
+        ...children.get(action.parent) ?? [],
+        action.id
+      ]);
+  return actions.map((action) => ({
+    id: action.id,
+    complete: actionComplete(action),
+    dependencies: [
+      .../* @__PURE__ */ new Set([
+        ...action.blockedBy ?? [],
+        ...children.get(action.id) ?? []
+      ])
+    ]
+  }));
+}
+function queueIds(project) {
+  return [
+    ...project.records.get(ACTION_QUEUE_PATH)?.document.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []
+  ].map((match) => match[0]);
+}
+var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column);
+function state(project) {
+  const bytes = project.files.get(ACTION_SEQUENCE_PATH);
+  if (!bytes) return null;
+  return actionSequenceSchema.parse(
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
+  );
+}
+function readActionSequence(project) {
+  let saved;
+  try {
+    saved = state(project);
+  } catch {
+    const order2 = projectTasks(project).filter(active).map((task) => task.id);
+    return {
+      enabled: false,
+      revision: project.files.has(ACTION_SEQUENCE_PATH) ? hash2(project.files.get(ACTION_SEQUENCE_PATH)) : null,
+      order: order2,
+      pending: queueIds(project),
+      warnings: sequenceWarnings(order2, nodes(project)),
+      problems: [
+        "Invalid Actions sequence; preserve it and recover explicitly"
+      ],
+      rearranged: null
+    };
+  }
+  const tasks = projectTasks(project), byId = new Map(tasks.map((task) => [task.id, task]));
+  const pending = queueIds(project), source = saved?.order ?? pending;
+  const order = [
+    .../* @__PURE__ */ new Set([
+      ...source.filter(
+        (id2) => !byId.has(id2) || active(byId.get(id2))
+      ),
+      ...tasks.filter(active).map((task) => task.id)
+    ])
+  ];
+  const graph = nodes(project), warnings = sequenceWarnings(order, graph);
+  const privateProblems = project.diagnostics.filter(
+    (item) => [ACTION_SEQUENCE_PATH, ACTION_QUEUE_PATH].includes(item.file)
+  ).map((item) => item.message);
+  let rearranged = null;
+  if (warnings.some((item) => item.kind === "later") && !privateProblems.length) {
+    try {
+      rearranged = rearrangeSequence(order, graph);
+    } catch {
+      rearranged = null;
+    }
+  }
+  return {
+    enabled: project.metadata?.taskTracking === 1 && !privateProblems.length && !!saved && project.records.get(ACTION_QUEUE_PATH)?.document.data.orderedIntent === 1,
+    revision: project.files.has(ACTION_SEQUENCE_PATH) ? hash2(project.files.get(ACTION_SEQUENCE_PATH)) : null,
+    order,
+    pending,
+    warnings,
+    rearranged,
+    problems: [
+      ...privateProblems,
+      ...order.filter((id2) => !byId.has(id2)).map((id2) => `Restore or repair the missing task source for ${id2}`)
+    ]
+  };
+}
+function queueContent(project, ids, by) {
+  const doc = project.records.get(ACTION_QUEUE_PATH)?.document ?? parseRecord(ACTION_QUEUE_PATH, "---\n{}\n---\n");
+  return serializeRecord(
+    doc,
+    {
+      ...doc.data,
+      orderedIntent: 1,
+      queuedBy: by,
+      queuedAt: (/* @__PURE__ */ new Date()).toISOString()
+    },
+    ids.map((id2, index) => `${index + 1}. [ ] ${id2}`).join("\n")
+  ).toString();
+}
+var enableInput = external_exports.strictObject({
+  revision: hashSchema,
+  by: external_exports.string().min(1)
+});
+function withActionSequence(project, manifest, by = "You") {
+  const sequence = readActionSequence(project);
+  if (!sequence.enabled) return manifest;
+  const files = new Map(project.files), changes = new Map(manifest.changes.map((change) => [change.path, change]));
+  for (const change of manifest.changes) {
+    if (change.content === null) files.delete(change.path);
+    else files.set(change.path, Buffer.from(change.content));
+  }
+  const after = inspectFiles(files), tasks = projectTasks(after), byId = new Map(tasks.map((task) => [task.id, task]));
+  const beforeActive = new Set(
+    projectTasks(project).filter(active).map((task) => task.id)
+  );
+  const order = [
+    .../* @__PURE__ */ new Set([
+      ...sequence.order.filter(
+        (id2) => !byId.has(id2) || active(byId.get(id2))
+      ),
+      ...tasks.filter(active).map((task) => task.id)
+    ])
+  ];
+  const pending = queueIds(after).filter(
+    (id2) => !byId.has(id2) || active(byId.get(id2))
+  );
+  for (const task of tasks)
+    if (active(task) && task.column === "todo" && task.status === "ready" && !beforeActive.has(task.id) && after.records.get(task.path)?.document.data.doneBy === "agent" && !pending.includes(task.id))
+      pending.push(task.id);
+  const positions = new Map(order.map((id2, index) => [id2, index]));
+  pending.sort(
+    (a, b) => (positions.get(a) ?? Infinity) - (positions.get(b) ?? Infinity)
+  );
+  const replace = (path, content) => {
+    const bytes = project.files.get(path);
+    if (content === bytes?.toString() && !changes.has(path)) return;
+    changes.set(path, {
+      path,
+      expectedHash: changes.has(path) ? changes.get(path)?.expectedHash ?? null : bytes ? hash2(bytes) : null,
+      content
+    });
+  };
+  const saved = state(project);
+  if (JSON.stringify(saved?.order) !== JSON.stringify(order))
+    replace(
+      ACTION_SEQUENCE_PATH,
+      `${JSON.stringify({ ...saved, version: 1, order }, null, 2)}
+`
+    );
+  if (JSON.stringify(queueIds(after)) !== JSON.stringify(pending))
+    replace(ACTION_QUEUE_PATH, queueContent(after, pending, by));
+  if (changes.has(ACTION_SEQUENCE_PATH) || changes.has(ACTION_QUEUE_PATH)) {
+    for (const path of [
+      ".voidra/local/run.lock",
+      ".voidra/local/planning.lock"
+    ])
+      if (!changes.has(path))
+        changes.set(path, { path, expectedHash: null, content: null });
+  }
+  return { ...manifest, changes: [...changes.values()] };
+}
+var replaceInput = external_exports.strictObject({
+  order: actionSequenceSchema.shape.order,
+  revision: hashSchema,
+  queueRevision: hashSchema.nullable(),
+  revisions: external_exports.record(schemas.action.shape.id, hashSchema),
+  by: external_exports.string().min(1)
+});
+
 // packages/voidra/src/project-release.ts
 import { constants } from "node:fs";
 import { lstat as lstat3, open as open3, realpath as realpath2 } from "node:fs/promises";
@@ -29024,7 +29394,7 @@ var selectionSchema = external_exports.strictObject({
 });
 
 // packages/voidra/src/task-tracking.ts
-var enableInput = external_exports.strictObject({ revision: hashSchema });
+var enableInput2 = external_exports.strictObject({ revision: hashSchema });
 
 // packages/voidra/src/cli.ts
 var help = `Voidra ${PACKAGE_VERSION}
@@ -29536,7 +29906,7 @@ ${update.source}
         content: bytes.toString()
       });
   }
-  await applyOperation(root, { changes }, options);
+  await applyOperation(root, withActionSequence(project, { changes }), options);
   return { id: id2, path, proposals, repeated: false };
 }
 

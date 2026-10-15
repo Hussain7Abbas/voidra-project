@@ -22,6 +22,10 @@ import {
   schemas,
   validateRecord,
 } from "./schemas.ts";
+import {
+  ACTION_SEQUENCE_PATH,
+  actionSequenceSchema,
+} from "./sequence-state.ts";
 import { taskColumn } from "./task-view.ts";
 import { FORMAT_VERSION, PACKAGE_VERSION } from "./versions.ts";
 
@@ -147,6 +151,7 @@ export async function readProjectFiles(
         path === ".voidra/README.md" ||
         path === ".voidra/.gitignore" ||
         path === ".voidra/local/release-selection.json" ||
+        path === ACTION_SEQUENCE_PATH ||
         path === ".voidra/local/sync-selection.json" ||
         (path.endsWith(".md") && !path.startsWith(".voidra/local/")))
     )
@@ -834,6 +839,13 @@ export function inspectFiles(
     if (kind === "sync")
       for (const path of schemas.sync.parse(d).consumedRecords)
         if (!records.has(path)) reference(path, file, "consumedRecords");
+    if (kind === "run" && d.orderedIntent && metadata.taskTracking !== 1)
+      add(
+        "sequence",
+        file,
+        "orderedIntent",
+        "Ordered-intent run receipts require tracked tasks",
+      );
     if (kind === "run")
       for (const id of schemas.run.parse(d).consumedRecords)
         if (!records.has(id)) reference(id, file, "consumedRecords");
@@ -892,6 +904,39 @@ export function inspectFiles(
           .join(", ")}; recover explicitly`,
       );
   }
+  const sequenceBytes = files.get(ACTION_SEQUENCE_PATH);
+  const intentQueue =
+    records.get(".voidra/local/pending-actions.md")?.document.data
+      .orderedIntent === 1;
+  if (sequenceBytes) {
+    try {
+      actionSequenceSchema.parse(
+        JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(sequenceBytes),
+        ),
+      );
+      if (metadata.taskTracking !== 1 || !intentQueue)
+        add(
+          "sequence",
+          ACTION_SEQUENCE_PATH,
+          "$",
+          "Actions sequence requires tracked tasks and its ordered-intent queue",
+        );
+    } catch {
+      add(
+        "sequence",
+        ACTION_SEQUENCE_PATH,
+        "$",
+        "Invalid Actions sequence; preserve it and recover explicitly",
+      );
+    }
+  } else if (intentQueue)
+    add(
+      "sequence",
+      ".voidra/local/pending-actions.md",
+      "orderedIntent",
+      "Ordered intent requires its versioned Actions sequence",
+    );
   return result;
 }
 export async function checkProject(

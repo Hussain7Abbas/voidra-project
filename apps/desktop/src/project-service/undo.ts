@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import type Database from "better-sqlite3";
 import {
+  ACTION_QUEUE_PATH,
+  ACTION_SEQUENCE_PATH,
   applyOperation,
   checkProject,
   createId,
@@ -57,7 +59,8 @@ const runIds = (project: ProjectInspection): string[] =>
 const historyPath = (path: string): boolean =>
   path.startsWith(".voidra/") &&
   (!path.startsWith(".voidra/local/") ||
-    path === ".voidra/local/pending-actions.md" ||
+    path === ACTION_QUEUE_PATH ||
+    path === ACTION_SEQUENCE_PATH ||
     path === ".voidra/local/release-selection.json");
 
 /** Local app history. The format writer still owns every file mutation. */
@@ -329,7 +332,11 @@ export class UndoHistory {
         (record.kind === "run" || record.kind === "sync") &&
         !beforeRuns.includes(String(record.document.data.id))
       ) {
-        const consumed = record.document.data.consumedRecords;
+        const consumed = Array.isArray(record.document.data.consumedRecords)
+          ? [...record.document.data.consumedRecords]
+          : [];
+        if (record.kind === "run" && record.document.data.orderedIntent)
+          consumed.push(ACTION_SEQUENCE_PATH, ACTION_QUEUE_PATH);
         if (
           Array.isArray(consumed) &&
           consumed.some((v) => typeof v === "string" && affected.has(v))

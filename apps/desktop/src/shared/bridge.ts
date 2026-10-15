@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  actionSequenceRequestSchemas,
+  actionSequenceViewSchema,
+  emptyActionSequence,
+} from "./action-sequence.ts";
+import {
   aiContextSchema,
   aiIntentSchema,
   aiReplySchemas,
@@ -185,6 +190,7 @@ export const gitHistorySchema = z.strictObject({
   notice: z.string().nullable(),
 });
 export const workspaceSchema = z.strictObject({
+  sequence: actionSequenceViewSchema.default(emptyActionSequence),
   taskTracking: z.boolean().default(false),
   taskMigration: z
     .strictObject({
@@ -506,6 +512,7 @@ export const serviceStateSchema = z.enum([
   "failed",
 ]);
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
+  ...actionSequenceRequestSchemas,
   z.strictObject({
     command: z.literal("move-task"),
     id: z.string().regex(/^(act|idea)-[0-9a-hjkmnp-tv-z]{6}$/),
@@ -719,6 +726,8 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
 export type WorkspaceRequest = z.infer<typeof workspaceRequestSchema>;
 /** Exhaustive classification: a new project command must declare its edit label. */
 export const workspaceEdits = {
+  "enable-action-sequence": "Enable Actions sequence",
+  "replace-action-sequence": "Reorder Actions sequence",
   "move-task": "Move task",
   "enable-task-tracking": "Enable task tracking",
   "set-release-package": "Select release package",

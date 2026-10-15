@@ -467,7 +467,12 @@ export function ProjectTasks({
             <Button onClick={() => open(notice.task)}>Open task steps</Button>
           </section>
         )}
-        <section className="actions-board tasks-board" aria-label="Tasks board">
+        <section
+          className="actions-board tasks-board"
+          aria-label="Tasks board"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: Empty filtered boards still need keyboard scrolling.
+          tabIndex={0}
+        >
           {columns.map(([id, title]) => (
             <section
               key={id}

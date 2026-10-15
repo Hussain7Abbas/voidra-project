@@ -7375,34 +7375,6 @@ import { readFile as readFile5 } from "node:fs/promises";
 import { join as join5, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// packages/voidra/src/errors.ts
-var VoidraError = class extends Error {
-  code;
-  file;
-  field;
-  line;
-  constructor(code, file2, message, field = "$", line = 1) {
-    super(message);
-    this.name = "VoidraError";
-    this.code = code;
-    this.file = file2;
-    this.field = field;
-    this.line = line;
-  }
-  diagnostic() {
-    return {
-      code: this.code,
-      file: this.file,
-      field: this.field,
-      line: this.line,
-      message: this.message
-    };
-  }
-};
-
-// packages/voidra/src/lifecycle.ts
-import { createHash } from "node:crypto";
-
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -27120,6 +27092,34 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
+// packages/voidra/src/lifecycle.ts
+import { createHash } from "node:crypto";
+
+// packages/voidra/src/errors.ts
+var VoidraError = class extends Error {
+  code;
+  file;
+  field;
+  line;
+  constructor(code, file2, message, field = "$", line = 1) {
+    super(message);
+    this.name = "VoidraError";
+    this.code = code;
+    this.file = file2;
+    this.field = field;
+    this.line = line;
+  }
+  diagnostic() {
+    return {
+      code: this.code,
+      file: this.file,
+      field: this.field,
+      line: this.line,
+      message: this.message
+    };
+  }
+};
+
 // packages/voidra/src/records.ts
 var import_yaml = __toESM(require_dist(), 1);
 import { isDeepStrictEqual } from "node:util";
@@ -27462,6 +27462,11 @@ var schemas = {
     agent: external_exports.enum(["claude-code", "codex"]),
     startedAt: date5,
     consumedRecords: external_exports.array(text),
+    orderedIntent: object2({
+      version: external_exports.literal(1),
+      revision: hashSchema,
+      queueRevision: hashSchema
+    }).optional(),
     endedAt: date5.optional(),
     fromStage: external_exports.enum(stages),
     toStage: external_exports.enum(stages).optional(),
@@ -27500,7 +27505,26 @@ var schemas = {
     by: text,
     at: date5
   }),
-  queue: object2({ queuedBy: text, queuedAt: date5 }),
+  queue: object2({
+    queuedBy: text.optional(),
+    queuedAt: date5.optional(),
+    orderedIntent: external_exports.literal(1).optional()
+  }).superRefine((value, ctx) => {
+    if (value.orderedIntent !== 1) {
+      if (value.queuedBy === void 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedBy"],
+          message: "Legacy queues require queuedBy"
+        });
+      if (value.queuedAt === void 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedAt"],
+          message: "Legacy queues require queuedAt"
+        });
+    }
+  }),
   lock: object2({
     ownerToken: text,
     pid: external_exports.number().int().positive(),
@@ -27695,6 +27719,16 @@ function actionComplete(action) {
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+// packages/voidra/src/sequence-state.ts
+var ACTION_SEQUENCE_PATH = ".voidra/local/action-sequence.json";
+var actionSequenceSchema = external_exports.looseObject({
+  version: external_exports.literal(1),
+  order: external_exports.array(external_exports.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Duplicate sequence entry"
+  )
+});
+
 // packages/voidra/src/task-view.ts
 function taskColumn(action, hasRun = false) {
   if (action.stage === "cancelled") return "backlog";
@@ -27823,7 +27857,7 @@ async function readProjectFiles(root) {
     if (stat.isDirectory()) {
       for (const name of (await readdir(join(root, path))).sort())
         await walk(`${path}/${name}`);
-    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
+    } else if (stat.isFile() && (fileKind(path) || path === ".voidra/README.md" || path === ".voidra/.gitignore" || path === ".voidra/local/release-selection.json" || path === ACTION_SEQUENCE_PATH || path === ".voidra/local/sync-selection.json" || path.endsWith(".md") && !path.startsWith(".voidra/local/")))
       files.set(path, await readFile(join(root, path)));
   };
   await walk(".voidra");
@@ -28364,6 +28398,13 @@ function inspectFiles(files, options = {}) {
       for (const path of schemas.sync.parse(d).consumedRecords)
         if (!records.has(path)) reference(path, file2, "consumedRecords");
     }
+    if (kind === "run" && d.orderedIntent && metadata.taskTracking !== 1)
+      add(
+        "sequence",
+        file2,
+        "orderedIntent",
+        "Ordered-intent run receipts require tracked tasks"
+      );
     if (kind === "run") {
       for (const id2 of schemas.run.parse(d).consumedRecords)
         if (!records.has(id2)) reference(id2, file2, "consumedRecords");
@@ -28406,6 +28447,37 @@ function inspectFiles(files, options = {}) {
         `Incomplete operation ${d.id}: ${schemas.operation.parse(d).changes.map((c) => c.path).join(", ")}; recover explicitly`
       );
   }
+  const sequenceBytes = files.get(ACTION_SEQUENCE_PATH);
+  const intentQueue = records.get(".voidra/local/pending-actions.md")?.document.data.orderedIntent === 1;
+  if (sequenceBytes) {
+    try {
+      actionSequenceSchema.parse(
+        JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(sequenceBytes)
+        )
+      );
+      if (metadata.taskTracking !== 1 || !intentQueue)
+        add(
+          "sequence",
+          ACTION_SEQUENCE_PATH,
+          "$",
+          "Actions sequence requires tracked tasks and its ordered-intent queue"
+        );
+    } catch {
+      add(
+        "sequence",
+        ACTION_SEQUENCE_PATH,
+        "$",
+        "Invalid Actions sequence; preserve it and recover explicitly"
+      );
+    }
+  } else if (intentQueue)
+    add(
+      "sequence",
+      ".voidra/local/pending-actions.md",
+      "orderedIntent",
+      "Ordered intent requires its versioned Actions sequence"
+    );
   return result2;
 }
 async function checkProject(root, options = {}) {
@@ -28914,6 +28986,19 @@ async function applyOperation(root, input4, options = {}, migration = false) {
   }
 }
 
+// packages/voidra/src/action-sequence.ts
+var enableInput = external_exports.strictObject({
+  revision: hashSchema,
+  by: external_exports.string().min(1)
+});
+var replaceInput = external_exports.strictObject({
+  order: actionSequenceSchema.shape.order,
+  revision: hashSchema,
+  queueRevision: hashSchema.nullable(),
+  revisions: external_exports.record(schemas.action.shape.id, hashSchema),
+  by: external_exports.string().min(1)
+});
+
 // packages/voidra/src/project-release.ts
 var limit = 256 * 1024;
 var selectionSchema = external_exports.strictObject({
@@ -28922,7 +29007,7 @@ var selectionSchema = external_exports.strictObject({
 });
 
 // packages/voidra/src/task-tracking.ts
-var enableInput = external_exports.strictObject({ revision: hashSchema });
+var enableInput2 = external_exports.strictObject({ revision: hashSchema });
 
 // packages/voidra/src/cli.ts
 var help = `Voidra ${PACKAGE_VERSION}

@@ -2,7 +2,7 @@
 
 > **Status:** approved on 2026-10-06. Updated on 2026-10-12 with the approved review corrections: approval invalidation and the planning skill's glossary permission (see [plan/main.md](plan/main.md)). Ideas adapted from [mattpocock/skills](https://github.com/mattpocock/skills) were added on 2026-10-11.
 > This document fixes *what* Voidra is and how it behaves. Architecture comes after it is approved.
-> **v1.1.0 direction (2026-10-15):** the user requested a Tasks-centered agentic coding workspace. [Section 17](#17-v110-product-direction) records those changes and supersedes the affected v1 UI descriptions below as the future target. The user authorized starting the [v1.1.0 plan](plan-v1.1.0/main.md); V11-P01–P05 are complete; V11-P05 adds pointer/keyboard Kanban and release filters; V11-P06 is next under the user’s explicit authorization to complete all phases non-stop.
+> **v1.1.0 direction (2026-10-15):** the user requested a Tasks-centered agentic coding workspace. [Section 17](#17-v110-product-direction) records those changes and supersedes the affected v1 UI descriptions below as the future target. The user authorized starting the [v1.1.0 plan](plan-v1.1.0/main.md); V11-P01–P06 are complete; V11-P05 adds pointer/keyboard Kanban and release filters; V11-P06 adds the global Actions sequence and safe standalone consumption under the user’s explicit authorization to complete all phases non-stop.
 
 ## 1. In one paragraph
 

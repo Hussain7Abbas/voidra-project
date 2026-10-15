@@ -11,7 +11,7 @@ metadata:
 
 Read the repository instructions, profile, action and feedback. Use [Discovery](references/discovery.md), [Plan](references/plan.md), [Research](references/research.md), [runtime](references/runtime.md) and [format](references/format.md).
 
-Use this skill's bundled runtime. Every `start` must include `--mode plan` and your agent name. Null means no queue remains; a non-started phase is already stopped at the planning boundary. Never switch to go mode to bypass this invocation's restrictions.
+Use this skill's bundled runtime. Every `start` must include `--mode plan` and your agent name. Null means no request is currently eligible; blocked/gated requests may remain and must be preserved. Versioned ordered intent selects the first eligible request in the Actions sequence; legacy queues retain strict first-entry behavior. Never implicitly retry consumed work. A non-started phase is already stopped at the planning boundary. Never switch to go mode to bypass this invocation's restrictions.
 
 For Release at Plan, use only the Plan section of [local releases](references/release.md) and stop at Review; never enter finalization. For other planning actions, dispatch the project's template architecture skill following Discovery's procedure. Publish question frontiers, exact three-file plans or linked slices through `planning`. Resolve only explicit delegated choices with reasons. Research publishes findings and proposed ideas through `research`; human-only steps use `human` and stop. Continue the remaining queued planning actions in order.
 

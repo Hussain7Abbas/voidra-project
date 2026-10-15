@@ -1168,6 +1168,29 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         "minLength": 1
       }
     },
+    "orderedIntent": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "queueRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "revision",
+        "queueRevision"
+      ],
+      "additionalProperties": {}
+    },
     "endedAt": {
       "type": "string",
       "format": "date-time",
@@ -1448,12 +1471,12 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
       "type": "string",
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "orderedIntent": {
+      "type": "number",
+      "const": 1
     }
   },
-  "required": [
-    "queuedBy",
-    "queuedAt"
-  ],
   "additionalProperties": {}
 }
 ```

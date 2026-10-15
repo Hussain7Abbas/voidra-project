@@ -6,14 +6,14 @@
       "file": ".voidra/local/pending-actions.md",
       "field": "queuedBy",
       "line": 2,
-      "message": "Invalid input: expected string, received undefined"
+      "message": "Legacy queues require queuedBy"
     },
     {
       "code": "schema",
       "file": ".voidra/local/pending-actions.md",
       "field": "queuedAt",
       "line": 2,
-      "message": "Invalid input: expected string, received undefined"
+      "message": "Legacy queues require queuedAt"
     }
   ]
 }

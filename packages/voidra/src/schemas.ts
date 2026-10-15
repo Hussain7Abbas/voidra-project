@@ -207,6 +207,11 @@ export const schemas = {
     agent: z.enum(["claude-code", "codex"]),
     startedAt: date,
     consumedRecords: z.array(text),
+    orderedIntent: object({
+      version: z.literal(1),
+      revision: hashSchema,
+      queueRevision: hashSchema,
+    }).optional(),
     endedAt: date.optional(),
     fromStage: z.enum(stages),
     toStage: z.enum(stages).optional(),
@@ -248,7 +253,26 @@ export const schemas = {
     by: text,
     at: date,
   }),
-  queue: object({ queuedBy: text, queuedAt: date }),
+  queue: object({
+    queuedBy: text.optional(),
+    queuedAt: date.optional(),
+    orderedIntent: z.literal(1).optional(),
+  }).superRefine((value, ctx) => {
+    if (value.orderedIntent !== 1) {
+      if (value.queuedBy === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedBy"],
+          message: "Legacy queues require queuedBy",
+        });
+      if (value.queuedAt === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["queuedAt"],
+          message: "Legacy queues require queuedAt",
+        });
+    }
+  }),
   lock: object({
     ownerToken: text,
     pid: z.number().int().positive(),

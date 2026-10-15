@@ -107,7 +107,9 @@ it("activates an unversioned Profile draft explicitly and completes human slices
   expect(queueDecision(await checkProject(root), draft).allowed).toBe(false);
   await replaceActionQueue(root, {
     ids: [draft],
-    revision: null,
+    revision: hash(
+      await readFile(join(root, ".voidra/local/pending-actions.md")),
+    ),
     by: "You",
     activate: { id: draft, revision: hash(await readFile(join(root, path))) },
   });

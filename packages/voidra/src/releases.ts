@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { createId } from "./ids.ts";
 import { actionComplete, hash, projectLifecycles } from "./lifecycle.ts";
 import {
@@ -146,79 +147,85 @@ export async function createReleaseAction(
     oldToken = project.files.get(tokenPath);
   const queuePath = ".voidra/local/pending-actions.md",
     queue = project.records.get(queuePath)?.document;
-  await applyOperation(root, {
-    changes: [
-      {
-        path,
-        expectedHash: null,
-        content: serializeRecord(
-          parseRecord(path, "---\n{}\n---\n"),
-          {
-            id,
-            type: "release",
-            title: "New release",
-            ...(await newTaskFields(root, project, "action")),
-            stage: projectLifecycles(project.metadata).release.stages[0],
-            status: "ready",
-            doneBy: "agent",
-            releaseActions: input.actions.map((a) => a.id),
-            links: input.actions.map((a) => a.id),
-            createdBy: input.by,
-            createdAt: new Date().toISOString(),
-          },
-          "Plan the version, release notes and changelog for the selected completed actions. Follow the repository's version and changelog conventions. Leave the exact proposal at Review; commit and tag only after acceptance.\n",
-        ).toString(),
-      },
-      ...input.actions.map((chosen) => {
-        const path = `.voidra/actions/${chosen.id}/action.md`;
-        return {
+  await applyOperation(
+    root,
+    withActionSequence(project, {
+      changes: [
+        {
           path,
-          expectedHash: chosen.revision,
-          content: project.files.get(path)?.toString() ?? null,
-        };
-      }),
-      {
-        path: metadata.file,
-        expectedHash: hash(metadata.raw),
-        content:
-          project.metadata.requiredVoidra === PACKAGE_VERSION
-            ? metadata.raw.toString()
-            : serializeRecord(metadata, {
-                ...metadata.data,
-                requiredVoidra: PACKAGE_VERSION,
-              }).toString(),
-      },
-      {
-        path: tokenPath,
-        expectedHash: oldToken ? hash(oldToken) : null,
-        content: `${JSON.stringify({ action: id })}\n`,
-      },
-      ...(input.queue
-        ? [
+          expectedHash: null,
+          content: serializeRecord(
+            parseRecord(path, "---\n{}\n---\n"),
             {
-              path: queuePath,
-              expectedHash: queue ? hash(queue.raw) : null,
-              content: serializeRecord(
-                queue ?? parseRecord(queuePath, "---\n{}\n---\n"),
-                {
-                  ...(queue?.data ?? {}),
-                  queuedBy: input.by,
-                  queuedAt: new Date().toISOString(),
-                },
-                [id, ...(queue?.body.match(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? [])]
-                  .map((action, index) => `${index + 1}. [ ] ${action}`)
-                  .join("\n") + "\n",
-              ).toString(),
+              id,
+              type: "release",
+              title: "New release",
+              ...(await newTaskFields(root, project, "action")),
+              stage: projectLifecycles(project.metadata).release.stages[0],
+              status: "ready",
+              doneBy: "agent",
+              releaseActions: input.actions.map((a) => a.id),
+              links: input.actions.map((a) => a.id),
+              createdBy: input.by,
+              createdAt: new Date().toISOString(),
             },
-          ]
-        : []),
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      {
-        path: ".voidra/local/planning.lock",
-        expectedHash: null,
-        content: null,
-      },
-    ],
-  });
+            "Plan the version, release notes and changelog for the selected completed actions. Follow the repository's version and changelog conventions. Leave the exact proposal at Review; commit and tag only after acceptance.\n",
+          ).toString(),
+        },
+        ...input.actions.map((chosen) => {
+          const path = `.voidra/actions/${chosen.id}/action.md`;
+          return {
+            path,
+            expectedHash: chosen.revision,
+            content: project.files.get(path)?.toString() ?? null,
+          };
+        }),
+        {
+          path: metadata.file,
+          expectedHash: hash(metadata.raw),
+          content:
+            project.metadata.requiredVoidra === PACKAGE_VERSION
+              ? metadata.raw.toString()
+              : serializeRecord(metadata, {
+                  ...metadata.data,
+                  requiredVoidra: PACKAGE_VERSION,
+                }).toString(),
+        },
+        {
+          path: tokenPath,
+          expectedHash: oldToken ? hash(oldToken) : null,
+          content: `${JSON.stringify({ action: id })}\n`,
+        },
+        ...(input.queue
+          ? [
+              {
+                path: queuePath,
+                expectedHash: queue ? hash(queue.raw) : null,
+                content: serializeRecord(
+                  queue ?? parseRecord(queuePath, "---\n{}\n---\n"),
+                  {
+                    ...(queue?.data ?? {}),
+                    queuedBy: input.by,
+                    queuedAt: new Date().toISOString(),
+                  },
+                  [
+                    id,
+                    ...(queue?.body.match(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []),
+                  ]
+                    .map((action, index) => `${index + 1}. [ ] ${action}`)
+                    .join("\n") + "\n",
+                ).toString(),
+              },
+            ]
+          : []),
+        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        {
+          path: ".voidra/local/planning.lock",
+          expectedHash: null,
+          content: null,
+        },
+      ],
+    }),
+  );
   return id;
 }

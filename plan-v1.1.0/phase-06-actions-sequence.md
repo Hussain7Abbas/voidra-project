@@ -1,6 +1,6 @@
 # V11-P06 — Actions implementation sequence
 
-> **Needs:** P05 · **Status:** Not started · **Confirmed:** C01 · **Proposal:** A03
+> **Needs:** P05 · **Status:** Done — 2026-10-15 · **Confirmed:** C01 · **Proposal:** A03
 
 ## Outcome
 
@@ -42,3 +42,5 @@ All stories, `make check` and actual affected two-agent checks pass. The Actions
 ## Hand-off
 
 Update run/queue architecture, public skill guidance and generated runtime copies. Document ordered intent separately from execution eligibility for P07 and P10.
+
+All four stories are complete. [Executed verification](../docs/verification/v1.1.0-p06.md) records 461 passing quality tests, actual desktop ordering/Kanban checks and both actual coding clients, including their small-model limitations and required default retries.

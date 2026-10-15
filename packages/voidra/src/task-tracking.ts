@@ -1,6 +1,11 @@
 import { z } from "zod";
+import { initializeActionSequenceChanges } from "./action-sequence.ts";
 import { hash } from "./lifecycle.ts";
-import { checkProject, type ProjectInspection } from "./project.ts";
+import {
+  checkProject,
+  inspectFiles,
+  type ProjectInspection,
+} from "./project.ts";
 import { type ProjectRelease, readProjectRelease } from "./project-release.ts";
 import { serializeRecord } from "./records.ts";
 import { hashSchema } from "./schemas.ts";
@@ -95,6 +100,12 @@ function migration(
           requiredVoidra: "1.1.0",
         }).toString(),
   });
+  const overlay = new Map(project.files);
+  for (const change of changes) {
+    if (change.content === null) overlay.delete(change.path);
+    else overlay.set(change.path, Buffer.from(change.content));
+  }
+  changes.push(...initializeActionSequenceChanges(inspectFiles(overlay)));
   const paths = changes
     .filter((c) => c.content !== project.files.get(c.path)?.toString())
     .map((c) => c.path);

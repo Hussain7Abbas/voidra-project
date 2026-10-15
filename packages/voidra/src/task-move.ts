@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { hash } from "./lifecycle.ts";
 import { promoteIdea } from "./planning.ts";
 import { checkProject } from "./project.ts";
@@ -74,25 +75,35 @@ export async function moveTask(
   });
   const metadata = project.files.get(".voidra/voidra.json");
   if (!metadata) throw Error("Project metadata missing");
-  await applyOperation(root, {
-    changes: [
+  await applyOperation(
+    root,
+    withActionSequence(
+      project,
       {
-        path: task.path,
-        expectedHash: input.revision,
-        content: serializeRecord(doc, { ...doc.data, ...fields }).toString(),
+        changes: [
+          {
+            path: task.path,
+            expectedHash: input.revision,
+            content: serializeRecord(doc, {
+              ...doc.data,
+              ...fields,
+            }).toString(),
+          },
+          {
+            path: ".voidra/voidra.json",
+            expectedHash: hash(metadata),
+            content: metadata.toString(),
+          },
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+          {
+            path: ".voidra/local/planning.lock",
+            expectedHash: null,
+            content: null,
+          },
+        ],
       },
-      {
-        path: ".voidra/voidra.json",
-        expectedHash: hash(metadata),
-        content: metadata.toString(),
-      },
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      {
-        path: ".voidra/local/planning.lock",
-        expectedHash: null,
-        content: null,
-      },
-    ],
-  });
+      input.by,
+    ),
+  );
   return task.id;
 }

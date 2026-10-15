@@ -12,6 +12,7 @@ import { hostname } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
+  ACTION_SEQUENCE_PATH,
   type Action,
   applyOperation,
   checkProject,
@@ -21,6 +22,7 @@ import {
   parseRecord,
   projectLifecycles,
   queueDecision,
+  readActionSequence,
   readPlan,
   recoverOperation,
   releaseCandidates,
@@ -28,6 +30,7 @@ import {
   schemas,
   serializeRecord,
   transition,
+  withActionSequence,
 } from "voidra";
 import { z } from "zod";
 import {
@@ -592,7 +595,7 @@ async function save(
   }
   await applyOperation(
     root,
-    {
+    withActionSequence(await checkProject(root), {
       changes: [
         ...changes,
         {
@@ -601,7 +604,7 @@ async function save(
           content: `${JSON.stringify(checkpointSchema.parse(ctx), null, 2)}\n`,
         },
       ],
-    },
+    }),
     {
       allowGlossary,
       ...(writeCheckpoint ? { checkpoint: writeCheckpoint } : {}),
@@ -669,10 +672,27 @@ export async function startRun(
     queue = checked.records.get(queuePath)?.document;
   if (!queue) return null;
   const ids = Array.from(
-      queue.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g),
-      (m) => m[0],
-    ),
-    actionId = ids[0];
+    queue.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g),
+    (m) => m[0],
+  );
+  const ordered = queue.data.orderedIntent === 1;
+  const sequence = ordered ? readActionSequence(checked) : null;
+  if (ordered && !sequence?.enabled)
+    throw Error("Repair the versioned Actions sequence before running");
+  const positions = new Map(
+    sequence?.order.map((id, index) => [id, index]) ?? [],
+  );
+  const candidates = ordered
+    ? [...ids].sort(
+        (a, b) =>
+          (positions.get(a) ?? Infinity) - (positions.get(b) ?? Infinity),
+      )
+    : ids;
+  const actionId = ordered
+    ? candidates.find(
+        (id) => queueDecision(checked, id, { stopAtStalePlan: true }).allowed,
+      )
+    : ids[0];
   if (!actionId) return null;
   const actionPath = `.voidra/actions/${actionId}/action.md`,
     doc = checked.records.get(actionPath)?.document;
@@ -795,6 +815,15 @@ export async function startRun(
     outcome: stale || boundary ? "waiting" : "running",
     ...(stale || boundary
       ? { endedAt: at, toStage: startedAction.stage, planningOnly: true }
+      : {}),
+    ...(ordered
+      ? {
+          orderedIntent: {
+            version: 1,
+            revision: hash(checked.files.get(ACTION_SEQUENCE_PATH) as Buffer),
+            queueRevision: hash(queue.raw),
+          },
+        }
       : {}),
     consumedRecords: [
       ...new Set([
@@ -934,6 +963,18 @@ export async function startRun(
     }),
     { path: runPath, expectedHash: null, content: runRaw },
     { path: ".voidra/local/planning.lock", expectedHash: null, content: null },
+    ...(ordered
+      ? [
+          {
+            path: ACTION_SEQUENCE_PATH,
+            expectedHash: hash(
+              checked.files.get(ACTION_SEQUENCE_PATH) as Buffer,
+            ),
+            content:
+              checked.files.get(ACTION_SEQUENCE_PATH)?.toString() ?? null,
+          },
+        ]
+      : []),
     {
       path: queuePath,
       expectedHash: hash(queue.raw),
@@ -941,7 +982,7 @@ export async function startRun(
         queue,
         queue.data,
         ids
-          .slice(1)
+          .filter((id) => id !== actionId)
           .map((id, index) => `${index + 1}. [ ] ${id}`)
           .join("\n"),
       ).toString(),

@@ -52,3 +52,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [Desktop appearance follow-up](desktop-appearance.md): independent scrolling, settings tabs and custom/native titlebars after v1.
 - [Run-index CI reliability](run-index-ci.md): bounded native snapshot reads and finalization assertions after the recurring hosted timeout.
 - [Xeploy release bumps](xeploy.md): Bun-installed tooling, read-only version previews and integration with checked publication.
+
+- [V11-P06 Actions sequence](v1.1.0-p06.md): 461 quality tests, ordering/recovery/desktop checks and audited actual-client retries.

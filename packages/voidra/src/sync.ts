@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { createId } from "./ids.ts";
 import { hash, projectLifecycles } from "./lifecycle.ts";
 import {
@@ -304,6 +305,6 @@ export async function applySyncReport(
         content: bytes.toString(),
       });
   }
-  await applyOperation(root, { changes }, options);
+  await applyOperation(root, withActionSequence(project, { changes }), options);
   return { id, path, proposals, repeated: false };
 }

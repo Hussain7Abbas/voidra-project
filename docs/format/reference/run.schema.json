@@ -29,6 +29,29 @@
         "minLength": 1
       }
     },
+    "orderedIntent": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "queueRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "revision",
+        "queueRevision"
+      ],
+      "additionalProperties": {}
+    },
     "endedAt": {
       "type": "string",
       "format": "date-time",

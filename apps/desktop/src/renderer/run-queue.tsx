@@ -31,8 +31,10 @@ export function RunQueue({
     try {
       await request({
         command: "replace-queue",
-        ids: ids.filter((id) =>
-          data.actions.some((a) => a.data.id === id && a.queueable),
+        ids: ids.filter(
+          (id) =>
+            data.sequence.enabled ||
+            data.actions.some((a) => a.data.id === id && a.queueable),
         ),
         revision: data.queueRevision,
         revisions: Object.fromEntries(
@@ -63,9 +65,9 @@ export function RunQueue({
       <section className="card action-detail" aria-label="Run queue">
         <h2>Queued actions</h2>
         <p className="text-muted">
-          Actions run in this order. Your queue is saved on this machine.
-          Actions that are no longer ready are removed when you update the
-          queue.
+          {data.sequence.enabled
+            ? "Execution requests follow the Actions sidebar order. Blocked requests wait; consumed requests return only when you explicitly queue them again."
+            : "Actions run in this order. Your queue is saved on this machine. Actions that are no longer ready are removed when you update the queue."}
         </p>
         {data.queue.length ? (
           <ol>
@@ -79,22 +81,26 @@ export function RunQueue({
                     {action && !action.queueable && <p>{action.queueReason}</p>}
                   </div>
                   <div className="queue-controls">
-                    <Button
-                      aria-label={`Move ${title} earlier`}
-                      disabled={!editable || busy || index === 0}
-                      onClick={() => move(index, -1)}
-                    >
-                      Move up
-                    </Button>
-                    <Button
-                      aria-label={`Move ${title} later`}
-                      disabled={
-                        !editable || busy || index === data.queue.length - 1
-                      }
-                      onClick={() => move(index, 1)}
-                    >
-                      Move down
-                    </Button>
+                    {!data.sequence.enabled && (
+                      <>
+                        <Button
+                          aria-label={`Move ${title} earlier`}
+                          disabled={!editable || busy || index === 0}
+                          onClick={() => move(index, -1)}
+                        >
+                          Move up
+                        </Button>
+                        <Button
+                          aria-label={`Move ${title} later`}
+                          disabled={
+                            !editable || busy || index === data.queue.length - 1
+                          }
+                          onClick={() => move(index, 1)}
+                        >
+                          Move down
+                        </Button>
+                      </>
+                    )}
                     <Button
                       aria-label={`Remove ${title} from queue`}
                       disabled={!editable || busy}

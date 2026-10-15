@@ -25,6 +25,7 @@ import type {
   Snapshot,
   ThemePreference,
 } from "../shared/bridge.ts";
+import { ActionsSidebar } from "./actions-sidebar.tsx";
 import { AiSettingsPanel } from "./ai-settings.tsx";
 import { CodingClientSetting } from "./coding-client.tsx";
 import { DocumentViewerProvider } from "./document-viewer.tsx";
@@ -594,6 +595,13 @@ function Shell() {
             )}
           </main>
         </div>
+        {workspace.data?.hasVoidra && (
+          <ActionsSidebar
+            key={data?.project?.path}
+            data={workspace.data}
+            onAction={showAction}
+          />
+        )}
       </div>
       <Dialog
         open={settings}

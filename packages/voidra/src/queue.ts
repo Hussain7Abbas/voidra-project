@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { actionComplete, hash } from "./lifecycle.ts";
 import {
   blockingPlanningDiagnostics,
@@ -141,6 +142,12 @@ export async function replaceActionQueue(
     bytes = project.files.get(path);
   if ((bytes ? hash(bytes) : null) !== input.revision)
     throw new Error("Queue changed on disk; refresh before editing");
+  const ordered = project.records.get(path)?.document.data.orderedIntent === 1;
+  const existing = new Set(
+    project.records
+      .get(path)
+      ?.document.body.match(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? [],
+  );
   for (const id of input.ids) {
     const actionBytes = project.files.get(`.voidra/actions/${id}/action.md`);
     if (
@@ -156,7 +163,10 @@ export async function replaceActionQueue(
     const decision = queueDecision(project, id, {
       activatingProfileDraft: input.activate?.id === id,
     });
-    if (!decision.allowed)
+    if (
+      !decision.allowed &&
+      !(ordered && existing.has(id) && input.activate?.id !== id)
+    )
       throw new Error(decision.reason ?? "Cannot queue this action");
   }
   const doc = bytes
@@ -178,53 +188,57 @@ export async function replaceActionQueue(
       : {};
   await applyOperation(
     root,
-    {
-      changes: [
-        {
-          path,
-          expectedHash: input.revision,
-          content: serializeRecord(
-            doc,
-            {
-              ...doc.data,
-              queuedBy: input.by,
-              queuedAt: new Date().toISOString(),
-            },
-            input.ids.map((id, i) => `${i + 1}. [ ] ${id}`).join("\n"),
-          ).toString(),
-        },
-        ...[...project.files]
-          .filter(([file]) => !file.startsWith(".voidra/local/"))
-          .map(([path, bytes]) => {
-            const record = project.records.get(path);
-            const activate =
-              path === `.voidra/actions/${input.activate?.id}/action.md` &&
-              input.ids.includes(String(record?.document.data.id)) &&
-              record?.document.data.type === "profile-change" &&
-              record.document.data.status === "draft";
-            return {
-              path,
-              expectedHash: hash(bytes),
-              content:
-                activate && record
-                  ? serializeRecord(record.document, {
-                      ...record.document.data,
-                      ...activation,
-                      status: "ready",
-                      activatedBy: input.by,
-                      activatedAt: new Date().toISOString(),
-                    }).toString()
-                  : bytes.toString(),
-            };
-          }),
-        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-        {
-          path: ".voidra/local/planning.lock",
-          expectedHash: null,
-          content: null,
-        },
-      ],
-    },
+    withActionSequence(
+      project,
+      {
+        changes: [
+          {
+            path,
+            expectedHash: input.revision,
+            content: serializeRecord(
+              doc,
+              {
+                ...doc.data,
+                queuedBy: input.by,
+                queuedAt: new Date().toISOString(),
+              },
+              input.ids.map((id, i) => `${i + 1}. [ ] ${id}`).join("\n"),
+            ).toString(),
+          },
+          ...[...project.files]
+            .filter(([file]) => !file.startsWith(".voidra/local/"))
+            .map(([path, bytes]) => {
+              const record = project.records.get(path);
+              const activate =
+                path === `.voidra/actions/${input.activate?.id}/action.md` &&
+                input.ids.includes(String(record?.document.data.id)) &&
+                record?.document.data.type === "profile-change" &&
+                record.document.data.status === "draft";
+              return {
+                path,
+                expectedHash: hash(bytes),
+                content:
+                  activate && record
+                    ? serializeRecord(record.document, {
+                        ...record.document.data,
+                        ...activation,
+                        status: "ready",
+                        activatedBy: input.by,
+                        activatedAt: new Date().toISOString(),
+                      }).toString()
+                    : bytes.toString(),
+              };
+            }),
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+          {
+            path: ".voidra/local/planning.lock",
+            expectedHash: null,
+            content: null,
+          },
+        ],
+      },
+      input.by,
+    ),
     options,
   );
 }

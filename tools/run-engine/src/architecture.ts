@@ -13,6 +13,7 @@ import {
   schemas,
   serializeRecord,
   type WriteManifest,
+  withActionSequence,
 } from "voidra";
 import { z } from "zod";
 import { inspectOwnedRun, listRunContexts } from "./run.ts";
@@ -253,7 +254,8 @@ export async function proposeArchitecture(
       expectedHash: hash(bytes),
       content: serializeRecord(record, action).toString(),
     });
-    if (!prepareOnly) await applyOperation(root, { changes });
+    if (!prepareOnly)
+      await applyOperation(root, withActionSequence(check, { changes }));
     return {
       gate: "slices",
       children,
@@ -288,7 +290,9 @@ export async function proposeArchitecture(
     });
   }
   if (!prepareOnly)
-    await applyOperation(root, { changes }, { allowGlossary: true });
+    await applyOperation(root, withActionSequence(check, { changes }), {
+      allowGlossary: true,
+    });
   return {
     gate: input.kind,
     ...(prepareOnly ? { changes } : {}),

@@ -4,7 +4,7 @@
 
 This guide describes Voidra 1.0.0; [P17 evidence](verification/p17.md) records its verification and publication.
 
-The 1.1.0 development candidate adds **Tasks** alongside the existing pages. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade before enabling release-aware work. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The remaining workspace redesign is tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
+The 1.1.0 development candidate replaces the primary Backlog/Actions pages with **Tasks**. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade before enabling release-aware work. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The remaining workspace redesign is tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
 
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 
@@ -70,7 +70,9 @@ Add members in **Settings → Team** using their Git name and email, then select
 
 ## Run the queue
 
-Add eligible actions to the **Run** queue and arrange their order. The queue is personal, while actions and results are shared planning records. Start your chosen coding agent in the project and invoke Go or Plan. The agent processes the queue, records ownership and consumed inputs before work, and stops each action when it needs a decision.
+For release-aware projects, TODO work joins the right **Actions** sequence automatically. Drag its grip, use Up/Down arrows or its buttons to order the full sequence, independently of board filters. Dependency warnings offer optional **Rearrange**; keeping the order still cannot run blocked work. Running/waiting tasks remain until they finish, are cancelled or return to Backlog. Legacy tracked projects show a source-bound **Enable Actions sequence** preview; new task-tracking upgrades include it.
+
+The sequence and execution requests are separate: starting consumes a request once. An eligible later request may run while an earlier one waits for a prerequisite. After answering/approving or deciding to retry, explicitly queue that action again in **Run**; reordering never silently retries it. In legacy projects, add eligible actions to **Run** and arrange their strict queue order. The queue is personal, while actions and results are shared planning records. Start your chosen coding agent in the project and invoke Go or Plan. The agent processes the queue, records ownership and consumed inputs before work, and stops each action when it needs a decision.
 
 Go can implement approved work. Plan preserves source files, instructions, Git presence, commits and tags; it may write planning records and settled glossary additions through its helper. Plan stops before implementation even when an action already has an approved plan.
 

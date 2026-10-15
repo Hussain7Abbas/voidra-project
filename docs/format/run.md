@@ -21,3 +21,7 @@ outcome: running
 ---
 
 ```
+
+## Ordered-intent consumption (reader 1.1.0)
+
+A run started from versioned Actions intent carries optional `orderedIntent: {version: 1, revision: <sha256>, queueRevision: <sha256>}`. It requires `taskTracking: 1`. These hashes identify the exact private ordering/request state consumed at startup. The app maps this receipt to its fixed local ordering paths when checking undo. Do not put those private paths in `consumedRecords`: a shared run must still validate in a fresh clone where private local files are absent. Existing action/dependency/profile consumption and ownership protections remain unchanged. See [queue contract](queue.md).

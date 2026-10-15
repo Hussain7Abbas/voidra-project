@@ -45,3 +45,5 @@ No app or validator repairs or migrates files silently. Breaking format changes 
 P12 releasedIn membership preserves human checklist semantics. Human work never acquires an agent stage. Structured proposals bind version/changelog paths and commit message; legacy forms remain readable.
 
 P12 adds `sync-*` identities and `.voidra/syncs/` records to format 1 with minimum reader 0.2.0. Sync references, consumption paths and filename identity are validated; legacy projects remain readable without Sync records.
+
+V1.1.0 task-tracking upgrades require reader 1.1.0 and atomically preview/bootstrap the versioned private Actions order plus `orderedIntent: 1` request queue. Already tracked projects use an exact conversion preview. Legacy queues retain required actor/time and strict first-entry execution; versioned initial queues may omit actor/time only at deterministic bootstrap. New run ordering receipts carry version/hashes without clone-required private references. Corrupt or unpaired versioned state refuses legacy fallback. No format-version increment or automatic repair is introduced; completed historical actions remain readable.

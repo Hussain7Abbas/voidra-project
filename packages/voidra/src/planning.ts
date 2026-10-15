@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import { createId } from "./ids.ts";
 import {
   actionComplete,
@@ -117,39 +118,49 @@ export async function promoteIdea(
     createdBy: input.by,
     createdAt: new Date().toISOString(),
   });
-  await applyOperation(root, {
-    changes: [
+  await applyOperation(
+    root,
+    withActionSequence(
+      project,
       {
-        path,
-        expectedHash: input.revision,
-        content: serializeRecord(record.document, {
-          ...idea,
-          status: "promoted",
-          promotedTo: id,
-        }).toString(),
+        changes: [
+          {
+            path,
+            expectedHash: input.revision,
+            content: serializeRecord(record.document, {
+              ...idea,
+              status: "promoted",
+              promotedTo: id,
+            }).toString(),
+          },
+          {
+            path: actionPath,
+            expectedHash: null,
+            content: serializeRecord(
+              parseRecord(actionPath, "---\n{}\n---\n"),
+              action,
+              input.description ?? record.document.body,
+            ).toString(),
+          },
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+          {
+            path: ".voidra/local/planning.lock",
+            expectedHash: null,
+            content: null,
+          },
+          {
+            path: ".voidra/voidra.json",
+            expectedHash: hash(
+              project.files.get(".voidra/voidra.json") as Buffer,
+            ),
+            content:
+              project.files.get(".voidra/voidra.json")?.toString() ?? null,
+          },
+        ],
       },
-      {
-        path: actionPath,
-        expectedHash: null,
-        content: serializeRecord(
-          parseRecord(actionPath, "---\n{}\n---\n"),
-          action,
-          input.description ?? record.document.body,
-        ).toString(),
-      },
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      {
-        path: ".voidra/local/planning.lock",
-        expectedHash: null,
-        content: null,
-      },
-      {
-        path: ".voidra/voidra.json",
-        expectedHash: hash(project.files.get(".voidra/voidra.json") as Buffer),
-        content: project.files.get(".voidra/voidra.json")?.toString() ?? null,
-      },
-    ],
-  });
+      input.by,
+    ),
+  );
   return id;
 }
 function rejection(status: string, reason: string | undefined): void {
@@ -349,7 +360,10 @@ async function applyActionChange(
     expectedHash: null,
     content: null,
   });
-  await applyOperation(root, { changes: [...changes.values()] });
+  await applyOperation(
+    root,
+    withActionSequence(project, { changes: [...changes.values()] }),
+  );
 }
 export async function editAction(
   root: string,
@@ -469,20 +483,27 @@ export async function createAction(
     createdBy: input.by,
     createdAt: new Date().toISOString(),
   });
-  await applyOperation(root, {
-    changes: [
+  await applyOperation(
+    root,
+    withActionSequence(
+      project,
       {
-        path,
-        expectedHash: null,
-        content: serializeRecord(
-          parseRecord(path, "---\n{}\n---\n"),
-          data,
-          input.description,
-        ).toString(),
+        changes: [
+          {
+            path,
+            expectedHash: null,
+            content: serializeRecord(
+              parseRecord(path, "---\n{}\n---\n"),
+              data,
+              input.description,
+            ).toString(),
+          },
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        ],
       },
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-    ],
-  });
+      input.by,
+    ),
+  );
   return id;
 }
 function ideaReaderChanges(

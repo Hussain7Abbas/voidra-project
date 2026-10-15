@@ -1152,3 +1152,91 @@
 .task-drag-handle:active {
   cursor: grabbing;
 }
+
+.actions-sidebar {
+  flex: 0 0 20rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-inline-start: 1px solid var(--border);
+  background: var(--surface);
+}
+.actions-sidebar > header,
+.actions-sidebar > footer {
+  padding: 1rem;
+  flex-shrink: 0;
+}
+.actions-sidebar h2 {
+  font-size: 1rem;
+}
+.actions-sidebar > p,
+.sequence-notice {
+  padding: 0.75rem 1rem;
+}
+.sequence-notice {
+  border-block: 1px solid var(--border);
+  max-height: 35%;
+  overflow: auto;
+  font-size: 0.85rem;
+}
+.sequence-notice ul,
+.sequence-notice ol {
+  padding-inline-start: 1rem;
+}
+.sequence-list {
+  list-style: none;
+  padding: 0 1rem;
+  margin: 0;
+  flex: 1;
+  min-height: 4rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sequence-entry {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 8rem;
+}
+.sequence-entry p {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+.sequence-entry-heading {
+  display: flex;
+  gap: 0.25rem;
+  align-items: start;
+}
+.sequence-grip {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.35rem;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sequence-grip:active {
+  cursor: grabbing;
+}
+.sequence-task-link {
+  border: 0;
+  background: transparent;
+  text-align: start;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+.sequence-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+.sequence-drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
