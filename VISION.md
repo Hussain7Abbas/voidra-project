@@ -171,6 +171,8 @@ Each product release aligns the app, `voidra` library/reader and bundled skills 
 
 Repository CI runs when a release tag with a `v` prefix and three numeric components is pushed, such as `v1.2.3`. Ordinary branch pushes and pull requests do not start hosted CI; source changes are checked locally. Release publication retains its separate checks and recovery workflow.
 
+Xeploy calculates patch/minor/major release bumps, with a read-only preview before the existing checked release pipeline. New local package commands and global JavaScript tools use Bun; the established pinned pnpm workspace and registry publication checkpoints remain in place (D31).
+
 ## 11. AI inside the app
 
 Voidra uses OpenRouter with your own API key. The key is encrypted with the macOS Keychain, and you choose the model in Settings. The model is used to:

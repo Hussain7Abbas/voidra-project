@@ -13,6 +13,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `tools/release-engine/`: version alignment, staged checksums, immutable publication recovery and OIDC provenance checks. Follow its [local instructions](tools/release-engine/AGENTS.md).
 - `tools/skills-distribution/`: checked release copies, isolated dry runs and the distribution repository’s own publishing rules. Follow its [local instructions](tools/skills-distribution/AGENTS.md).
 - `tools/fake-agent/`: scripted local agent scenarios for deterministic CI workflow checks.
+- `tools/release-engine/`: Xeploy version-bump planning, aligned release preparation and immutable GitHub/npm publication recovery; follow its [local instructions](tools/release-engine/AGENTS.md).
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
 - `docs/`: development, compatibility, architecture, ADRs and verification evidence; `docs/architecture/v2/` holds source-linked future designs governed by its [local instructions](docs/architecture/v2/AGENTS.md). Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
@@ -46,6 +47,8 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 | `make release VERSION=X.Y.Z` | Align, rebuild/generate, pass quality and desktop checks before tagging, then publish with recovery |
 | `make release-finish VERSION=X.Y.Z` | Resume verification and remaining publication checkpoints for an existing immutable tag |
 | `make package-dir` / `make smoke-packaged` | Package unsigned arm64 app / verify startup and SQLite |
+| `make release-preview BUMP=patch` | Preview a Xeploy patch/minor/major bump without changing files or Git; requires Bun |
+| `make release BUMP=patch` / `make release VERSION=X.Y.Z` | Prepare and publish through the checked release pipeline; use an explicit version for retries |
 | `make clean` | Remove build, package, test and coverage output |
 
 ## Working with the user

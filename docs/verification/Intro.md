@@ -42,3 +42,4 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [P17 human VoiceOver checklist](p17-voiceover.md): user-reported manual pass in both themes.
 - [Desktop appearance follow-up](desktop-appearance.md): independent scrolling, settings tabs and custom/native titlebars after v1.
 - [Run-index CI reliability](run-index-ci.md): bounded native snapshot reads and finalization assertions after the recurring hosted timeout.
+- [Xeploy release bumps](xeploy.md): Bun-installed tooling, read-only version previews and integration with checked publication.

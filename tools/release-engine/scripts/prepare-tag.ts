@@ -3,28 +3,30 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveReleaseRequest } from "../src/bump.ts";
 import { RELEASE_REPOSITORY } from "../src/github.ts";
 import { alignVersions, readAlignment, selectNotes } from "../src/release.ts";
-import { isReleaseVersion } from "../src/version.ts";
 
-const root = fileURLToPath(new URL("../../../", import.meta.url)),
-  version = process.env.VERSION ?? "";
-if (!isReleaseVersion(version))
-  throw Error("Set VERSION=X.Y.Z for a canonical stable release");
+const root = fileURLToPath(new URL("../../../", import.meta.url));
+const { version, tag } = await resolveReleaseRequest(root, {
+  version: process.env.VERSION,
+  bump: process.env.BUMP,
+});
 const token = execFileSync("gh", ["auth", "token", "--user", "Hussain7Abbas"], {
   encoding: "utf8",
   stdio: ["ignore", "pipe", "pipe"],
 }).trim();
 const env = {
   ...process.env,
+  VERSION: version,
+  BUMP: "",
   GH_TOKEN: token,
   GIT_CONFIG_COUNT: "1",
   GIT_CONFIG_KEY_0: "http.extraheader",
   GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
 };
 const git = (args: string[]) =>
-    execFileSync("git", args, { cwd: root, env, encoding: "utf8" }).trim(),
-  tag = `v${version}`;
+  execFileSync("git", args, { cwd: root, env, encoding: "utf8" }).trim();
 const requestedAt = new Date().toISOString();
 try {
   if (git(["status", "--porcelain", "--untracked-files=all"]))
