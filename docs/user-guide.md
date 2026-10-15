@@ -18,7 +18,7 @@ For a folder with code, follow the app’s `voidra-init` instructions in your co
 
 ## Install the agent skills
 
-Use the first-run offer or **Settings** to install the bundled skills for Claude Code, Codex or both. Installation works offline. The app shows existing versions and protects edited or unmanaged copies; review its replacement preview before confirming. Installation does not start an agent.
+Use the first-run offer or **Settings → General**. **Install Claude skills** and **Install Codex skills** each install the complete bundled set for that client, offline. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
 
 The public skills are:
 
@@ -53,6 +53,10 @@ Assign work to an agent or make it human work with a checklist. Dependencies blo
 ## Edit Markdown
 
 Action and Backlog descriptions render Markdown inside the input. Put the cursor on a line to reveal its source; selecting multiple lines reveals those lines. Headings, lists, tables, checklists and code remain readable around the text you edit. Copy and paste use Markdown source. Undo/Redo in the field change its text, independently of project history. Use Cmd/Ctrl+S in an edit dialog to activate its enabled Save button. Invalid text stays available for correction; saving still checks for outside file edits.
+
+## Assign work with Team
+
+Add members in **Settings → Team** using their Git name and email, then select **Me**. New members join the currently open project; choose each project’s members with its checkboxes. Fresh action forms preselect Me only when you belong to that project. Otherwise work stays unassigned. Removing a member leaves existing task assignments unchanged. The roster and membership choices stay private on this computer. **Manage Team** in an assignee field opens this tab directly.
 
 ## Run the queue
 
@@ -90,7 +94,7 @@ Read the root glossary and repository Markdown documents in the app’s read-onl
 
 ## Settings and optional AI
 
-Settings has **General** and **Appearance** tabs. General contains optional AI, coding-agent skills, update checks and the app version. Appearance contains the light, dark or system theme and **Custom titlebar**, enabled by default. Its styled window controls close, minimize and maximize/restore the window; the Settings icon is at the opposite end. Turn the switch off to use the operating system's titlebar. The preference is saved immediately and applies when you reopen the window; existing windows and unfinished edits stay open.
+Settings has **General**, **Appearance** and **Team** tabs. General contains the **Default coding AI client** switch, optional AI, coding-agent skills, update checks and the app version. Choose Claude Code or Codex; setup, Run, recovery and Sync show that client’s command. Existing runs keep their recorded client. Appearance contains the light, dark or system theme and **Custom titlebar**, enabled by default. Its styled window controls close, minimize and maximize/restore the window; the Settings icon is at the opposite end. Turn the switch off to use the operating system's titlebar. The preference is saved immediately and applies when you reopen the window; existing windows and unfinished edits stay open.
 
 The sidebar and main area scroll independently when their content overflows, with standard scrollbars. The titlebar and workspace toolbar remain visible. The app supports keyboard operation; use Left/Right or Home/End to move between settings tabs, Space to change the switch, and Escape to close dialogs where appropriate.
 

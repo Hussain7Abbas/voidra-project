@@ -105,6 +105,10 @@ for (const theme of ["light", "dark"] as const) {
     await expect(toggle).toBeHidden();
     await audit();
     await page.keyboard.press("End");
+    await expect(
+      page.getByRole("tab", { name: "Team", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
     await expect(appearance).toBeFocused();
     await toggle.focus();
     await page.keyboard.press("Space");

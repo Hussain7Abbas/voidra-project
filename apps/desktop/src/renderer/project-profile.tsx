@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import type { TemplateView } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
+import { useCodingClient } from "./coding-client.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { ProfileAiControls } from "./profile-ai.tsx";
 import { Button } from "./ui/button.tsx";
@@ -192,6 +193,7 @@ function cleanValue(value: Value): Value {
   return value?.trim() || null;
 }
 export function ProjectOnboarding({ name }: { name: string }) {
+  const client = useCodingClient();
   const workspace = useWorkspace(),
     query = useQueryClient(),
     toast = useToast();
@@ -223,7 +225,7 @@ export function ProjectOnboarding({ name }: { name: string }) {
             Run the setup command in this folder. It infers answers from code,
             records their sources and leaves them for your review.
           </p>
-          {(["claude-code", "codex"] as const).map((agent) => (
+          {[client].map((agent) => (
             <div className="command-row" key={agent}>
               <code>
                 {agent === "claude-code" ? "/voidra-init" : "$voidra-init"}

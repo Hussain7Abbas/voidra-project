@@ -181,7 +181,10 @@ for (const value of ["light", "dark"])
     for (const [agent, command] of [
       ["Claude Code", "/voidra-init"],
       ["Codex", "$voidra-init"],
-    ]) {
+    ] as const) {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("radio", { name: agent, exact: true }).check();
+      await page.keyboard.press("Escape");
       await page
         .getByRole("button", {
           name: `Copy ${agent} setup command`,

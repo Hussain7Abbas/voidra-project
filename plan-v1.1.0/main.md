@@ -1,6 +1,6 @@
 # Voidra Project — v1.1.0 implementation plan
 
-> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02 is complete; V11-P03 is in progress and remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
+> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02 and V11-P03 are complete; remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
 > **Clarifications:** the user answered round 1 with `1a, 2a, 3a, 4a, 5c, 6a` and round 2 with `7a, 8a, 9b`. Automatic private form drafts, one badge per draft and Agentic defaults are confirmed. Both question rounds are resolved.
 
 [Vision](../VISION.md#17-v110-product-direction) · [Plan rules](AGENTS.md) · [Completed v1 plan](../plan/main.md) · [Documentation](../docs/intro.md)
@@ -36,7 +36,7 @@ Status values: **Not started**, **In progress**, **Blocked** with reason, **Done
 | --- | --- | --- | --- | --- |
 | [V11-P01](phase-01-task-contracts.md) | Compatible task/release contracts and a first Tasks view | Completed v1 baseline | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p01.md) |
 | [V11-P02](phase-02-markdown-editing.md) | Shared rendered Markdown with active-line/selection source editing | P01 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p02.md) |
-| [V11-P03](phase-03-team-agent-settings.md) | Team, Me, default client and full-bundle skill installation | P01 | In progress | — |
+| [V11-P03](phase-03-team-agent-settings.md) | Team, Me, default client and full-bundle skill installation | P01 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p03.md) |
 | [V11-P04](phase-04-task-forms.md) | Normal/Agentic capture, reviewed AI output and durable drafts with top badge navigation across forms | P02, P03 | Not started | — |
 | [V11-P05](phase-05-kanban.md) | Tasks Kanban, drag/drop and release filtering | P04 | Not started | — |
 | [V11-P06](phase-06-actions-sequence.md) | Actions sidebar, TODO enrollment and dependency rearrangement | P05 | Not started | — |
@@ -152,12 +152,12 @@ A phase is ready when prerequisites are Done, its material unknowns have been re
 
 A phase is Done only after all acceptance criteria pass, relevant docs/instructions/references are current, actual evidence is recorded and the root commit/push workflow is complete. Release publication additionally requires the checked pipeline and actual access. Writing this plan did not modify packages or planning actions. P01's implementation aligns the app/library/reader/skills to the 1.1.0 development candidate (A10) to enforce the new minimum-reader contract; this does not publish, alter this repository's `.voidra/` actions or reopen finished v1 phases.
 
-**V11-P01 and V11-P02 are complete; V11-P03 is in progress**, Team and coding-client settings. All clarification questions U01–U10 are resolved by R17/C01–C09. P04–P10 have not started.
+**V11-P01–P03 are complete; V11-P04 is next**, Normal/Agentic task capture and private durable drafts. All clarification questions U01–U10 are resolved by R17/C01–C09. P04–P10 have not started.
 
 ## Continuing authorization — 2026-10-15
 
 The user explicitly requested “complete all phases non-stop”. Continue P02–P10 without another phase go-ahead, resolving routine technical choices within the confirmed requirements. Report each phase understanding and real checks. Preserve named product/account gates and never claim unperformed verification or publication.
 
-## P03 working choices
+## P03 implementation choices
 
 Codex is the explicit initial coding-client preference for fresh and legacy settings; changing it is immediate for subsequent commands. Team uses stable local IDs and unique email identities, preserving `Name <email>` assignments on shared tickets. Adding a member while a project is open includes them in that project; other projects choose their subsets. Me only preselects within that subset. These are implementation choices under the continuing authorization, not additional user answers.

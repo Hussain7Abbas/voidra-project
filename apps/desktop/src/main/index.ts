@@ -28,6 +28,7 @@ import {
   responseSchema,
   type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
+import { isTeamRequest } from "../shared/team.ts";
 import { AiService } from "./ai-service.ts";
 import { AiSettings } from "./ai-settings.ts";
 import { OpenRouterClient } from "./openrouter.ts";
@@ -345,6 +346,14 @@ async function start(): Promise<void> {
           if (request.direction === "undo") window.webContents.undo();
           else window.webContents.redo();
           response = { ok: true, data: { kind: "changed" } };
+        } else if (isTeamRequest(request)) {
+          await store.changeTeam(request, registry.project(window.id));
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "set-coding-client") {
+          await store.setClient(request.client);
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "snapshot") {
           const service = services.get(window.id);
           const settings = await store.read();
@@ -357,6 +366,8 @@ async function start(): Promise<void> {
             data: {
               kind: "snapshot",
               appVersion: app.getVersion(),
+              defaultClient: settings.defaultClient,
+              team: await store.team(registry.project(window.id)),
               updatesEnabled: settings.updatesEnabled,
               update: updates.notice,
               skillsOffer: !settings.skillsOfferSeen,
@@ -404,22 +415,25 @@ async function start(): Promise<void> {
           await store.dismissSkillsOffer();
           broadcast();
           response = { ok: true, data: { kind: "changed" } };
-        } else if (request.command === "skills-preview") {
+        } else if (request.command === "skills-bundle-preview") {
           response = {
             ok: true,
             data: {
-              kind: "skills-preview",
-              preview: await skills.preview(
-                request.agent,
-                request.name,
-                request.operation,
-              ),
+              kind: "skills-bundle-preview",
+              preview: await skills.previewBundle(request.agent),
             },
           };
-        } else if (request.command === "skills-apply") {
-          await skills.apply(request, request.confirmed);
+        } else if (request.command === "skills-bundle-apply") {
+          const result = await skills.applyBundle(
+            request.agent,
+            request.revision,
+            request.confirmed,
+          );
           broadcast();
-          response = { ok: true, data: { kind: "changed" } };
+          response = {
+            ok: true,
+            data: { kind: "skills-bundle-applied", result },
+          };
         } else if (request.command === "ai-settings") {
           response = {
             ok: true,
@@ -530,11 +544,19 @@ async function start(): Promise<void> {
           await shell.openExternal(commit.url);
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "copy-recovery-command") {
+          if (request.agent !== (await store.read()).defaultClient)
+            throw Error(
+              "Coding client changed; refresh the command before copying.",
+            );
           await clipboard.writeText(
             `${request.agent === "claude-code" ? "/voidra-go" : "$voidra-go"} recover ${request.kind} ${request.id}`,
           );
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "copy-agent-command") {
+          if (request.agent !== (await store.read()).defaultClient)
+            throw Error(
+              "Coding client changed; refresh the command before copying.",
+            );
           await clipboard.writeText(
             `${request.agent === "claude-code" ? "/" : "$"}${request.skill ?? "voidra-go"}`,
           );

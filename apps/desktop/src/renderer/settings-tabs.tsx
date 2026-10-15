@@ -4,13 +4,22 @@ import { type ReactNode, useId, useRef, useState } from "react";
 export function SettingsTabs({
   general,
   appearance,
+  team,
+  initialTab = 0,
 }: {
   general: ReactNode;
   appearance: ReactNode;
+  team?: ReactNode;
+  initialTab?: number;
 }) {
   const id = useId();
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(initialTab);
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
+  const panels = [
+    { label: "General", content: general },
+    { label: "Appearance", content: appearance },
+    ...(team ? [{ label: "Team", content: team }] : []),
+  ];
   return (
     <>
       <div
@@ -18,7 +27,7 @@ export function SettingsTabs({
         role="tablist"
         aria-label="Settings categories"
       >
-        {["General", "Appearance"].map((label, index) => (
+        {panels.map(({ label }, index) => (
           <button
             key={label}
             type="button"
@@ -36,9 +45,12 @@ export function SettingsTabs({
                 event.key === "Home"
                   ? 0
                   : event.key === "End"
-                    ? 1
+                    ? panels.length - 1
                     : event.key === "ArrowRight" || event.key === "ArrowLeft"
-                      ? 1 - index
+                      ? (index +
+                          (event.key === "ArrowRight" ? 1 : -1) +
+                          panels.length) %
+                        panels.length
                       : null;
               if (next === null) return;
               event.preventDefault();
@@ -50,10 +62,7 @@ export function SettingsTabs({
           </button>
         ))}
       </div>
-      {[
-        { label: "General", content: general },
-        { label: "Appearance", content: appearance },
-      ].map(({ label, content }, index) => (
+      {panels.map(({ label, content }, index) => (
         <div
           key={label}
           role="tabpanel"

@@ -1,6 +1,6 @@
 # V11-P03 — Team and coding-client settings
 
-> **Needs:** P01 · **Status:** In progress — 2026-10-15 · **Confirmed:** C05; operational-client details in A06
+> **Needs:** P01 · **Status:** Done — 2026-10-15 · **Confirmed:** C05; operational-client details in A06
 
 ## Outcome
 
@@ -42,3 +42,7 @@ All stories and `make check` pass; both clients' guidance and both full installe
 ## Hand-off
 
 Update settings/user-guide and skill-distribution documentation. P04 consumes roster/Me and retrofits these data-entry forms with the shared [draft contract](form-drafts.md); instantly saved preferences retain their existing persistence. P06/P07/P09 consume the single operational client preference. Keep both clients covered in development verification.
+
+## Executed outcome
+
+All four stories are complete. [Verification](../docs/verification/v1.1.0-p03.md) records 440 passing quality tests; real file/process/permission/symlink checks; both-client command selection and restart; Team/project/Me behavior; and all six actual skills for both temporary homes with exact review, retry and both-theme accessibility. No public release or real coding-agent execution is claimed here.

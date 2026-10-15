@@ -1,6 +1,7 @@
 "use client";
 import type { WorkspaceSnapshot } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
+import { useCodingClient } from "./coding-client.tsx";
 import { Button } from "./ui/button.tsx";
 import { useToast } from "./ui/toast.tsx";
 
@@ -9,13 +10,14 @@ export function SyncSuggestion({
 }: {
   data: WorkspaceSnapshot | undefined;
 }) {
-  const toast = useToast();
+  const toast = useToast(),
+    client = useCodingClient();
   if (!data?.hasVoidra || !data.sync.count) return null;
-  async function copy(agent: "claude-code" | "codex") {
+  async function copy() {
     try {
       await request({
         command: "copy-agent-command",
-        agent,
+        agent: client,
         skill: "voidra-sync",
       });
       toast.success("Sync command copied");
@@ -35,11 +37,8 @@ export function SyncSuggestion({
         work.
       </p>
       <div className="flex flex-wrap gap-2 mt-3">
-        <Button variant="secondary" onClick={() => void copy("claude-code")}>
-          Copy /voidra-sync
-        </Button>
-        <Button variant="secondary" onClick={() => void copy("codex")}>
-          Copy $voidra-sync
+        <Button variant="secondary" onClick={() => void copy()}>
+          Copy {client === "codex" ? "$voidra-sync" : "/voidra-sync"}
         </Button>
       </div>
     </section>

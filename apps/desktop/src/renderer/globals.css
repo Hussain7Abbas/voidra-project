@@ -1047,3 +1047,46 @@
 .markdown-editor .cm-md-symbol {
   user-select: none;
 }
+
+.segmented-switch {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--paper);
+}
+.segmented-option {
+  position: relative;
+  cursor: pointer;
+}
+.segmented-option > input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.segmented-option > span {
+  display: block;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  color: var(--ink);
+}
+.segmented-option input:checked + span {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.segmented-option input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+.segmented-option input:disabled + span {
+  opacity: 0.65;
+  cursor: default;
+}

@@ -29,22 +29,30 @@ export const skillPreviewSchema = z.strictObject({
   diff: z.string(),
 });
 export type SkillPreview = z.infer<typeof skillPreviewSchema>;
+export const skillBundlePreviewSchema = z.strictObject({
+  agent: skillAgentSchema,
+  revision: z.string().regex(/^[a-f0-9]{64}$/),
+  skills: z.array(skillPreviewSchema).min(1).max(64),
+  requiresConfirmation: z.boolean(),
+});
+export type SkillBundlePreview = z.infer<typeof skillBundlePreviewSchema>;
+export const skillBundleResultSchema = z.strictObject({
+  completed: z.array(skillNameSchema),
+  remaining: z.array(skillNameSchema),
+  error: z.string().nullable(),
+});
+export type SkillBundleResult = z.infer<typeof skillBundleResultSchema>;
 export const skillRequestSchemas = [
   z.strictObject({ command: z.literal("skills-status") }),
   z.strictObject({ command: z.literal("skills-dismiss-offer") }),
   z.strictObject({
-    command: z.literal("skills-preview"),
+    command: z.literal("skills-bundle-preview"),
     agent: skillAgentSchema,
-    name: skillNameSchema,
-    operation: skillOperationSchema,
   }),
   z.strictObject({
-    command: z.literal("skills-apply"),
+    command: z.literal("skills-bundle-apply"),
     agent: skillAgentSchema,
-    name: skillNameSchema,
-    operation: skillOperationSchema,
-    revision: z.string(),
-    bundleRevision: z.string(),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
     confirmed: z.boolean(),
   }),
 ] as const;
@@ -54,7 +62,11 @@ export const skillReplySchemas = [
     skills: z.array(skillStatusSchema),
   }),
   z.strictObject({
-    kind: z.literal("skills-preview"),
-    preview: skillPreviewSchema,
+    kind: z.literal("skills-bundle-preview"),
+    preview: skillBundlePreviewSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("skills-bundle-applied"),
+    result: skillBundleResultSchema,
   }),
 ] as const;

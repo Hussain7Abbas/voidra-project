@@ -13,6 +13,8 @@ import { dirname, join } from "node:path";
 import { parseRecord } from "voidra";
 import { z } from "zod";
 import {
+  type SkillBundlePreview,
+  type SkillBundleResult,
   type SkillPreview,
   type SkillStatus,
   skillAgentSchema,
@@ -21,6 +23,26 @@ import {
 } from "../shared/skills.ts";
 
 const markerName = "voidra-skill.json";
+const catalogName = "voidra-bundle.json";
+const catalogSchema = z
+  .strictObject({
+    version: z.literal(1),
+    skills: z
+      .array(
+        z.strictObject({
+          name: skillNameSchema,
+          revision: z.string().regex(/^[a-f0-9]{64}$/),
+        }),
+      )
+      .min(1)
+      .max(64),
+  })
+  .refine(
+    (value) =>
+      new Set(value.skills.map((skill) => skill.name)).size ===
+      value.skills.length,
+    "Bundle names must be unique",
+  );
 const markerSchema = z.strictObject({
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
   formatVersion: z.number().int().nonnegative(),
@@ -28,6 +50,13 @@ const markerSchema = z.strictObject({
 });
 type Marker = z.infer<typeof markerSchema>;
 type Tree = Map<string, { body: Buffer; executable: boolean }>;
+type SkillSelection = Pick<
+  SkillPreview,
+  "agent" | "name" | "operation" | "revision" | "bundleRevision"
+>;
+interface InstallerCheckpoints {
+  afterSkill?: (name: string) => void | Promise<void>;
+}
 const digest = (body: string | Buffer): string =>
   createHash("sha256").update(body).digest("hex");
 async function existing(path: string) {
@@ -107,6 +136,7 @@ export async function prepareSkillBundle(
 ): Promise<void> {
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
+  const catalog: { name: string; revision: string }[] = [];
   for (const entry of (await readdir(source, { withFileTypes: true })).sort(
     (a, b) => a.name.localeCompare(b.name),
   )) {
@@ -124,7 +154,12 @@ export async function prepareSkillBundle(
       join(target, markerName),
       `${JSON.stringify({ ...meta, contentHash: treeHash(files) }, null, 2)}\n`,
     );
+    catalog.push({ name, revision: treeHash(await tree(target), true) });
   }
+  await writeFile(
+    join(destination, catalogName),
+    `${JSON.stringify(catalogSchema.parse({ version: 1, skills: catalog }), null, 2)}\n`,
+  );
 }
 function difference(old: Tree, next: Tree): string {
   const hunks: string[] = [];
@@ -185,9 +220,15 @@ export class SkillInstaller {
   readonly bundle: string;
   readonly home: string;
   private queue: Promise<void> = Promise.resolve();
-  constructor(bundle: string, home: string) {
+  private afterSkill: InstallerCheckpoints["afterSkill"];
+  constructor(
+    bundle: string,
+    home: string,
+    checkpoints: InstallerCheckpoints = {},
+  ) {
     this.bundle = bundle;
     this.home = home;
+    this.afterSkill = checkpoints.afterSkill;
   }
   private parent(agent: "claude" | "codex"): string {
     return join(
@@ -238,14 +279,41 @@ export class SkillInstaller {
       throw new Error("Installed skill is a link or non-directory; preserved.");
     return tree(path);
   }
+  private async catalog(): Promise<{ name: string; revision: string }[]> {
+    try {
+      const catalog = catalogSchema.parse(
+        JSON.parse(await readFile(join(this.bundle, catalogName), "utf8")),
+      );
+      const expected = new Set([
+        catalogName,
+        ...catalog.skills.map((skill) => skill.name),
+      ]);
+      const entries = await readdir(this.bundle, { withFileTypes: true });
+      if (
+        entries.length !== expected.size ||
+        entries.some(
+          (entry) =>
+            !expected.has(entry.name) ||
+            (entry.name !== catalogName && !entry.isDirectory()),
+        )
+      )
+        throw Error("Bundle members changed");
+      return catalog.skills;
+    } catch {
+      throw Error(
+        "Bundled skill catalog is invalid or incomplete; no installation was started.",
+      );
+    }
+  }
   async status(projectFormat?: number): Promise<SkillStatus[]> {
     const rows: SkillStatus[] = [];
-    for (const entry of (
-      await readdir(this.bundle, { withFileTypes: true })
-    ).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (!entry.isDirectory()) continue;
-      const name = skillNameSchema.parse(entry.name),
-        { meta } = await this.bundled(name);
+    for (const declared of await this.catalog()) {
+      const name = declared.name,
+        { files, meta } = await this.bundled(name);
+      if (treeHash(files, true) !== declared.revision)
+        throw Error(
+          "Bundled skill catalog changed; no installation was started.",
+        );
       for (const agent of ["claude", "codex"] as const) {
         let files: Tree | null = null,
           blocked: string | null = null;
@@ -312,94 +380,155 @@ export class SkillInstaller {
       ),
     };
   }
-  apply(
-    selected: Pick<
-      SkillPreview,
-      "agent" | "name" | "operation" | "revision" | "bundleRevision"
-    >,
+  private enqueue<T>(work: () => Promise<T>): Promise<T> {
+    const operation = this.queue.catch(() => {}).then(work);
+    this.queue = operation.then(
+      () => {},
+      () => {},
+    );
+    return operation;
+  }
+  async previewBundle(agent: "claude" | "codex"): Promise<SkillBundlePreview> {
+    skillAgentSchema.parse(agent);
+    const catalog = await this.catalog(),
+      skills: SkillPreview[] = [];
+    for (const declared of catalog) {
+      const preview = await this.preview(agent, declared.name, "install");
+      if (preview.bundleRevision !== declared.revision)
+        throw Error("Bundled skill catalog changed; review a fresh preview.");
+      skills.push(preview);
+    }
+    return {
+      agent,
+      skills,
+      revision: digest(
+        JSON.stringify(
+          skills.map((skill) => ({
+            name: skill.name,
+            revision: skill.revision,
+            bundleRevision: skill.bundleRevision,
+            requiresConfirmation: skill.requiresConfirmation,
+          })),
+        ),
+      ),
+      requiresConfirmation: skills.some((skill) => skill.requiresConfirmation),
+    };
+  }
+  applyBundle(
+    agent: "claude" | "codex",
+    revision: string,
+    confirmed: boolean,
+  ): Promise<SkillBundleResult> {
+    return this.enqueue(async () => {
+      const current = await this.previewBundle(agent);
+      if (current.revision !== revision)
+        throw Error(
+          "Skill bundle changed; review a fresh preview before installing.",
+        );
+      if (current.requiresConfirmation && !confirmed)
+        throw Error(
+          "Confirm the displayed hand edits before replacing the skill bundle.",
+        );
+      const completed: string[] = [];
+      for (const skill of current.skills) {
+        try {
+          await this.applySelected(skill, confirmed);
+          completed.push(skill.name);
+          await this.afterSkill?.(skill.name);
+        } catch (error) {
+          return {
+            completed,
+            remaining: current.skills
+              .slice(completed.length)
+              .map((skill) => skill.name),
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }
+      return { completed, remaining: [], error: null };
+    });
+  }
+  apply(selected: SkillSelection, confirmed: boolean): Promise<void> {
+    return this.enqueue(() => this.applySelected(selected, confirmed));
+  }
+  private async applySelected(
+    selected: SkillSelection,
     confirmed: boolean,
   ): Promise<void> {
-    const operation = this.queue
-      .catch(() => {})
-      .then(async () => {
-        const current = await this.preview(
-          selected.agent,
-          selected.name,
-          selected.operation,
-        );
-        if (
-          current.revision !== selected.revision ||
-          current.bundleRevision !== selected.bundleRevision
-        )
-          throw new Error("Skill or bundle changed; review a fresh preview.");
-        if (current.requiresConfirmation && !confirmed)
+    const current = await this.preview(
+      selected.agent,
+      selected.name,
+      selected.operation,
+    );
+    if (
+      current.revision !== selected.revision ||
+      current.bundleRevision !== selected.bundleRevision
+    )
+      throw new Error("Skill or bundle changed; review a fresh preview.");
+    if (current.requiresConfirmation && !confirmed)
+      throw new Error(
+        "Confirm the displayed hand edits before replacing or removing this skill.",
+      );
+    const parent = this.parent(selected.agent),
+      target = join(parent, selected.name),
+      token = randomUUID(),
+      stage = join(parent, `.voidra-stage-${token}`),
+      backup = join(parent, `.voidra-backup-${token}`);
+    await mkdir(parent, { recursive: true });
+    await this.safeParent(selected.agent);
+    let backedUp = false,
+      placed = false;
+    try {
+      if (selected.operation === "install") {
+        const verified = await this.bundled(selected.name);
+        if (treeHash(verified.files, true) !== current.bundleRevision)
           throw new Error(
-            "Confirm the displayed hand edits before replacing or removing this skill.",
+            "Bundled copy changed; installed version was preserved.",
           );
-        const parent = this.parent(selected.agent),
-          target = join(parent, selected.name),
-          token = randomUUID(),
-          stage = join(parent, `.voidra-stage-${token}`),
-          backup = join(parent, `.voidra-backup-${token}`);
-        await mkdir(parent, { recursive: true });
-        await this.safeParent(selected.agent);
-        let backedUp = false,
-          placed = false;
-        try {
-          if (selected.operation === "install") {
-            const verified = await this.bundled(selected.name);
-            if (treeHash(verified.files, true) !== current.bundleRevision)
-              throw new Error(
-                "Bundled copy changed; installed version was preserved.",
-              );
-            await mkdir(stage, { mode: 0o700 });
-            // Electron can read asar entries, but Node's recursive cp cannot
-            // copy their virtual directories. Materialize the checked bytes.
-            for (const [path, file] of verified.files) {
-              const destination = join(stage, path);
-              if (path.endsWith("/"))
-                await mkdir(destination, { recursive: true });
-              else {
-                await mkdir(dirname(destination), { recursive: true });
-                await writeFile(destination, file.body, {
-                  flag: "wx",
-                  mode: file.executable ? 0o755 : 0o644,
-                });
-              }
-            }
-            const copied = await tree(stage);
-            if (treeHash(copied, true) !== current.bundleRevision)
-              throw new Error(
-                "Bundled copy changed; installed version was preserved.",
-              );
+        await mkdir(stage, { mode: 0o700 });
+        // Electron can read asar entries, but Node's recursive cp cannot
+        // copy their virtual directories. Materialize the checked bytes.
+        for (const [path, file] of verified.files) {
+          const destination = join(stage, path);
+          if (path.endsWith("/")) await mkdir(destination, { recursive: true });
+          else {
+            await mkdir(dirname(destination), { recursive: true });
+            await writeFile(destination, file.body, {
+              flag: "wx",
+              mode: file.executable ? 0o755 : 0o644,
+            });
           }
-          const latest = await this.preview(
-            selected.agent,
-            selected.name,
-            selected.operation,
-          );
-          if (
-            latest.revision !== current.revision ||
-            latest.bundleRevision !== current.bundleRevision
-          )
-            throw new Error("Skill changed during copy; preserved.");
-          if (await existing(target)) {
-            await rename(target, backup);
-            backedUp = true;
-          }
-          if (selected.operation === "install") {
-            await rename(stage, target);
-            placed = true;
-          }
-        } catch (error) {
-          if (backedUp && !placed) await rename(backup, target);
-          throw error;
-        } finally {
-          await rm(stage, { recursive: true, force: true });
         }
-        if (backedUp) await rm(backup, { recursive: true, force: true });
-      });
-    this.queue = operation;
-    return operation;
+        const copied = await tree(stage);
+        if (treeHash(copied, true) !== current.bundleRevision)
+          throw new Error(
+            "Bundled copy changed; installed version was preserved.",
+          );
+      }
+      const latest = await this.preview(
+        selected.agent,
+        selected.name,
+        selected.operation,
+      );
+      if (
+        latest.revision !== current.revision ||
+        latest.bundleRevision !== current.bundleRevision
+      )
+        throw new Error("Skill changed during copy; preserved.");
+      if (await existing(target)) {
+        await rename(target, backup);
+        backedUp = true;
+      }
+      if (selected.operation === "install") {
+        await rename(stage, target);
+        placed = true;
+      }
+    } catch (error) {
+      if (backedUp && !placed) await rename(backup, target);
+      throw error;
+    } finally {
+      await rm(stage, { recursive: true, force: true });
+    }
+    if (backedUp) await rm(backup, { recursive: true, force: true });
   }
 }

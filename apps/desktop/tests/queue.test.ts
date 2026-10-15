@@ -7,7 +7,7 @@ import { checkProject, parseRecord, serializeRecord } from "voidra";
 import { processIdentity } from "../../../tools/run-engine/src/lock.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
 
-it("queues an action, copies both agent commands and shows live/stale locks without permitting a live-owner recovery", async () => {
+it("queues an action, copies each selected agent command and shows live/stale locks without permitting a live-owner recovery", async () => {
   const temp = await mkdtemp(join(tmpdir(), "voidra-queue-")),
     root = join(temp, "project");
   await cp(resolve("fixtures/busy-project/project"), root, { recursive: true });
@@ -97,27 +97,20 @@ it("queues an action, copies both agent commands and shows live/stale locks with
       "act-00000z",
       other.data.id,
     ]);
-    await app.evaluate(({ clipboard }) => {
-      clipboard.writeText = async (text) => {
-        (globalThis as unknown as { copied: string }).copied = text;
-      };
-    });
-    await page
-      .getByRole("button", { name: "Copy Claude Code command", exact: true })
-      .click();
-    expect(
-      await app.evaluate(
-        () => (globalThis as unknown as { copied: string }).copied,
-      ),
-    ).toBe("/voidra-go");
-    await page
-      .getByRole("button", { name: "Copy Codex command", exact: true })
-      .click();
-    expect(
-      await app.evaluate(
-        () => (globalThis as unknown as { copied: string }).copied,
-      ),
-    ).toBe("$voidra-go");
+    for (const [agent, command] of [
+      ["Claude Code", "/voidra-go"],
+      ["Codex", "$voidra-go"],
+    ] as const) {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("radio", { name: agent, exact: true }).check();
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("button", { name: `Copy ${agent} command`, exact: true })
+        .click();
+      await expect
+        .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()))
+        .toBe(command);
+    }
     const runPath =
       ".voidra/actions/act-00000z/runs/2026-10-13T000000Z-codex-run-999999.md";
     const { mkdir } = await import("node:fs/promises");

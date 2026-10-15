@@ -26,6 +26,7 @@ import type {
   ThemePreference,
 } from "../shared/bridge.ts";
 import { AiSettingsPanel } from "./ai-settings.tsx";
+import { CodingClientSetting } from "./coding-client.tsx";
 import { DocumentViewerProvider } from "./document-viewer.tsx";
 import { EditHistory } from "./edit-history.tsx";
 import { inboxItems } from "./inbox.ts";
@@ -42,6 +43,7 @@ import { ProjectTasks } from "./project-tasks.tsx";
 import { SettingsTabs } from "./settings-tabs.tsx";
 import { SkillSettingsPanel } from "./skill-settings.tsx";
 import { SyncSuggestion } from "./sync-suggestion.tsx";
+import { TeamSettings } from "./team-settings.tsx";
 import { TitlebarSetting } from "./titlebar-setting.tsx";
 import { Button } from "./ui/button.tsx";
 import { ConfirmDialog } from "./ui/confirm-dialog.tsx";
@@ -89,6 +91,15 @@ function Shell() {
   const query = useQueryClient();
   const toast = useToast();
   const [settings, setSettings] = useState(false);
+  const [teamSettings, setTeamSettings] = useState(false);
+  useEffect(() => {
+    const openTeam = () => {
+      setTeamSettings(true);
+      setSettings(true);
+    };
+    window.addEventListener("voidra-open-team", openTeam);
+    return () => window.removeEventListener("voidra-open-team", openTeam);
+  }, []);
   const [switcher, setSwitcher] = useState(false);
   const [remove, setRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -495,14 +506,30 @@ function Shell() {
       </div>
       <Dialog
         open={settings}
-        onClose={() => setSettings(false)}
+        onClose={() => {
+          setSettings(false);
+          setTeamSettings(false);
+        }}
         title="Settings"
         description="Make this workspace feel like yours."
-        footer={<Button onClick={() => setSettings(false)}>Done</Button>}
+        footer={
+          <Button
+            onClick={() => {
+              setSettings(false);
+              setTeamSettings(false);
+            }}
+          >
+            Done
+          </Button>
+        }
       >
         <SettingsTabs
+          key={teamSettings ? "team" : "general"}
+          initialTab={teamSettings ? 2 : 0}
+          team={<TeamSettings />}
           general={
             <>
+              <CodingClientSetting />
               <AiSettingsPanel />
               <SkillSettingsPanel />
               <UpdateSettings />

@@ -155,7 +155,10 @@ for (const theme of ["light", "dark"])
     for (const [name, command] of [
       ["Claude Code", "/voidra-go"],
       ["Codex", "$voidra-go"],
-    ]) {
+    ] as const) {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("radio", { name: name, exact: true }).check();
+      await page.keyboard.press("Escape");
       await page
         .getByRole("button", { name: `Copy ${name} command`, exact: true })
         .click();

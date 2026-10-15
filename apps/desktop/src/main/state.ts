@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   mkdir,
   open,
@@ -15,8 +15,26 @@ import {
   themeSchema,
 } from "../shared/bridge.ts";
 
+import {
+  type CodingClient,
+  codingClientSchema,
+  memberInputSchema,
+  storedTeamSchema,
+  type TeamRequest,
+  type TeamView,
+  teamRequestSchema,
+} from "../shared/team.ts";
+
+const teamRevision = (team: unknown): string =>
+  createHash("sha256").update(JSON.stringify(team)).digest("hex");
 const settingsSchema = z.looseObject({
   version: z.literal(1),
+  defaultClient: codingClientSchema.default("codex"),
+  team: storedTeamSchema.default(() => ({
+    members: [],
+    me: null,
+    projects: {},
+  })),
   theme: themeSchema,
   recents: z.array(recentSchema),
   skillsOfferSeen: z.boolean().default(false),
@@ -50,6 +68,8 @@ export class AppStore {
       if ((error as NodeJS.ErrnoException).code === "ENOENT")
         return {
           version: 1,
+          defaultClient: "codex",
+          team: { members: [], me: null, projects: {} },
           theme: "system",
           recents: [],
           skillsOfferSeen: false,
@@ -84,6 +104,77 @@ export class AppStore {
         await rename(temp, this.file);
       });
     return this.queue;
+  }
+  async team(project: string | null): Promise<TeamView> {
+    const { team } = await this.read();
+    return {
+      members: team.members,
+      me: team.me,
+      projectMembers: project ? (team.projects[project] ?? []) : [],
+      revision: teamRevision(team),
+    };
+  }
+  changeTeam(input: TeamRequest, project: string | null): Promise<void> {
+    const request = teamRequestSchema.parse(input);
+    return this.mutate((settings) => {
+      const team = settings.team;
+      if (teamRevision(team) !== request.revision)
+        throw Error(
+          "Team settings changed; review the current roster before saving.",
+        );
+      if (request.command === "team-add") {
+        const values = memberInputSchema.parse({
+          name: request.name,
+          email: request.email,
+        });
+        if (
+          team.members.some(
+            (member) =>
+              member.email.toLowerCase() === values.email.toLowerCase(),
+          )
+        )
+          throw Error("This email is already in Team.");
+        if (team.members.length >= 200)
+          throw Error("Team has reached its 200-member limit.");
+        const member = { id: randomUUID(), ...values };
+        team.members.push(member);
+        if (project)
+          team.projects[project] = [
+            ...(team.projects[project] ?? []),
+            member.id,
+          ];
+      } else {
+        if (
+          request.id &&
+          !team.members.some((member) => member.id === request.id)
+        )
+          throw Error("Team member is no longer available.");
+        if (request.command === "team-me") team.me = request.id;
+        else if (request.command === "team-remove") {
+          team.members = team.members.filter(
+            (member) => member.id !== request.id,
+          );
+          if (team.me === request.id) team.me = null;
+          for (const key of Object.keys(team.projects))
+            team.projects[key] = (team.projects[key] ?? []).filter(
+              (id) => id !== request.id,
+            );
+        } else {
+          if (!project)
+            throw Error("Open a project before selecting its Team members.");
+          const selected = team.projects[project] ?? [];
+          team.projects[project] = request.enabled
+            ? [...new Set([...selected, request.id])]
+            : selected.filter((id) => id !== request.id);
+        }
+      }
+      storedTeamSchema.parse(team);
+    });
+  }
+  setClient(client: CodingClient): Promise<void> {
+    return this.mutate((settings) => {
+      settings.defaultClient = codingClientSchema.parse(client);
+    });
   }
   setTheme(theme: ThemePreference): Promise<void> {
     return this.mutate((settings) => {

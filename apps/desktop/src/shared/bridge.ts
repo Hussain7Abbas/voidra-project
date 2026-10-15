@@ -6,6 +6,11 @@ import {
   aiRequestSchemas,
 } from "./ai.ts";
 import { skillReplySchemas, skillRequestSchemas } from "./skills.ts";
+import {
+  codingClientSchema,
+  teamRequestSchemas,
+  teamViewSchema,
+} from "./team.ts";
 import { updateNoticeSchema, updateRequestSchemas } from "./updates.ts";
 export const actionTypeSchema = z.enum([
   "feature",
@@ -726,6 +731,11 @@ export const workspaceEdits = {
 export const requestSchema = z.discriminatedUnion("command", [
   ...updateRequestSchemas,
   ...skillRequestSchemas,
+  ...teamRequestSchemas,
+  z.strictObject({
+    command: z.literal("set-coding-client"),
+    client: codingClientSchema,
+  }),
   ...aiRequestSchemas,
   ...knowledgeRequestSchema.options,
   z.strictObject({
@@ -789,6 +799,13 @@ export function isWorkspaceRequest(
   return workspaceRequestSchema.safeParse(input).success;
 }
 export const snapshotSchema = z.strictObject({
+  defaultClient: codingClientSchema.default("codex"),
+  team: teamViewSchema.default(() => ({
+    members: [],
+    me: null,
+    projectMembers: [],
+    revision: "0".repeat(64),
+  })),
   appVersion: z.string().default("0.0.0"),
   updatesEnabled: z.boolean().default(true),
   update: updateNoticeSchema.nullable().default(null),

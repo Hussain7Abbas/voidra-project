@@ -1,170 +1,161 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { SkillPreview, SkillStatus } from "../shared/skills.ts";
+import type { SkillBundlePreview } from "../shared/skills.ts";
 import { request } from "./app.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 
+type Agent = "claude" | "codex";
 const agentNames = { claude: "Claude Code", codex: "Codex" } as const;
 export function SkillSettingsPanel() {
   const query = useQueryClient(),
-    [expanded, setExpanded] = useState(false),
-    [busy, setBusy] = useState(false),
+    [busyAgent, setBusyAgent] = useState<Agent | null>(null),
+    [preview, setPreview] = useState<SkillBundlePreview | null>(null),
     [error, setError] = useState(""),
-    [preview, setPreview] = useState<SkillPreview | null>(null);
+    [message, setMessage] = useState("");
+  const busy = busyAgent !== null;
   const status = useQuery({
     queryKey: ["skills-status"],
-    enabled: expanded,
     queryFn: async () => {
       const result = await request({ command: "skills-status" });
       if (result.kind !== "skills-status")
-        throw new Error("Skill status is unavailable");
+        throw Error("Skill status is unavailable");
       return result.skills;
     },
   });
-  async function apply(selected: SkillPreview, confirmed: boolean) {
-    setBusy(true);
+  async function getPreview(agent: Agent): Promise<SkillBundlePreview> {
+    const result = await request({ command: "skills-bundle-preview", agent });
+    if (result.kind !== "skills-bundle-preview")
+      throw Error("Bundle preview is unavailable");
+    return result.preview;
+  }
+  async function apply(selected: SkillBundlePreview, confirmed: boolean) {
+    setBusyAgent(selected.agent);
     setError("");
+    setMessage("");
     try {
-      await request({
-        command: "skills-apply",
+      const response = await request({
+        command: "skills-bundle-apply",
         agent: selected.agent,
-        name: selected.name,
-        operation: selected.operation,
         revision: selected.revision,
-        bundleRevision: selected.bundleRevision,
         confirmed,
       });
+      if (response.kind !== "skills-bundle-applied")
+        throw Error("Bundle result is unavailable");
       setPreview(null);
+      if (response.result.error)
+        setError(
+          `${agentNames[selected.agent]} installation stopped. Completed: ${response.result.completed.join(", ") || "none"}. Remaining: ${response.result.remaining.join(", ") || "none"}. ${response.result.error} Select Install again to review and continue.`,
+        );
+      else setMessage(`${agentNames[selected.agent]} skills installed`);
       await query.invalidateQueries({ queryKey: ["skills-status"] });
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Installation failed.");
+      // A renewed preview is never applied until the user explicitly confirms it.
+      try {
+        setPreview(await getPreview(selected.agent));
+      } catch {
+        setPreview(null);
+      }
     } finally {
-      setBusy(false);
+      setBusyAgent(null);
     }
   }
-  async function change(row: SkillStatus, operation: "install" | "remove") {
-    setBusy(true);
+  async function install(agent: Agent) {
+    if (busy) return;
+    setBusyAgent(agent);
     setError("");
+    setMessage("");
     try {
-      const result = await request({
-        command: "skills-preview",
-        agent: row.agent,
-        name: row.name,
-        operation,
-      });
-      if (result.kind !== "skills-preview")
-        throw new Error("Skill preview is unavailable");
-      if (result.preview.requiresConfirmation) setPreview(result.preview);
-      else await apply(result.preview, false);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      const selected = await getPreview(agent);
+      if (selected.requiresConfirmation) setPreview(selected);
+      else await apply(selected, false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Bundle could not be checked.",
+      );
     } finally {
-      setBusy(false);
+      setBusyAgent(null);
     }
   }
   return (
-    <details
-      className="mt-6 border-t border-line pt-5"
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    <section
+      className="mt-6 border-t border-line pt-5 space-y-4"
+      aria-label="Coding agent skills"
     >
-      <summary className="cursor-pointer font-semibold">
-        Coding agent skills
-      </summary>
-      {expanded && (
-        <div className="space-y-4 pt-4">
-          <p className="text-sm text-muted">
-            Install bundled copies for your user account. Your other skills are
-            kept. Edited copies need your confirmation before replacement or
-            removal.
-          </p>
+      <h3 className="font-semibold">Coding agent skills</h3>
+      <p className="text-sm text-muted">
+        Install the complete bundled skill set for either client. Locally edited
+        copies require a review before replacement.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {(["claude", "codex"] as const).map((agent) => (
           <Button
+            key={agent}
             variant="secondary"
             disabled={busy || status.isFetching}
-            onClick={() => void status.refetch()}
+            loading={busyAgent === agent}
+            onClick={() => void install(agent)}
           >
-            Refresh skill status
+            {agent === "claude"
+              ? "Install Claude skills"
+              : "Install Codex skills"}
           </Button>
-          {(error || status.error) && (
-            <p role="alert" className="text-danger">
-              {error || status.error?.message}
-            </p>
-          )}
-          {status.isPending && <p role="status">Checking installed skills…</p>}
-          {(["claude", "codex"] as const).map((agent) => (
-            <section
-              key={agent}
-              aria-label={`${agentNames[agent]} skills`}
-              className="space-y-3"
-            >
-              <h3 className="font-semibold">{agentNames[agent]}</h3>
-              {status.data
-                ?.filter((row) => row.agent === agent)
-                .map((row) => (
-                  <article
-                    key={row.name}
-                    aria-label={`${agentNames[agent]} ${row.name}`}
-                    className="rounded-lg border border-line p-3 space-y-2"
-                  >
-                    <h4 className="font-medium">{row.name}</h4>
-                    <p className="text-sm text-muted">
-                      {row.installedVersion
-                        ? `Installed ${row.installedVersion}`
-                        : row.present
-                          ? "Unmanaged copy"
-                          : "Not installed"}{" "}
-                      · Bundled {row.bundledVersion} · Format{" "}
-                      {row.bundledFormat}
-                    </p>
-                    {row.edited && <p className="text-sm">Edited locally</p>}
-                    {(row.blocked || row.compatibility) && (
-                      <p role="status" className="text-sm text-danger">
-                        {row.blocked || row.compatibility}
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      {(!row.present ||
-                        row.installedVersion !== row.bundledVersion ||
-                        row.edited) && (
-                        <Button
-                          variant="secondary"
-                          disabled={busy || !!row.blocked}
-                          aria-label={`${row.present ? "Update" : "Install"} ${row.name} for ${agentNames[agent]}`}
-                          onClick={() => void change(row, "install")}
-                        >
-                          {row.present ? "Update" : "Install"}
-                        </Button>
-                      )}
-                      {row.present && (
-                        <Button
-                          variant="ghost"
-                          disabled={busy || !!row.blocked}
-                          aria-label={`Remove ${row.name} for ${agentNames[agent]}`}
-                          onClick={() => void change(row, "remove")}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-            </section>
-          ))}
-        </div>
+        ))}
+      </div>
+      {status.isPending && <p role="status">Checking installed bundles…</p>}
+      {(["claude", "codex"] as const).map((agent) => {
+        const rows = status.data?.filter((row) => row.agent === agent) ?? [];
+        return (
+          rows.length > 0 && (
+            <div className="text-sm" key={agent}>
+              <p>
+                {agentNames[agent]}:{" "}
+                {
+                  rows.filter(
+                    (row) =>
+                      row.present &&
+                      !row.edited &&
+                      !row.blocked &&
+                      row.installedVersion === row.bundledVersion &&
+                      row.installedFormat === row.bundledFormat,
+                  ).length
+                }
+                /{rows.length} bundled copies installed ·{" "}
+                {rows[0]?.bundledVersion}
+              </p>
+              {[
+                ...new Set(
+                  rows
+                    .flatMap((row) => [row.blocked, row.compatibility])
+                    .filter((value): value is string => !!value),
+                ),
+              ].map((problem) => (
+                <p className="text-danger" key={problem}>
+                  {problem}
+                </p>
+              ))}
+            </div>
+          )
+        );
+      })}
+      {message && <p role="status">{message}</p>}
+      {(error || status.error) && (
+        <p role="alert" className="text-danger">
+          {error || status.error?.message}
+        </p>
       )}
       <Dialog
         open={preview !== null}
-        onClose={() => {
-          if (!busy) {
-            setPreview(null);
-            setError("");
-          }
-        }}
-        title="Review skill changes"
-        description="This copy was edited locally or installed outside Voidra. Review the difference before continuing."
-        size="lg"
         closeDisabled={busy}
+        onClose={() => {
+          setPreview(null);
+          setError("");
+        }}
+        title="Review skill bundle"
+        description="Review the exact changes to the complete bundle before replacing any edited copies."
+        size="lg"
         footer={
           <>
             <Button
@@ -178,30 +169,38 @@ export function SkillSettingsPanel() {
             </Button>
             <Button
               variant="primary"
-              disabled={busy}
+              loading={busy}
               onClick={() => {
                 if (preview) void apply(preview, true);
               }}
             >
-              {preview?.operation === "remove"
-                ? "Remove edited copy"
-                : "Replace edited copy"}
+              {preview?.requiresConfirmation
+                ? "Replace edited bundle"
+                : "Install reviewed bundle"}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-muted">
-          {preview?.name} · {preview ? agentNames[preview.agent] : ""}
+        <p className="mb-4">
+          {preview ? agentNames[preview.agent] : ""} · {preview?.skills.length}{" "}
+          skills
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-lg border border-line p-3 text-sm">
-          {preview?.diff}
-        </pre>
+        <div className="space-y-5">
+          {preview?.skills.map((skill) => (
+            <section key={skill.name}>
+              <h3 className="font-semibold">{skill.name}</h3>
+              <pre className="whitespace-pre-wrap break-words rounded-lg border border-line p-3 text-sm">
+                {skill.diff}
+              </pre>
+            </section>
+          ))}
+        </div>
         {error && (
           <p role="alert" className="text-danger">
-            {error}
+            {error} Review the updated preview before confirming again.
           </p>
         )}
       </Dialog>
-    </details>
+    </section>
   );
 }

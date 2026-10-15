@@ -3,16 +3,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { type ActionType, actionTypeSchema } from "../shared/bridge.ts";
+import { defaultAssignee } from "../shared/team.ts";
 import { filterActionViews, groupActionViews } from "./action-filters.ts";
 import { ActionQuestions, PlanGate } from "./action-gates.tsx";
 import { actionLabels } from "./action-labels.ts";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
-import { request } from "./app.tsx";
+import { request, useSnapshot } from "./app.tsx";
+import { useCodingClient } from "./coding-client.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { MarkdownEditor } from "./markdown-editor.tsx";
 import { PlanningCommit } from "./planning-commit.tsx";
 import { ProjectInbox } from "./project-inbox.tsx";
 import { RunQueue } from "./run-queue.tsx";
+import { AssigneeSelect } from "./team-settings.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -26,6 +29,8 @@ export function ProjectActions({
   view: "actions" | "run" | "inbox";
   initialAction?: string | null;
 }) {
+  const settings = useSnapshot(),
+    client = useCodingClient();
   const query = useQueryClient(),
     toast = useToast();
   const workspace = useQuery({
@@ -170,7 +175,7 @@ export function ProjectActions({
           Copy the command into your agent. A live owner’s lock cannot be
           cleared.
         </p>
-        {(["claude-code", "codex"] as const).map((agent) => (
+        {[client].map((agent) => (
           <div key={agent} className="command-row">
             <code>
               {agent === "claude-code" ? "/voidra-go" : "$voidra-go"} recover{" "}
@@ -226,7 +231,7 @@ export function ProjectActions({
         </section>
         <section className="card action-detail" aria-label="Agent commands">
           <h2>Run in your agent</h2>
-          {(["claude-code", "codex"] as const).map((agent) => (
+          {[client].map((agent) => (
             <div className="command-row" key={agent}>
               <div>
                 <h3>{agent === "claude-code" ? "Claude Code" : "Codex"}</h3>
@@ -1034,7 +1039,9 @@ export function ProjectActions({
             icon={<Plus size={16} aria-hidden />}
             disabled={!editable || !data.hasVoidra}
             onClick={() => {
-              setAssignee(data.identity.value ?? "");
+              setAssignee(
+                settings.data ? defaultAssignee(settings.data.team) : "",
+              );
               setCreate(true);
             }}
           >
@@ -1380,13 +1387,12 @@ export function ProjectActions({
           )}
           <Field
             label="Assignee"
-            hint="Optional. Leave unassigned if anyone can take it."
+            hint="Choose from Settings → Team. Me is preselected when you belong to this project."
           >
-            <input
-              className="input"
-              name="assignee"
+            <AssigneeSelect
               value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
+              onChange={setAssignee}
+              disabled={busy}
             />
           </Field>
           <AiSuggestionButton
