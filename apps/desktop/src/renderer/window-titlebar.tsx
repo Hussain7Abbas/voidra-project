@@ -1,5 +1,6 @@
 "use client";
 import { Maximize2, Minimize2, Minus, Settings, X } from "lucide-react";
+import type { ReactNode } from "react";
 import type { BridgeRequest, Snapshot } from "../shared/bridge.ts";
 import { Button } from "./ui/button.tsx";
 
@@ -8,9 +9,11 @@ export function WindowTitlebar({
   title,
   onSettings,
   onControl,
+  accessories,
 }: {
   state: NonNullable<Snapshot["window"]>;
   title: string;
+  accessories?: ReactNode;
   onSettings: () => void;
   onControl: (
     action: Extract<BridgeRequest, { command: "window-control" }>["action"],
@@ -69,6 +72,7 @@ export function WindowTitlebar({
   return (
     <section className="window-titlebar" aria-label="Window titlebar">
       {state.platform === "darwin" ? controls : settings}
+      {accessories}
       <span className="window-title">{title}</span>
       {state.platform === "darwin" ? settings : controls}
     </section>

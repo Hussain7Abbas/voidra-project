@@ -1,6 +1,6 @@
 # Voidra Project — v1.1.0 implementation plan
 
-> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02–P06 are complete; remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
+> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02–P07 are complete; remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
 > **Clarifications:** the user answered round 1 with `1a, 2a, 3a, 4a, 5c, 6a` and round 2 with `7a, 8a, 9b`. Automatic private form drafts, one badge per draft and Agentic defaults are confirmed. Both question rounds are resolved.
 
 [Vision](../VISION.md#17-v110-product-direction) · [Plan rules](AGENTS.md) · [Completed v1 plan](../plan/main.md) · [Documentation](../docs/intro.md)
@@ -40,7 +40,7 @@ Status values: **Not started**, **In progress**, **Blocked** with reason, **Done
 | [V11-P04](phase-04-task-forms.md) | Normal/Agentic capture, reviewed AI output and durable drafts with top badge navigation across forms | P02, P03 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p04.md) |
 | [V11-P05](phase-05-kanban.md) | Tasks Kanban, drag/drop and release filtering | P04 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p05.md) |
 | [V11-P06](phase-06-actions-sequence.md) | Actions sidebar, TODO enrollment and dependency rearrangement | P05 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p06.md) |
-| [V11-P07](phase-07-workspace-panels.md) | Resizable/toggleable panels, bottom human gates and titlebar controls | P02, P06 | Not started | — |
+| [V11-P07](phase-07-workspace-panels.md) | Resizable/toggleable panels, bottom human gates and titlebar controls | P02, P06 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p07.md) |
 | [V11-P08](phase-08-knowledge-documentation.md) | Markdown knowledge pages and searchable documentation tree | P02, P07 | Not started | — |
 | [V11-P09](phase-09-release-flow.md) | Xeploy UI questions and recoverable Done-ticket release choice | P05, P07 | Not started | — |
 | [V11-P10](phase-10-verification-release.md) | Full compatibility, real-agent, accessibility and release evidence | P08, P09 | Not started | — |
@@ -152,7 +152,7 @@ A phase is ready when prerequisites are Done, its material unknowns have been re
 
 A phase is Done only after all acceptance criteria pass, relevant docs/instructions/references are current, actual evidence is recorded and the root commit/push workflow is complete. Release publication additionally requires the checked pipeline and actual access. Writing this plan did not modify packages or planning actions. P01's implementation aligns the app/library/reader/skills to the 1.1.0 development candidate (A10) to enforce the new minimum-reader contract; this does not publish, alter this repository's `.voidra/` actions or reopen finished v1 phases.
 
-**V11-P01–P06 are complete**, including Normal/Agentic reviewed capture and private durable drafts across existing forms. M11-1 is reached. All clarification questions U01–U10 are resolved by R17/C01–C09. V11-P05 adds Tasks navigation, pointer/keyboard Kanban and release filters. V11-P06 is complete with global Actions intent, dependency repair and safe standalone selection; P07–P10 have not started.
+**V11-P01–P07 are complete**, including Normal/Agentic reviewed capture and private durable drafts across existing forms. M11-1 is reached. All clarification questions U01–U10 are resolved by R17/C01–C09. V11-P05 adds Tasks navigation, pointer/keyboard Kanban and release filters. V11-P06 is complete with global Actions intent, dependency repair and safe standalone selection; P07 is complete with titlebar history, persistent resizable panes and bottom gates/attention. M11-2 is reached; P08–P10 have not started.
 
 ## Continuing authorization — 2026-10-15
 
@@ -173,3 +173,7 @@ All releases is the initial board filter, preserving legacy/migrated visibility.
 ## P06 implementation choices
 
 Versioned private intent retains active/running/waiting work separately from consumable pending requests. Entering TODO enrolls once; Backlog and terminal projections remove it. Reorder preserves tokens and full global membership; it never retries consumed work or inserts absent dependencies. Versioned startup selects the first eligible request while legacy queues retain strict first-entry behavior. New task upgrades bootstrap both private files in their exact preview; already tracked projects preview conversion. Portable run hash receipts protect local undo without invalid clone references. Corruption and stale gestures preserve bytes/proposals for recovery. Both actual clients passed audited default retries; their initial small-model limitations remain in evidence.
+
+## P07 implementation choices
+
+Layout is main-owned per canonical project, outside planning history and drafts. Native-titlebar mode uses a compact equivalent accessory. Divider previews are local and bounded, persistence happens on release, and Escape cancels. New actionable content opens Waiting without focus/selection theft; observed current tokens preserve dismissal across restart and permit resolved/reopened work to become attention again. Hiding flushes drafts and returns focus to the corresponding control. Existing exact gates keep their original fingerprints. Stable memo boundaries avoid per-frame card/Markdown work, and task filters remain one horizontally scrolling row in narrow centers.

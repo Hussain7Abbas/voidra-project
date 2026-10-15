@@ -486,6 +486,13 @@ async function start(): Promise<void> {
           await store.changeTeam(request, registry.project(window.id));
           broadcast();
           response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "set-workspace-layout") {
+          await store.setWorkspaceLayout(registry.project(window.id), {
+            context: request.context,
+            patch: request.patch,
+          });
+          notify(window.id, { type: "layout-changed" });
+          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-coding-client") {
           await store.setClient(request.client);
           broadcast();
@@ -502,6 +509,7 @@ async function start(): Promise<void> {
             data: {
               kind: "snapshot",
               appVersion: app.getVersion(),
+              layout: store.layoutFrom(settings, registry.project(window.id)),
               defaultClient: settings.defaultClient,
               team: await store.team(registry.project(window.id)),
               updatesEnabled: settings.updatesEnabled,
@@ -879,6 +887,24 @@ async function start(): Promise<void> {
           { role: "pasteAndMatchStyle" },
           { role: "selectAll" },
         ],
+      },
+      {
+        label: "View",
+        submenu: (
+          ["navigation", "actions", "waiting"] as const
+        ).map<MenuItemConstructorOptions>((panel, index) => ({
+          label:
+            panel === "navigation"
+              ? "Toggle navigation"
+              : panel === "actions"
+                ? "Toggle Actions"
+                : "Toggle Waiting for you",
+          accelerator: `CmdOrCtrl+Alt+${index + 1}`,
+          click: () => {
+            const focused = BrowserWindow.getFocusedWindow();
+            if (focused) notify(focused.id, { type: "workspace-panel", panel });
+          },
+        })),
       },
       { role: "windowMenu" },
     ]),

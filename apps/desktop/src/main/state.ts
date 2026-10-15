@@ -14,7 +14,6 @@ import {
   type ThemePreference,
   themeSchema,
 } from "../shared/bridge.ts";
-
 import {
   type CodingClient,
   codingClientSchema,
@@ -24,11 +23,17 @@ import {
   type TeamView,
   teamRequestSchema,
 } from "../shared/team.ts";
+import {
+  type WorkspaceLayoutView,
+  workspaceLayoutRequestSchema,
+  workspaceLayoutSchema,
+} from "../shared/workspace-layout.ts";
 
 const teamRevision = (team: unknown): string =>
   createHash("sha256").update(JSON.stringify(team)).digest("hex");
 const settingsSchema = z.looseObject({
   version: z.literal(1),
+  layouts: z.record(z.string(), z.unknown()).catch({}).default({}),
   defaultClient: codingClientSchema.default("codex"),
   team: storedTeamSchema.default(() => ({
     members: [],
@@ -68,6 +73,7 @@ export class AppStore {
       if ((error as NodeJS.ErrnoException).code === "ENOENT")
         return {
           version: 1,
+          layouts: {},
           defaultClient: "codex",
           team: { members: [], me: null, projects: {} },
           theme: "system",
@@ -110,6 +116,54 @@ export class AppStore {
         }
       });
     return this.queue;
+  }
+  private layoutContext(project: string | null): string {
+    return createHash("sha256")
+      .update(project ?? "\0welcome")
+      .digest("hex");
+  }
+  async workspaceLayout(project: string | null): Promise<WorkspaceLayoutView> {
+    return this.layoutFrom(await this.read(), project);
+  }
+  layoutFrom(settings: Settings, project: string | null): WorkspaceLayoutView {
+    const context = this.layoutContext(project),
+      raw = settings.layouts[context];
+    const parsed = workspaceLayoutSchema.loose().safeParse(raw ?? {}),
+      values = parsed.success ? parsed.data : workspaceLayoutSchema.parse({});
+    return {
+      context,
+      value: workspaceLayoutSchema.parse(
+        Object.fromEntries(
+          Object.keys(workspaceLayoutSchema.shape).map((key) => [
+            key,
+            values[key as keyof typeof values],
+          ]),
+        ),
+      ),
+    };
+  }
+  setWorkspaceLayout(
+    project: string | null,
+    input: Omit<z.infer<typeof workspaceLayoutRequestSchema>, "command">,
+  ): Promise<void> {
+    const request = workspaceLayoutRequestSchema.parse({
+      command: "set-workspace-layout",
+      ...input,
+    });
+    if (request.context !== this.layoutContext(project))
+      return Promise.reject(
+        Error("Project changed; restore this window's layout before saving."),
+      );
+    return this.mutate((settings) => {
+      const old = settings.layouts[request.context],
+        retained =
+          old && typeof old === "object" && !Array.isArray(old) ? old : {};
+      settings.layouts[request.context] = {
+        ...retained,
+        ...this.layoutFrom(settings, project).value,
+        ...request.patch,
+      };
+    });
   }
   async team(project: string | null): Promise<TeamView> {
     const { team } = await this.read();

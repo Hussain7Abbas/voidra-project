@@ -61,3 +61,24 @@ export function MarkdownContent({
     </div>
   );
 }
+
+/** Phrasing-only labels: render Markdown without nested links, buttons or form controls. */
+export function InlineMarkdown({ body }: { body: string }) {
+  return (
+    <span className="inline-markdown">
+      <Markdown
+        skipHtml
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
+        allowedElements={["strong", "em", "del", "code", "br", "img", "input"]}
+        unwrapDisallowed
+        components={{
+          img: ({ alt }) => <span>{alt ?? "Image"}</span>,
+          input: ({ checked }) => <span>{checked ? "[x]" : "[ ]"}</span>,
+        }}
+      >
+        {body}
+      </Markdown>
+    </span>
+  );
+}

@@ -27,3 +27,5 @@ The Decisions and Glossary screens use narrow correlated knowledge reads from th
 The v1.1.0 description editor uses a fresh main-generated style nonce per HTML document to authorize CodeMirror style installation. Script authorization remains exact bootstrap hashes. See [Markdown editing](markdown-editing.md) for source preservation, native text history and accessible cursor/selection rendering.
 
 The complete task/sequence projection uses disposable index version 8. Sequence intent, pending requests, dependency warnings and exact conversion preview are rebuilt through shared APIs and saved in the same transaction as actions/tasks. Unfinished operations retain the prior complete cached sequence. The renderer receives no filesystem capability or actor/path override; conversion/reorder are classified persistent-history commands.
+
+The v1.1.0 shell uses [per-project resizable panels](workspace-panels.md), titlebar history/toggles and a retained bottom human-gate workflow. Native-titlebar windows expose the same accessory controls. Layout/attention settings remain main-owned and outside project history; layout notifications do not trigger a planning-index rescan.

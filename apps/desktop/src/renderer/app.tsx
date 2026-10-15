@@ -11,14 +11,12 @@ import {
   BookOpen,
   ChevronDown,
   FolderOpen,
-  Inbox,
   Layers,
   ListChecks,
   Package,
-  PanelLeft,
   Settings,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import type {
   BridgeRequest,
   BridgeResponse,
@@ -57,6 +55,12 @@ import { ToastProvider, useToast } from "./ui/toast.tsx";
 import { UpdateNotice } from "./update-notice.tsx";
 import { UpdateSettings } from "./update-settings.tsx";
 import { WindowTitlebar } from "./window-titlebar.tsx";
+import {
+  PanelControls,
+  PaneResize,
+  useWorkspacePanels,
+  WaitingPanel,
+} from "./workspace-panels.tsx";
 export async function request(
   input: BridgeRequest,
 ): Promise<Extract<BridgeResponse, { ok: true }>["data"]> {
@@ -130,7 +134,6 @@ function Shell() {
   const [switcher, setSwitcher] = useState(false);
   const [remove, setRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [navigationEpoch, setNavigationEpoch] = useState(0);
   const [navigationTarget, setNavigationTarget] = useState<
     | "tasks"
@@ -196,6 +199,7 @@ function Shell() {
   const hasPlanning = workspace.data
     ? workspace.data.hasVoidra || workspace.data.recoveries.length > 0
     : !!data?.project?.hasVoidra;
+  const panels = useWorkspacePanels(data?.layout, workspace.data);
   const waitingCount = workspace.data ? inboxItems(workspace.data).length : 0;
   const themePreference = data?.theme;
   useEffect(
@@ -205,7 +209,9 @@ function Shell() {
         else if (
           event.type !== "edit-history" &&
           event.type !== "ai-progress" &&
-          event.type !== "draft-deleted"
+          event.type !== "draft-deleted" &&
+          event.type !== "workspace-panel" &&
+          event.type !== "layout-changed"
         )
           void query.invalidateQueries();
       }),
@@ -220,41 +226,90 @@ function Shell() {
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, [themePreference]);
-  const act = async (input: BridgeRequest, success?: string): Promise<void> => {
-    setBusy(true);
-    try {
-      if (
-        [
-          "choose-folder",
-          "open-recent",
-          "locate-recent",
-          "window-control",
-        ].includes(input.command)
-      )
-        await flushFormDrafts();
-      await request(input);
-      await query.invalidateQueries({ queryKey: ["snapshot"] });
-      if (success) toast.success(success);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const open = (): void => {
+  const act = useCallback(
+    async (input: BridgeRequest, success?: string): Promise<void> => {
+      setBusy(true);
+      try {
+        if (
+          [
+            "choose-folder",
+            "open-recent",
+            "locate-recent",
+            "window-control",
+          ].includes(input.command)
+        )
+          await flushFormDrafts();
+        await request(input);
+        await query.invalidateQueries({ queryKey: ["snapshot"] });
+        if (success) toast.success(success);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Please try again.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [query, toast],
+  );
+  const open = useCallback((): void => {
     void act({ command: "choose-folder" });
     setSwitcher(false);
-  };
+  }, [act]);
+  const onTasks = useCallback(() => {
+    setSelectedAction(null);
+    setSelectedIdea(null);
+    setNavigationTarget("tasks");
+    setNavigationEpoch((value) => value + 1);
+  }, []);
   const navigation = [
-    { label: "Overview", icon: Layers },
     { label: "Tasks", icon: ListChecks },
     { label: "Profile", icon: BookOpen },
     { label: "Decisions", icon: BookOpen },
     { label: "Glossary", icon: BookOpen },
-    { label: "Waiting for you", icon: Inbox },
     { label: "Run", icon: Activity },
     { label: "Releases", icon: Package },
   ];
+  const hideWaiting = useCallback(() => {
+    void panels.toggle("waiting");
+  }, [panels.toggle]);
+  const controls = (
+    <div className="titlebar-accessories">
+      <PanelControls
+        value={panels.value}
+        ready={panels.ready}
+        available={
+          !!workspace.data?.hasVoidra || !!workspace.data?.recoveries.length
+        }
+        waitingCount={waitingCount}
+        onToggle={panels.toggle}
+      />
+      <EditHistory
+        editing={workspace.data?.editing}
+        onChange={() => query.invalidateQueries()}
+      />
+    </div>
+  );
+  const navigationMaximum = Math.max(
+    180,
+    Math.min(
+      800,
+      panels.bounds.width -
+        (panels.value.actionsOpen && hasPlanning
+          ? panels.fitted.actionsWidth + 6
+          : 0) -
+        326,
+    ),
+  );
+  const actionsMaximum = Math.max(
+    240,
+    Math.min(
+      800,
+      panels.bounds.width -
+        (panels.value.navigationOpen ? panels.fitted.navigationWidth + 6 : 0) -
+        326,
+    ),
+  );
   return (
     <div
       className={`desktop-app ${data?.window?.customTitlebar ? "has-custom-titlebar" : ""}`}
@@ -262,19 +317,41 @@ function Shell() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      {data?.window?.customTitlebar && (
+      {data?.window?.customTitlebar ? (
         <WindowTitlebar
           state={data.window}
           title={data.project?.name ?? "Voidra Project"}
+          accessories={controls}
           onSettings={() => setSettings(true)}
           onControl={(action) => {
             void act({ command: "window-control", action });
           }}
         />
+      ) : (
+        <section
+          className="native-titlebar-accessory"
+          aria-label="Workspace controls"
+        >
+          {controls}
+          <span className="window-title">
+            {data?.project?.name ?? "Voidra Project"}
+          </span>
+          <Button
+            variant="ghost"
+            iconOnly
+            aria-label="Settings"
+            title="Settings"
+            onClick={() => setSettings(true)}
+            icon={<Settings size={18} aria-hidden />}
+          />
+        </section>
       )}
-      <div className="desktop-shell">
+      <div className="desktop-shell" ref={panels.host}>
         <aside
-          className={`sidebar ${menu ? "sidebar-open" : ""}`}
+          id="project-navigation"
+          className="sidebar"
+          hidden={!panels.value.navigationOpen}
+          style={{ width: panels.fitted.navigationWidth }}
           aria-label="Project navigation"
         >
           <div className="brand">
@@ -419,7 +496,6 @@ function Shell() {
                                         ? "profile"
                                         : "actions",
                       );
-                      setMenu(false);
                     }}
                     aria-current={
                       (
@@ -467,47 +543,25 @@ function Shell() {
             </ul>
           </nav>
           <div className="sidebar-footer">
-            {!data?.window?.customTitlebar && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                icon={<Settings size={18} aria-hidden />}
-                onClick={() => setSettings(true)}
-              >
-                Settings
-              </Button>
-            )}
             <span className="version">
               Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
             </span>
           </div>
         </aside>
+        <PaneResize
+          key={`${panels.context}-navigation`}
+          panel="navigation"
+          orientation="vertical"
+          hidden={!panels.value.navigationOpen}
+          value={panels.fitted.navigationWidth}
+          preferred={panels.value.navigationWidth}
+          min={180}
+          max={navigationMaximum}
+          onPreview={(navigationWidth) => panels.preview({ navigationWidth })}
+          onSave={(navigationWidth) => void panels.save({ navigationWidth })}
+          onToggle={() => void panels.toggle("navigation")}
+        />
         <div className="workspace">
-          <header className="workspace-topbar">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                iconOnly
-                aria-label="Toggle sidebar"
-                className="sidebar-toggle"
-                onClick={() => setMenu(!menu)}
-                icon={<PanelLeft size={18} aria-hidden />}
-              />
-              <span className="text-muted text-sm">
-                {data?.project?.name ?? "Your workspace"}
-              </span>
-            </div>
-            <EditHistory
-              editing={workspace.data?.editing}
-              onChange={() => query.invalidateQueries()}
-            />
-            <span className="workspace-status">
-              <span className="status-dot" />
-              {data?.serviceState === "ready"
-                ? "Local project"
-                : "Local workspace"}
-            </span>
-          </header>
           <main
             id="main"
             tabIndex={-1}
@@ -584,23 +638,65 @@ function Shell() {
                 selectedIdea={selectedIdea}
                 onIdea={showIdea}
                 onAction={showAction}
-                onTasks={() => {
-                  setSelectedAction(null);
-                  setSelectedIdea(null);
-                  setNavigationTarget("tasks");
-                  setNavigationEpoch((value) => value + 1);
-                }}
+                onTasks={onTasks}
                 onProfile={showProfile}
               />
             )}
           </main>
-        </div>
-        {workspace.data?.hasVoidra && (
-          <ActionsSidebar
-            key={data?.project?.path}
-            data={workspace.data}
-            onAction={showAction}
+          <PaneResize
+            key={`${panels.context}-waiting`}
+            panel="waiting"
+            orientation="horizontal"
+            hidden={!hasPlanning || !panels.value.waitingOpen}
+            value={panels.fitted.waitingHeight}
+            preferred={panels.value.waitingHeight}
+            min={160}
+            max={Math.max(160, Math.min(2000, panels.bounds.height - 166))}
+            sign={-1}
+            onPreview={(waitingHeight) => panels.preview({ waitingHeight })}
+            onSave={(waitingHeight) => void panels.save({ waitingHeight })}
+            onToggle={() => void panels.toggle("waiting")}
           />
+          {workspace.data && hasPlanning && (
+            <div
+              className="waiting-pane"
+              hidden={!panels.value.waitingOpen}
+              style={{ height: panels.fitted.waitingHeight }}
+            >
+              <WaitingPanel
+                key={data?.project?.path}
+                workspace={workspace.data}
+                onHide={hideWaiting}
+              />
+            </div>
+          )}
+        </div>
+        <PaneResize
+          key={`${panels.context}-actions`}
+          panel="actions"
+          orientation="vertical"
+          hidden={!hasPlanning || !panels.value.actionsOpen}
+          value={panels.fitted.actionsWidth}
+          preferred={panels.value.actionsWidth}
+          min={240}
+          max={actionsMaximum}
+          sign={-1}
+          onPreview={(actionsWidth) => panels.preview({ actionsWidth })}
+          onSave={(actionsWidth) => void panels.save({ actionsWidth })}
+          onToggle={() => void panels.toggle("actions")}
+        />
+        {workspace.data?.hasVoidra && (
+          <div
+            className="actions-pane"
+            hidden={!panels.value.actionsOpen}
+            style={{ width: panels.fitted.actionsWidth }}
+          >
+            <ActionsSidebar
+              key={data?.project?.path}
+              data={workspace.data}
+              onAction={showAction}
+            />
+          </div>
         )}
       </div>
       <Dialog
@@ -703,7 +799,7 @@ function Shell() {
     </div>
   );
 }
-function Content({
+const Content = memo(function Content({
   data,
   hasPlanning,
   open,
@@ -827,7 +923,7 @@ function Content({
       </section>
     </>
   );
-}
+});
 
 export function DesktopApp() {
   const [client] = useState(() => new QueryClient());

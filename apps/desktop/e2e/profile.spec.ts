@@ -16,6 +16,7 @@ import {
   publishPlanning,
   startRun,
 } from "../../../tools/run-engine/src/run.ts";
+import { showWaiting } from "./workspace-helpers.ts";
 
 const execute = promisify(execFile);
 let app: ElectronApplication, page: Page, temp: string, root: string;
@@ -249,9 +250,7 @@ for (const value of ["light", "dark"])
       [resolve("../../tools/fake-agent/src/cli-entry.ts"), root, "init"],
       { cwd: resolve("../..") },
     );
-    await page
-      .getByRole("button", { name: "Waiting for you", exact: true })
-      .click();
+    await showWaiting(page);
     await expect(
       page.getByRole("region", { name: "Inferred profile answers" }),
     ).toBeVisible();

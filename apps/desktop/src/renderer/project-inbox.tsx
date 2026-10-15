@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { WorkspaceSnapshot } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
 import { type InboxKind, inboxItems } from "./inbox.ts";
+import { SafeMarkdown } from "./markdown.tsx";
+import { InlineMarkdown } from "./markdown-content.tsx";
 import { Button } from "./ui/button.tsx";
 import { PageHeader } from "./ui/page.tsx";
 import { useToast } from "./ui/toast.tsx";
@@ -18,7 +20,9 @@ const labels: Record<InboxKind, string> = {
 export function ProjectInbox({
   workspace,
   onSelect,
+  compact = false,
 }: {
+  compact?: boolean;
   workspace: WorkspaceSnapshot;
   onSelect: (id: string) => void;
 }) {
@@ -32,12 +36,21 @@ export function ProjectInbox({
       !!workspace.recoveries.length;
   return (
     <>
-      <PageHeader
-        title="Waiting for you"
-        description={`${items.length} ${items.length === 1 ? "item needs" : "items need"} your attention. Use Tab to move between items and Enter to open or confirm.`}
-      />
+      {!compact && (
+        <PageHeader
+          title="Waiting for you"
+          description={`${items.length} ${items.length === 1 ? "item needs" : "items need"} your attention. Use Tab to move between items and Enter to open or confirm.`}
+        />
+      )}
       {!!workspace.diagnostics.length && (
-        <section className="service-notice" aria-label="Planning file problems">
+        <section
+          className="service-notice"
+          aria-label={
+            compact
+              ? "Waiting planning file problems"
+              : "Planning file problems"
+          }
+        >
           <h2>Planning files need attention</h2>
           <ul>
             {workspace.diagnostics.map((d) => (
@@ -77,10 +90,19 @@ export function ProjectInbox({
                   return (
                     <li key={item.id}>
                       <Button
+                        aria-label={
+                          compact && kind !== "questions"
+                            ? `Open ${labels[kind]}: ${item.title}`
+                            : undefined
+                        }
                         variant="ghost"
                         onClick={() => item.action && onSelect(item.action)}
                       >
-                        {item.title}
+                        {kind === "questions" ? (
+                          <InlineMarkdown body={item.title} />
+                        ) : (
+                          item.title
+                        )}
                       </Button>
                       <p className="text-muted">
                         {
@@ -109,12 +131,14 @@ export function ProjectInbox({
                   ?.questions.some((q) => q.id === answer.id);
                 return (
                   <li key={item.id}>
-                    <h3>{answer.question}</h3>
-                    <p>
-                      {Array.isArray(answer.answer)
-                        ? answer.answer.join(", ")
-                        : String(answer.answer ?? "No answer inferred yet")}
-                    </p>
+                    <SafeMarkdown body={answer.question} />
+                    <SafeMarkdown
+                      body={
+                        Array.isArray(answer.answer)
+                          ? answer.answer.join(", ")
+                          : String(answer.answer ?? "No answer inferred yet")
+                      }
+                    />
                     <p className="text-muted">
                       Source: {answer.source ?? "No source recorded"}
                     </p>

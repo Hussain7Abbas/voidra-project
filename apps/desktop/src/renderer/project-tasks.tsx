@@ -261,7 +261,6 @@ export function ProjectTasks({
       <div hidden={!!selectedAction || !!selectedIdea}>
         <PageHeader
           title="Tasks"
-          description="Track work from an idea through its coding-agent lifecycle."
           actions={
             <div className="flex gap-2">
               <Button
@@ -346,7 +345,7 @@ export function ProjectTasks({
           </section>
         )}
         <form
-          className="board-filters mb-5"
+          className="board-filters task-filter-strip mb-5"
           aria-label="Task filters"
           onSubmit={(event) => event.preventDefault()}
         >

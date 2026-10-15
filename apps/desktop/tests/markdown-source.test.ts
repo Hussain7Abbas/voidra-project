@@ -1,7 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import { MarkdownContent } from "../src/renderer/markdown-content.tsx";
+import {
+  InlineMarkdown,
+  MarkdownContent,
+} from "../src/renderer/markdown-content.tsx";
 import {
   applySourceChanges,
   editorOffset,
@@ -53,4 +56,17 @@ it("uses one safe GFM viewer policy for tables, checklists and hostile HTML/URLs
   expect(html).not.toContain("<img");
   expect(html).not.toContain("remote.invalid");
   expect(body).toContain("<script>");
+});
+
+it("keeps Markdown control labels phrasing-only and strips nested navigation/resources", () => {
+  const html = renderToStaticMarkup(
+    createElement(InlineMarkdown, {
+      body: "**Scope** with [a link](https://example.test) ![diagram](https://example.test/image.png)\n\n- [x] confirmed\n<script>unsafe()</script>",
+    }),
+  );
+  expect(html).toContain("<strong>Scope</strong>");
+  expect(html).toContain("a link");
+  expect(html).toContain("diagram");
+  expect(html).not.toMatch(/<(?:a|button|input|img|p|ul|li|script)[\s>]/);
+  expect(html).not.toContain("https://example.test");
 });

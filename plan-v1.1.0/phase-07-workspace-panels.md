@@ -1,6 +1,6 @@
 # V11-P07 — Resizable workspace and human gates
 
-> **Needs:** P02, P06 · **Status:** Not started
+> **Needs:** P02, P06 · **Status:** Done — 2026-10-15
 
 ## Outcome
 
@@ -44,3 +44,5 @@ All three panels demonstrate resizing/toggling; titlebar/native-mode behavior is
 ## Hand-off
 
 Update desktop instructions that currently require a fixed workspace toolbar and two-tab Settings, design-system layout docs and inbox architecture. P08 reuses pane primitives for the documentation directory.
+
+All four stories are complete. [Verification](../docs/verification/v1.1.0-p07.md) records 466 passing quality tests, 12 final panel/gate workflows, five final native/board/editor workflows and both-theme screenshots.

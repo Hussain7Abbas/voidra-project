@@ -18,6 +18,12 @@ import {
   teamViewSchema,
 } from "./team.ts";
 import { updateNoticeSchema, updateRequestSchemas } from "./updates.ts";
+import {
+  panelSchema,
+  workspaceLayoutRequestSchema,
+  workspaceLayoutSchema,
+  workspaceLayoutViewSchema,
+} from "./workspace-layout.ts";
 export const actionTypeSchema = z.enum([
   "feature",
   "bug",
@@ -814,6 +820,7 @@ export const requestSchema = z.discriminatedUnion("command", [
     command: z.literal("locate-recent"),
     path: z.string().min(1),
   }),
+  workspaceLayoutRequestSchema,
   z.strictObject({ command: z.literal("set-theme"), theme: themeSchema }),
   z.strictObject({
     command: z.literal("set-custom-titlebar"),
@@ -833,6 +840,10 @@ export function isWorkspaceRequest(
   return workspaceRequestSchema.safeParse(input).success;
 }
 export const snapshotSchema = z.strictObject({
+  layout: workspaceLayoutViewSchema.default(() => ({
+    context: "0".repeat(64),
+    value: workspaceLayoutSchema.parse({}),
+  })),
   defaultClient: codingClientSchema.default("codex"),
   team: teamViewSchema.default(() => ({
     members: [],
@@ -905,6 +916,8 @@ export type BridgeResponse = z.infer<typeof responseSchema>;
 export type ProjectInfo = z.infer<typeof projectSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export const eventSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("layout-changed") }),
+  z.strictObject({ type: z.literal("workspace-panel"), panel: panelSchema }),
   z.strictObject({ type: z.literal("draft-flush"), id: z.uuid() }),
   z.strictObject({ type: z.literal("draft-deleted"), id: z.uuid() }),
   z.strictObject({

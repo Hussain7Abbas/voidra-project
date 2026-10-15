@@ -19,9 +19,9 @@ The desktop uses the storylens **dashboard** reference, not its public website l
 | Error | #b4233b | #ff9ba9 |
 | Warning | #9a4c00 | #f5c078 |
 
-The token stylesheet preserves Tailwind v4 mapping, Inter Variable, 0.65rem controls, 1rem cards, 3px focus outlines, 200ms transitions and the reduced-motion override. Lucide icons use consistent strokes and accessible roles. The sidebar is 16rem; content is limited to 72rem with adaptive gutters. Disabled future sections communicate unavailable functionality without fake data.
+The token stylesheet preserves Tailwind v4 mapping, Inter Variable, 0.65rem controls, 1rem cards, 3px focus outlines, 200ms transitions and the reduced-motion override. Lucide icons use consistent strokes and accessible roles. Navigation initially uses 16rem and each pane has a persisted independent size. Main content uses adaptive gutters; task filters remain one scrollable row on narrow centers. Unimplemented dashboard placeholders are removed.
 
-The window-height shell gives the sidebar and main content independent `overflow: auto` regions, stable scrollbar gutters and contained overscroll. The workspace toolbar stays above the main scroller. The recent-project list expands within the sidebar so it stays reachable when the sidebar scrolls.
+The window-height shell gives the sidebar and main content independent `overflow: auto` regions, stable scrollbar gutters and contained overscroll. History and panel controls stay in the titlebar; the workspace toolbar is removed. Native-titlebar windows use the same compact accessory. The recent-project list expands within the sidebar so it stays reachable when the sidebar scrolls.
 
 Settings uses General, Appearance and Team tabs with arrow/Home/End navigation and selected-tab focus. Appearance contains the theme and a labeled checkbox switch for Custom titlebar, on by default. The custom titlebar uses Ink & Iris and Lucide, with window controls on the left on macOS and Settings on the right (reversed on other platforms). Dragging uses Electron's app region; all buttons are excluded from dragging. Native titlebar mode applies to newly opened windows, preserving existing windows and unsaved controls.
 
@@ -35,7 +35,7 @@ Theme changes switch the complete palette before paint with transitions temporar
 
 Theme colors switch immediately on every control; hover/border/text colors do not interpolate between palettes. Button disabled opacity also switches immediately with its semantic state: an enabled button must never fade through an inaccessible text contrast. The temporary two-frame transition override was replaced in P08 after deferred board rendering exposed a contrast failure. Do not blanket-defer above-fold board columns.
 
-Project Undo/Redo controls live in the top bar with accessible operation labels. Overwrite confirmation uses the native dialog pattern. Dialog content is a section so its heading/footer remain local to the dialog when rendered beneath another landmark; light/dark axe checks cover this nesting. Native Edit menu commands and renderer shortcuts preserve text-field undo.
+Project Undo/Redo controls live in the titlebar with accessible operation labels. Overwrite confirmation uses the native dialog pattern. Dialog content is a section so its heading/footer remain local to the dialog when rendered beneath another landmark; light/dark axe checks cover this nesting. Native Edit menu commands and renderer shortcuts preserve text-field undo.
 
 ## Markdown controls
 
@@ -43,4 +43,4 @@ Use the shared safe GFM viewer for prose and `MarkdownEditor` for Markdown input
 
 ## Actions sequence
 
-The right Actions sidebar has its own bounded scroll region, dedicated grips, selectable task text, visible Up/Down controls and keyboard arrow reordering. It stays global when board filters change. Dependency warnings are nonmodal and show the relevant prerequisite plus optional Rearrange. A refused stale drag retains its proposed order for review rather than applying newly refreshed hashes. Semantic Ink & Iris tokens apply in both themes; P07 adds shared resizing/toggling.
+The right Actions sidebar has its own bounded scroll region, dedicated grips, selectable task text, visible Up/Down controls and keyboard arrow reordering. It stays global when board filters change. Dependency warnings are nonmodal and show the relevant prerequisite plus optional Rearrange. A refused stale drag retains its proposed order for review rather than applying newly refreshed hashes. Semantic Ink & Iris tokens apply in both themes; Shared persistent splitters/toggles control both sidebars and the bottom gate panel; [panel details](architecture/workspace-panels.md).

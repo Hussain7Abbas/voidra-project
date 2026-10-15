@@ -26,10 +26,14 @@ export function ProjectActions({
   view,
   initialAction = null,
   onBack,
+  backLabel,
+  surface = "main",
 }: {
   view: "actions" | "run" | "inbox";
   initialAction?: string | null;
   onBack?: () => void;
+  backLabel?: string;
+  surface?: "main" | "waiting";
 }) {
   const client = useCodingClient();
   const query = useQueryClient(),
@@ -115,7 +119,14 @@ export function ProjectActions({
     human: "Your tasks",
   };
   const problems = data.diagnostics.length ? (
-    <section className="service-notice" aria-label="Planning file problems">
+    <section
+      className="service-notice"
+      aria-label={
+        surface === "waiting"
+          ? "Waiting planning file problems"
+          : "Planning file problems"
+      }
+    >
       <h2>
         {data.diagnostics.some((d) => d.code === "conflict")
           ? "Conflicted planning files"
@@ -262,11 +273,12 @@ export function ProjectActions({
     return (
       <>
         <Button className="mb-6" onClick={() => selectAction(null)}>
-          {view === "inbox"
-            ? "Back to inbox"
-            : onBack
-              ? "Back to Tasks"
-              : "Back to actions"}
+          {backLabel ??
+            (view === "inbox"
+              ? "Back to inbox"
+              : onBack
+                ? "Back to Tasks"
+                : "Back to actions")}
         </Button>
         <PageHeader
           title="Action file needs attention"
@@ -284,11 +296,12 @@ export function ProjectActions({
           variant="ghost"
           onClick={() => selectAction(null)}
         >
-          {view === "inbox"
-            ? "Back to inbox"
-            : onBack
-              ? "Back to Tasks"
-              : "Back to actions"}
+          {backLabel ??
+            (view === "inbox"
+              ? "Back to inbox"
+              : onBack
+                ? "Back to Tasks"
+                : "Back to actions")}
         </Button>
         <PageHeader
           title={current.data.title}
@@ -869,7 +882,14 @@ export function ProjectActions({
         </section>
       )}
       {data.diagnostics.length > 0 && (
-        <section className="service-notice" aria-label="Planning file problems">
+        <section
+          className="service-notice"
+          aria-label={
+            surface === "waiting"
+              ? "Waiting planning file problems"
+              : "Planning file problems"
+          }
+        >
           <h2>
             {data.diagnostics.some((d) => d.code === "conflict")
               ? "Conflicted planning files"

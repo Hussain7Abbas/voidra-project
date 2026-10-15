@@ -13,6 +13,7 @@ import {
   replaceActionQueue,
 } from "voidra";
 import { publishFakeGate } from "../../../tools/fake-agent/src/gates.ts";
+import { showWaiting } from "./workspace-helpers.ts";
 
 const env = Object.fromEntries(
   Object.entries(process.env).filter(
@@ -209,9 +210,7 @@ test("undoes a saved question answer through the native Edit menu", async () => 
   try {
     const page = await app.firstWindow();
     await page.locator('[data-app-ready="true"]').waitFor();
-    await page
-      .getByRole("button", { name: "Waiting for you", exact: true })
-      .click();
+    await showWaiting(page);
     await page
       .getByRole("button", { name: "Who can read the notes?", exact: true })
       .click();

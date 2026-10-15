@@ -78,3 +78,45 @@ export function inboxItems(
         });
   return items;
 }
+
+/** Attention identity follows actionable content, rather than unrelated watcher revisions. */
+export function inboxAttentionSeeds(
+  workspace: Pick<WorkspaceSnapshot, "actions" | "profiles">,
+): string[] {
+  return inboxItems(workspace).flatMap((item) => {
+    const action = workspace.actions.find(
+      (entry) => entry.data.id === item.action,
+    );
+    const identity = [item.kind, item.action ?? item.block, item.id];
+    if (item.kind === "questions") {
+      const round = action?.questions?.rounds.find((round) =>
+          round.questions.some((q) => q.id === item.id),
+        ),
+        question = round?.questions.find((q) => q.id === item.id);
+      return [
+        JSON.stringify([...identity, round?.round, round?.askedAt, question]),
+      ];
+    }
+    if (item.kind === "human") {
+      const steps = action?.data.steps;
+      return steps?.length
+        ? steps
+            .filter((step) => !step.done)
+            .map((step) => JSON.stringify([...identity, step.id, step.title]))
+        : [JSON.stringify(identity)];
+    }
+    if (item.kind === "inferred") {
+      const answer = workspace.profiles
+        .find((entry) => entry.data.block === item.block)
+        ?.data.answers.find((answer) => answer.id === item.answer);
+      return [JSON.stringify([...identity, answer])];
+    }
+    return [
+      JSON.stringify([
+        ...identity,
+        item.kind === "plans" ? action?.planRevision : action?.revision,
+        action?.changedPlans,
+      ]),
+    ];
+  });
+}

@@ -54,3 +54,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [Xeploy release bumps](xeploy.md): Bun-installed tooling, read-only version previews and integration with checked publication.
 
 - [V11-P06 Actions sequence](v1.1.0-p06.md): 461 quality tests, ordering/recovery/desktop checks and audited actual-client retries.
+
+- [V11-P07 workspace panels](v1.1.0-p07.md): 466 quality tests, resize/attention/draft/gate and native/editor workflows.

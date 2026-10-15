@@ -21,7 +21,7 @@
 - [Backlog and actions](backlog-actions.md): editing, promotion, dependencies, aggregate completion and board views.
 - [Tasks](tasks.md): v1.1.0 task projection and project release identity; implementation in progress.
 - [Local Team and preferences](team-settings.md): private roster, project membership, Me and revision-guarded settings.
-- [Private form drafts](form-drafts.md): durable local sessions, encrypted credential drafts and close-time flush; adoption in progress under v1.1.0 P04.
+- [Private form drafts](form-drafts.md): durable local sessions, encrypted credential drafts and close-time flush across forms.
 - [Markdown editing](markdown-editing.md): safe GFM, active-line source reveal, exact source history and editor security.
 
 - [Questions, gates and inbox](questions-gates-inbox.md): saved rounds, assumptions, exact revisions and Waiting for you.
@@ -35,3 +35,5 @@
 - [Skill installation and release copies](skills-distribution.md).
 
 - [Packaging and publication recovery](publication.md).
+
+- [Workspace panels](workspace-panels.md): titlebar controls, persistent splitters, bottom gates and attention/draft continuity.

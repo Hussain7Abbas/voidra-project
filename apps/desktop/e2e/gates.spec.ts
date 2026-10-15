@@ -5,6 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
 import { checkProject, createAction, planFiles } from "voidra";
 import { publishFakeGate } from "../../../tools/fake-agent/src/gates.ts";
+import { showWaiting } from "./workspace-helpers.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`question rounds, plan revisions, review and inbox in ${theme}`, async () => {
@@ -48,8 +49,8 @@ for (const theme of ["light", "dark"] as const)
         name: "Waiting for you",
         exact: true,
       });
+      await showWaiting(page);
       await nav.focus();
-      await page.keyboard.press("Enter");
       await expect(
         page.getByRole("heading", { name: "Waiting for you", exact: true }),
       ).toBeVisible();
@@ -62,7 +63,7 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("radio", { name: "a · Recommended Only the owner" })
         .check();
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
-      await nav.click();
+      await showWaiting(page);
       await page
         .getByRole("button", { name: "Who can read the notes?", exact: true })
         .click();
@@ -225,7 +226,7 @@ for (const theme of ["light", "dark"] as const)
         )
         .toBe("done");
       await page
-        .getByRole("button", { name: "Back to inbox", exact: true })
+        .getByRole("button", { name: "Back to Waiting for you", exact: true })
         .click();
       await expect(
         page.getByRole("heading", {
@@ -243,7 +244,10 @@ for (const theme of ["light", "dark"] as const)
         steps: ["Confirm account access"],
       });
       await page
-        .getByRole("button", { name: "Create developer account", exact: true })
+        .getByRole("button", {
+          name: "Open Your tasks: Create developer account",
+          exact: true,
+        })
         .focus();
       await page.keyboard.press("Enter");
       await page
@@ -260,7 +264,7 @@ for (const theme of ["light", "dark"] as const)
         )
         .toBe("complete");
       await page
-        .getByRole("button", { name: "Back to inbox", exact: true })
+        .getByRole("button", { name: "Back to Waiting for you", exact: true })
         .click();
       await expect(
         page.getByRole("heading", {
@@ -275,7 +279,9 @@ for (const theme of ["light", "dark"] as const)
         `${await readFile(finishedPlan, "utf8")} \n`,
       );
       await expect(
-        page.getByRole("region", { name: "Planning file problems" }),
+        page
+          .locator("#waiting-panel")
+          .getByRole("region", { name: "Waiting planning file problems" }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page

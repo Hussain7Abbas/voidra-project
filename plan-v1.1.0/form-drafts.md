@@ -56,3 +56,5 @@ Search/filter controls are view state. Theme/client/Me/membership/model preferen
 
 
 Settings' `draft-recovery.tsx` provides read-only text recovery and explicit discard for ordinary drafts whose targets no longer exist. It never applies their original operations. The form controllers observe private deletion events and keep any active input in a new local session. Credential drafts remain separate and encrypted.
+
+P07 mounts the existing answer/feedback adapters inside the retained Waiting panel. Its toggle/splitter/nav exits flush through the same draft boundary; failures leave the pane visible. Reopening keeps the originating selection, and restart restores through top badges with original revisions. Panel widths/height, visibility, attention hashes and document search remain immediately persisted preferences/view state, not unfinished submission forms.

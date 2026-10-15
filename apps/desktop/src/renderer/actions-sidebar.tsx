@@ -1,7 +1,7 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
 import { GripVertical } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { BridgeRequest, WorkspaceSnapshot } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
 import { useCodingClient } from "./coding-client.tsx";
@@ -28,7 +28,7 @@ function reordered(ids: string[], id: string, target: string): string[] {
   return next;
 }
 
-export function ActionsSidebar({
+export const ActionsSidebar = memo(function ActionsSidebar({
   data,
   onAction,
 }: {
@@ -405,4 +405,4 @@ export function ActionsSidebar({
       </footer>
     </aside>
   );
-}
+});
