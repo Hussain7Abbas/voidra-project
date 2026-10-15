@@ -25,6 +25,7 @@ const execute = promisify(execFile),
   runtime = join(repository, "skills/voidra-go/scripts/runtime.mjs");
 let app: ElectronApplication, page: Page, temp: string, root: string;
 const children: ChildProcess[] = [];
+let baselineCommits = 0;
 async function axe() {
   await page.waitForFunction(() =>
     Array.from(document.querySelectorAll("button")).every((b) =>
@@ -116,6 +117,21 @@ test.beforeEach(async () => {
   await expect(
     page.getByText("Project profile created", { exact: true }),
   ).toBeVisible();
+  // Empty-folder onboarding precedes a real manifest; Bootstrap remains Backlog.
+  await writeFile(join(root, "package.json"), '{"version":"1.2.3"}\n');
+  execFileSync("git", ["add", "package.json"], { cwd: root });
+  execFileSync("git", ["commit", "-qm", "Provide the fixture release source"], {
+    cwd: root,
+  });
+  baselineCommits = Number(
+    execFileSync("git", ["rev-list", "--count", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
+  );
+  await expect(
+    page.getByRole("option", { name: "Current · 1.2.3", exact: true }),
+  ).toHaveCount(1);
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByRole("radio", { name: "Normal", exact: true }).check();
   await page.getByLabel("Action type", { exact: true }).selectOption("docs");
@@ -128,6 +144,17 @@ test.beforeEach(async () => {
     .getByRole("button", { name: "Create action", exact: true })
     .click();
   await expect(page.getByText("Action created", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Move Document installation to TODO",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page
+      .getByRole("region", { name: "TODO tasks", exact: true })
+      .getByRole("button", { name: "Document installation", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Document installation", exact: true })
     .click();
@@ -218,7 +245,7 @@ for (const theme of ["light", "dark"])
         cwd: root,
         encoding: "utf8",
       }).trim(),
-    ).toBe("3");
+    ).toBe(String(baselineCommits + 2));
     const log = execFileSync("git", ["log", "-2", "--format=%B"], {
       cwd: root,
       encoding: "utf8",
@@ -240,7 +267,8 @@ test("invalid agent output shows the action path and field", async () => {
     .getByRole("button", { name: "Back to Tasks", exact: true })
     .click();
   await page
-    .getByRole("button", { name: /Inspect invalid action/ })
+    .getByRole("region", { name: "Planning problems", exact: true })
+    .getByRole("button", { name: "Open affected task", exact: true })
     .first()
     .click();
   await expect(problems).toBeVisible();
@@ -282,7 +310,9 @@ for (const failure of ["crash-mid-run", "crash-after-commit", "stale-lock"])
         cwd: root,
         encoding: "utf8",
       }).trim(),
-    ).toBe(failure === "crash-after-commit" ? "2" : "1");
+    ).toBe(
+      String(baselineCommits + (failure === "crash-after-commit" ? 1 : 0)),
+    );
     expect((await checkProject(root)).diagnostics).toEqual([]);
   });
 test("a live owner with an old heartbeat blocks recovery and competing starts", async () => {
