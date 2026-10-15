@@ -3,6 +3,8 @@
   id: act-000000,
   type: feature,
   title: Bootstrap,
+  targetRelease,
+  taskColumn: backlog,
   stage: discovery,
   status: ready,
   doneBy: agent,

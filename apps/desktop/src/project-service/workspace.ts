@@ -162,7 +162,6 @@ export class ProjectWorkspace {
       watcher.once("ready", resolve);
       watcher.once("error", reject);
     });
-    await this.publish(false);
     this.heartbeatTimer = setInterval(() => {
       if (existsSync(join(this.root, ".voidra/local/run.lock")))
         void this.publish().catch(() => this.notify());
@@ -170,10 +169,8 @@ export class ProjectWorkspace {
   }
   publish(announce = true): Promise<void> {
     const next = this.publishQueue.then(async () => {
-      const value = JSON.stringify([
-        await this.snapshot(),
-        this.documentVersion,
-      ]);
+      const snapshot = await this.snapshot();
+      const value = JSON.stringify([snapshot, this.documentVersion]);
       if (value !== this.delivered) {
         this.delivered = value;
         if (announce) this.notify();

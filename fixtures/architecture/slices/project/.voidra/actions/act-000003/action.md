@@ -3,6 +3,8 @@
   id: act-000003,
   type: feature,
   title: Delete a saved note safely,
+  targetRelease,
+  taskColumn: backlog,
   stage: discovery,
   status: ready,
   doneBy: agent,

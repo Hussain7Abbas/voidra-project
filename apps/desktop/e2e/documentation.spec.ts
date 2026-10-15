@@ -66,6 +66,22 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         directory.getByRole("region", { name: "Documentation problems" }),
       ).toContainText("symlink");
+      await expect(article).toContainText(
+        "Choose a document from the directory",
+      );
+      await page
+        .getByLabel("Search documentation", { exact: true })
+        .fill("alpha beta");
+      await expect(
+        directory.getByRole("button", {
+          name: "guide.md 2 matches",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        article.getByRole("heading", { name: "Guide", exact: true }),
+      ).toHaveCount(0);
+      await page.getByLabel("Search documentation", { exact: true }).fill("");
       await directory
         .getByRole("button", { name: "guide.md", exact: true })
         .click();

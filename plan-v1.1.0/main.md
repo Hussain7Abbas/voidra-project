@@ -1,6 +1,6 @@
 # Voidra Project — v1.1.0 implementation plan
 
-> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02–P07 are complete; remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
+> Requested 2026-10-15. **V11-P01 complete on 2026-10-15**, implemented under the user's “start implementing”. V11-P02–P09 are complete; remaining phases continue under the user’s explicit “complete all phases non-stop” authorization. The product direction comes from the user's request; technical choices below are proposals unless identified as existing behavior. Verification applies only to completed phases with linked evidence; no release has been published.
 > **Clarifications:** the user answered round 1 with `1a, 2a, 3a, 4a, 5c, 6a` and round 2 with `7a, 8a, 9b`. Automatic private form drafts, one badge per draft and Agentic defaults are confirmed. Both question rounds are resolved.
 
 [Vision](../VISION.md#17-v110-product-direction) · [Plan rules](AGENTS.md) · [Completed v1 plan](../plan/main.md) · [Documentation](../docs/intro.md)
@@ -24,7 +24,7 @@ The existing filesystem source of truth, standalone skills, exact plan/review ga
 | [Release screen](../apps/desktop/src/renderer/project-releases.tsx), [Xeploy adapter](../tools/release-engine/src/bump.ts) | Guided release choices and explicit Done-ticket version retention/reassignment. |
 | [Bridge](../apps/desktop/src/shared/bridge.ts), [workspace edits](../apps/desktop/src/project-service/workspace.ts), [undo](../apps/desktop/src/project-service/undo.ts) | Validate every new command, classify mutations and retain concurrency/recovery guarantees. |
 
-Xeploy **1.4.2 is already declared** in [release-engine/package.json](../tools/release-engine/package.json). Its existing adapter calculates stable bumps. The desktop question flow and generic tracked-project integration still need implementation; do not present this as an already implemented UI.
+Xeploy **1.4.2 is already declared** in [release-engine/package.json](../tools/release-engine/package.json). Its existing adapter calculates stable bumps. P09 implements the desktop question flow and generic tracked-project integration; see its evidence for actual verification.
 
 Version distinction: the workspace root manifest is `0.0.0`; the shipped desktop manifest is `apps/desktop/package.json` at `1.0.0` when this plan was written. A tracked project's ticket release must come from that project's chosen package manifest, not blindly from Voidra's own app version or a monorepo root sentinel.
 
@@ -43,7 +43,7 @@ Status values: **Not started**, **In progress**, **Blocked** with reason, **Done
 | [V11-P07](phase-07-workspace-panels.md) | Resizable/toggleable panels, bottom human gates and titlebar controls | P02, P06 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p07.md) |
 | [V11-P08](phase-08-knowledge-documentation.md) | Markdown knowledge pages and searchable documentation tree | P02, P07 | Done — 2026-10-16 | [Verification](../docs/verification/v1.1.0-p08.md) |
 | [V11-P09](phase-09-release-flow.md) | Xeploy UI questions and recoverable Done-ticket release choice | P05, P07 | Done — 2026-10-16 | [Verification](../docs/verification/v1.1.0-p09.md) |
-| [V11-P10](phase-10-verification-release.md) | Full compatibility, real-agent, accessibility and release evidence | P08, P09 | Not started | — |
+| [V11-P10](phase-10-verification-release.md) | Full compatibility, real-agent, accessibility and release evidence | P08, P09 | In progress | [Evidence in progress](../docs/verification/v1.1.0-p10.md) |
 
 Use full IDs when referring to phases to avoid confusion with the completed v1 P01–P17. Run the first eligible phase after its understanding check and applicable approval. Existing D24 delegation concerns the original v1 plan; it is not blanket v1.1.0 implementation approval.
 
@@ -152,7 +152,7 @@ A phase is ready when prerequisites are Done, its material unknowns have been re
 
 A phase is Done only after all acceptance criteria pass, relevant docs/instructions/references are current, actual evidence is recorded and the root commit/push workflow is complete. Release publication additionally requires the checked pipeline and actual access. Writing this plan did not modify packages or planning actions. P01's implementation aligns the app/library/reader/skills to the 1.1.0 development candidate (A10) to enforce the new minimum-reader contract; this does not publish, alter this repository's `.voidra/` actions or reopen finished v1 phases.
 
-**V11-P01–P07 are complete**, including Normal/Agentic reviewed capture and private durable drafts across existing forms. M11-1 is reached. All clarification questions U01–U10 are resolved by R17/C01–C09. V11-P05 adds Tasks navigation, pointer/keyboard Kanban and release filters. V11-P06 is complete with global Actions intent, dependency repair and safe standalone selection; P07 is complete with titlebar history, persistent resizable panes and bottom gates/attention. M11-2 is reached; P08–P10 have not started.
+**V11-P01–P09 are complete**, including Normal/Agentic reviewed capture and private durable drafts across existing forms. M11-1 is reached. All clarification questions U01–U10 are resolved by R17/C01–C09. V11-P05 adds Tasks navigation, pointer/keyboard Kanban and release filters. V11-P06 is complete with global Actions intent, dependency repair and safe standalone selection; P07 is complete with titlebar history, persistent resizable panes and bottom gates/attention. M11-2 is reached; P08 and P09 are complete, and P10 is in progress.
 
 ## Continuing authorization — 2026-10-15
 

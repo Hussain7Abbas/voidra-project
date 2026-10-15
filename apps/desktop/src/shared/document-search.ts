@@ -75,7 +75,7 @@ export function visibleDocumentText(tree: Root): SearchText {
       for (const char of node.value) {
         const lower = /\s/u.test(char) ? " " : char.toLowerCase();
         if (lower !== " " || (previous !== " " && previous !== "\n")) {
-          chars.push(lower);
+          chars.push(lower === " " ? " " : char);
           previous = lower;
           for (let i = 0; i < lower.length; i++)
             points.push({ node, offset, end: offset + char.length });
@@ -90,10 +90,13 @@ export function visibleDocumentText(tree: Root): SearchText {
     }
   }
   visit(tree);
-  return { text: chars.join(""), points };
+  return { text: foldText(chars.join("")), points };
+}
+function foldText(text: string): string {
+  return text.toLowerCase().replaceAll("ς", "σ");
 }
 export function documentQuery(query: string): string {
-  return query.toLowerCase().replace(/\s+/gu, " ").trim();
+  return foldText(query).replace(/\s+/gu, " ").trim();
 }
 export function literalMatches(text: string, query: string): number[] {
   const needle = documentQuery(query),

@@ -643,22 +643,22 @@ var require_Alias = __commonJS({
       resolve(doc, ctx) {
         if (ctx?.maxAliasCount === 0)
           throw new ReferenceError("Alias resolution is disabled");
-        let nodes;
+        let nodes2;
         if (ctx?.aliasResolveCache) {
-          nodes = ctx.aliasResolveCache;
+          nodes2 = ctx.aliasResolveCache;
         } else {
-          nodes = [];
+          nodes2 = [];
           visit2.visit(doc, {
             Node: (_key, node2) => {
               if (identity.isAlias(node2) || identity.hasAnchor(node2))
-                nodes.push(node2);
+                nodes2.push(node2);
             }
           });
           if (ctx)
-            ctx.aliasResolveCache = nodes;
+            ctx.aliasResolveCache = nodes2;
         }
         let found = void 0;
-        for (const node2 of nodes) {
+        for (const node2 of nodes2) {
           if (node2 === this)
             break;
           if (node2.anchor === this.source)
@@ -5830,11 +5830,11 @@ var require_lexer = __commonJS({
       hasChars(n) {
         return this.pos + n <= this.buffer.length;
       }
-      setNext(state) {
+      setNext(state2) {
         this.buffer = this.buffer.substring(this.pos);
         this.pos = 0;
         this.lineEndPos = null;
-        this.next = state;
+        this.next = state2;
         return null;
       }
       peek(n) {
@@ -7372,7 +7372,7 @@ var require_dist = __commonJS({
 
 // tools/run-engine/src/init-runtime.ts
 import { readFile as readFile5 } from "node:fs/promises";
-import { join as join5, resolve as resolve3 } from "node:path";
+import { join as join6, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/external.js
@@ -12582,11 +12582,11 @@ function settle(inst, answer) {
 function isRecursiveSchema(inst) {
   return isRecursive(inst, /* @__PURE__ */ new Set(), true) !== NONE;
 }
-function bucketFor(state, inst) {
-  let bucket = state.buckets.get(inst);
+function bucketFor(state2, inst) {
+  let bucket = state2.buckets.get(inst);
   if (!bucket) {
     bucket = /* @__PURE__ */ new WeakMap();
-    state.buckets.set(inst, bucket);
+    state2.buckets.set(inst, bucket);
   }
   return bucket;
 }
@@ -12644,16 +12644,16 @@ var memo = {
         const input4 = payload.value;
         if (!isRef(input4))
           return base(payload, ctx);
-        let state = ctx[STATE];
-        if (!state) {
-          state = { buckets: /* @__PURE__ */ new WeakMap(), backEdges: void 0 };
-          ctx[STATE] = state;
+        let state2 = ctx[STATE];
+        if (!state2) {
+          state2 = { buckets: /* @__PURE__ */ new WeakMap(), backEdges: void 0 };
+          ctx[STATE] = state2;
         }
         let bucket;
         if (lastCtx === ctx) {
           bucket = lastBucket;
         } else {
-          bucket = bucketFor(state, inst);
+          bucket = bucketFor(state2, inst);
           lastCtx = ctx;
           lastBucket = bucket;
         }
@@ -12665,8 +12665,8 @@ var memo = {
               payload.issues.push(...cloneIssues(hit.issues));
           } else {
             payload.memo = true;
-            state.backEdges ?? (state.backEdges = /* @__PURE__ */ new WeakSet());
-            state.backEdges.add(hit.value);
+            state2.backEdges ?? (state2.backEdges = /* @__PURE__ */ new WeakSet());
+            state2.backEdges.add(hit.value);
           }
           return payload;
         }
@@ -26252,7 +26252,7 @@ function resolveRef(ref, ctx) {
   throw new Error(`Reference not found: ${ref}`);
 }
 function checkObjectGuards(objectSchema, guards) {
-  const guard = z.transform((value) => value).check((payload) => {
+  const guard2 = z.transform((value) => value).check((payload) => {
     const value = payload.value;
     if (typeof value !== "object" || value === null || Array.isArray(value))
       return;
@@ -26297,7 +26297,7 @@ function checkObjectGuards(objectSchema, guards) {
       }
     }
   });
-  return guard.pipe(objectSchema);
+  return guard2.pipe(objectSchema);
 }
 function canonicalKey(value, seen) {
   if (value === null)
@@ -26381,7 +26381,7 @@ function plural(n) {
   return n === 1 ? "element" : "elements";
 }
 function checkArrayGuards(arraySchema, guards) {
-  const guard = z.transform((value) => value).check((payload) => {
+  const guard2 = z.transform((value) => value).check((payload) => {
     const items = payload.value;
     if (!Array.isArray(items))
       return;
@@ -26431,7 +26431,7 @@ function checkArrayGuards(arraySchema, guards) {
       }
     }
   });
-  return guard.pipe(arraySchema);
+  return guard2.pipe(arraySchema);
 }
 function getTupleRest(restSchema, ctx) {
   if (restSchema === false) {
@@ -27769,6 +27769,7 @@ import { join } from "node:path";
 
 // packages/voidra/src/sequence-state.ts
 var ACTION_SEQUENCE_PATH = ".voidra/local/action-sequence.json";
+var ACTION_QUEUE_PATH = ".voidra/local/pending-actions.md";
 var actionSequenceSchema = external_exports.looseObject({
   version: external_exports.literal(1),
   order: external_exports.array(external_exports.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/)).refine(
@@ -27787,6 +27788,56 @@ function taskColumn(action, hasRun = false) {
   if (action.status === "draft" || action.taskColumn === "backlog")
     return "backlog";
   return "todo";
+}
+function projectTasks(project) {
+  const valid = [...project.records.entries()].filter(
+    ([path]) => !project.diagnostics.some(
+      (d) => d.file === path && ["identity", "duplicate-id"].includes(d.code)
+    )
+  );
+  const actionIds = new Set(
+    valid.filter(([, r]) => r.kind === "action").map(([, r]) => r.document.data.id)
+  );
+  const sources = /* @__PURE__ */ new Map();
+  const promoted = /* @__PURE__ */ new Set();
+  const ran = new Set(
+    valid.filter(([, r]) => r.kind === "run").map(([, r]) => r.document.data.action)
+  );
+  for (const [, record2] of valid) {
+    if (record2.kind !== "idea") continue;
+    const idea = schemas.idea.parse(record2.document.data);
+    if (idea.status === "promoted" && idea.promotedTo && actionIds.has(idea.promotedTo)) {
+      sources.set(idea.promotedTo, idea.id);
+      promoted.add(idea.id);
+    }
+  }
+  const tasks = [];
+  for (const [path, record2] of valid) {
+    if (record2.kind !== "action" && record2.kind !== "idea") continue;
+    const data = record2.kind === "action" ? schemas.action.parse(record2.document.data) : schemas.idea.parse(record2.document.data);
+    if (record2.kind === "idea" && promoted.has(data.id)) continue;
+    const action = record2.kind === "action" ? schemas.action.parse(data) : null;
+    tasks.push({
+      id: data.id,
+      kind: record2.kind,
+      title: data.title,
+      body: record2.document.body,
+      path,
+      revision: hash2(record2.document.raw),
+      column: action ? taskColumn(action, ran.has(data.id)) : "backlog",
+      archived: action?.stage === "cancelled" || data.status === "rejected",
+      stage: action?.stage ?? null,
+      status: data.status,
+      type: data.type ?? null,
+      assignee: data.assignee ?? null,
+      parent: action?.parent ?? null,
+      blockedBy: action?.blockedBy ?? [],
+      sourceIdea: sources.get(data.id) ?? null,
+      targetRelease: data.targetRelease ?? null,
+      releaseAssigned: data.targetRelease !== void 0
+    });
+  }
+  return tasks.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // packages/voidra/src/versions.ts
@@ -28339,10 +28390,10 @@ function inspectFiles(files, options = {}) {
     for (const link of a.links ?? [])
       if (/^(act|idea|q|run|prj)-[0-9a-hjkmnp-tv-z]{6}$/.test(link))
         reference(link, file2, "links");
-    const open3 = (questions.get(id2) ?? []).some((q) => !q.answer);
-    if (open3 && a.status !== "waiting")
+    const open4 = (questions.get(id2) ?? []).some((q) => !q.answer);
+    if (open4 && a.status !== "waiting")
       add("status", file2, "status", "Open questions require waiting status");
-    if (!open3 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
+    if (!open4 && a.doneBy === "agent" && a.status === "waiting" && !(a.stage === "plan" && rules[a.type].planGate) && a.stage !== "review")
       add(
         "status",
         file2,
@@ -28364,7 +28415,7 @@ function inspectFiles(files, options = {}) {
           "requiredVoidra",
           "Aggregate completion without a parent plan requires voidra \u2265 0.2.0"
         );
-      if (a.stage === "plan" && a.status === "waiting" && !open3 && !plan)
+      if (a.stage === "plan" && a.status === "waiting" && !open4 && !plan)
         add(
           "missing-plan",
           file2,
@@ -28420,10 +28471,10 @@ function inspectFiles(files, options = {}) {
       );
   }
   for (const edge of ["blockedBy", "parent"]) {
-    const active = /* @__PURE__ */ new Set();
+    const active2 = /* @__PURE__ */ new Set();
     const visited = /* @__PURE__ */ new Set();
     const visit2 = (id2) => {
-      if (active.has(id2)) {
+      if (active2.has(id2)) {
         add(
           edge === "parent" ? "parent-cycle" : "dependency-cycle",
           actions.get(id2)?.file ?? metaPath,
@@ -28433,11 +28484,11 @@ function inspectFiles(files, options = {}) {
         return;
       }
       if (visited.has(id2)) return;
-      active.add(id2);
+      active2.add(id2);
       const a = actions.get(id2)?.action;
       for (const dep of edge === "parent" ? a?.parent ? [a.parent] : [] : a?.blockedBy ?? [])
         if (actions.has(dep)) visit2(dep);
-      active.delete(id2);
+      active2.delete(id2);
       visited.add(id2);
     };
     for (const id2 of actions.keys()) visit2(id2);
@@ -29043,6 +29094,229 @@ async function applyOperation(root, input4, options = {}, migration = false) {
 }
 
 // packages/voidra/src/action-sequence.ts
+function dependenciesOf(id2, nodes2) {
+  const result2 = [], seen = /* @__PURE__ */ new Set();
+  const visit2 = (current, path) => {
+    if (seen.has(current)) return;
+    seen.add(current);
+    for (const dependency of nodes2.get(current)?.dependencies ?? []) {
+      const node2 = nodes2.get(dependency);
+      if (node2?.complete) continue;
+      const next = [...path, dependency];
+      result2.push({ id: dependency, path: next });
+      visit2(dependency, next);
+    }
+  };
+  visit2(id2, [id2]);
+  return result2;
+}
+function sequenceWarnings(ids, graph) {
+  const positions = new Map(ids.map((id2, index) => [id2, index]));
+  const nodes2 = new Map(graph.map((node2) => [node2.id, node2]));
+  const warnings = [];
+  for (const [taskIndex, task] of ids.entries()) {
+    if (!nodes2.has(task)) {
+      warnings.push({ task, dependency: task, kind: "missing", path: [task] });
+      continue;
+    }
+    const emitted = /* @__PURE__ */ new Set();
+    for (const dependency of dependenciesOf(task, nodes2)) {
+      if (emitted.has(dependency.id)) continue;
+      emitted.add(dependency.id);
+      const position = positions.get(dependency.id);
+      const kind = !nodes2.has(dependency.id) ? "missing" : position === void 0 ? "absent" : position > taskIndex ? "later" : null;
+      if (kind)
+        warnings.push({
+          task,
+          dependency: dependency.id,
+          kind,
+          path: dependency.path
+        });
+    }
+  }
+  return warnings;
+}
+function rearrangeSequence(ids, graph) {
+  if (new Set(ids).size !== ids.length) throw Error("Duplicate sequence entry");
+  const included = new Set(ids), nodes2 = new Map(graph.map((node2) => [node2.id, node2]));
+  if (ids.some((id2) => !nodes2.has(id2)))
+    throw Error("Repair missing task sources before rearranging");
+  const needed = /* @__PURE__ */ new Map();
+  const dependents = /* @__PURE__ */ new Map();
+  for (const id2 of ids) {
+    const prerequisites = new Set(
+      dependenciesOf(id2, nodes2).map((node2) => node2.id).filter((dependency) => included.has(dependency))
+    );
+    needed.set(id2, prerequisites);
+    for (const dependency of prerequisites) {
+      const users = dependents.get(dependency) ?? /* @__PURE__ */ new Set();
+      users.add(id2);
+      dependents.set(dependency, users);
+    }
+  }
+  const positions = new Map(ids.map((id2, index) => [id2, index]));
+  const ready = ids.filter((id2) => !needed.get(id2)?.size), output2 = [];
+  while (ready.length) {
+    ready.sort((a, b) => (positions.get(a) ?? 0) - (positions.get(b) ?? 0));
+    const next = ready.shift();
+    if (!next) break;
+    output2.push(next);
+    for (const user of dependents.get(next) ?? []) {
+      const prerequisites = needed.get(user);
+      prerequisites?.delete(next);
+      if (!prerequisites?.size) ready.push(user);
+    }
+  }
+  if (output2.length !== ids.length)
+    throw Error("Dependency cycle prevents rearranging this sequence");
+  return output2;
+}
+function nodes(project) {
+  const actions = [...project.records.values()].filter((record2) => record2.kind === "action").map((record2) => schemas.action.parse(record2.document.data));
+  const children = /* @__PURE__ */ new Map();
+  for (const action of actions)
+    if (action.parent)
+      children.set(action.parent, [
+        ...children.get(action.parent) ?? [],
+        action.id
+      ]);
+  return actions.map((action) => ({
+    id: action.id,
+    complete: actionComplete(action),
+    dependencies: [
+      .../* @__PURE__ */ new Set([
+        ...action.blockedBy ?? [],
+        ...children.get(action.id) ?? []
+      ])
+    ]
+  }));
+}
+function queueIds(project) {
+  return [
+    ...project.records.get(ACTION_QUEUE_PATH)?.document.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []
+  ].map((match) => match[0]);
+}
+var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column);
+function state(project) {
+  const bytes = project.files.get(ACTION_SEQUENCE_PATH);
+  if (!bytes) return null;
+  return actionSequenceSchema.parse(
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
+  );
+}
+function readActionSequence(project) {
+  let saved;
+  try {
+    saved = state(project);
+  } catch {
+    const order2 = projectTasks(project).filter(active).map((task) => task.id);
+    return {
+      enabled: false,
+      revision: project.files.has(ACTION_SEQUENCE_PATH) ? hash2(project.files.get(ACTION_SEQUENCE_PATH)) : null,
+      order: order2,
+      pending: queueIds(project),
+      warnings: sequenceWarnings(order2, nodes(project)),
+      problems: [
+        "Invalid Actions sequence; preserve it and recover explicitly"
+      ],
+      rearranged: null
+    };
+  }
+  const tasks = projectTasks(project), byId = new Map(tasks.map((task) => [task.id, task]));
+  const pending = queueIds(project), source = saved?.order ?? pending;
+  const order = [
+    .../* @__PURE__ */ new Set([
+      ...source.filter(
+        (id2) => !byId.has(id2) || active(byId.get(id2))
+      ),
+      ...tasks.filter(active).map((task) => task.id)
+    ])
+  ];
+  const graph = nodes(project), warnings = sequenceWarnings(order, graph);
+  const privateProblems = project.diagnostics.filter(
+    (item) => [ACTION_SEQUENCE_PATH, ACTION_QUEUE_PATH].includes(item.file)
+  ).map((item) => item.message);
+  let rearranged = null;
+  if (warnings.some((item) => item.kind === "later") && !privateProblems.length) {
+    try {
+      rearranged = rearrangeSequence(order, graph);
+    } catch {
+      rearranged = null;
+    }
+  }
+  return {
+    enabled: project.metadata?.taskTracking === 1 && !privateProblems.length && !!saved && project.records.get(ACTION_QUEUE_PATH)?.document.data.orderedIntent === 1,
+    revision: project.files.has(ACTION_SEQUENCE_PATH) ? hash2(project.files.get(ACTION_SEQUENCE_PATH)) : null,
+    order,
+    pending,
+    warnings,
+    rearranged,
+    problems: [
+      ...privateProblems,
+      ...order.filter((id2) => !byId.has(id2)).map((id2) => `Restore or repair the missing task source for ${id2}`)
+    ]
+  };
+}
+function guard(project) {
+  if (project.metadata?.taskTracking !== 1)
+    throw Error(
+      "Enable release-aware task tracking before the Actions sequence"
+    );
+  if (project.diagnostics.length)
+    throw Error(
+      "Resolve planning-file problems before editing the Actions sequence"
+    );
+  if (project.files.has(".voidra/local/run.lock") || project.files.has(".voidra/local/planning.lock") || [...project.records.values()].some(
+    (record2) => record2.kind === "run" && record2.document.data.outcome === "running" || record2.kind === "operation" && record2.document.data.state === "prepared"
+  ))
+    throw Error(
+      "Finish or recover pending work before editing the Actions sequence"
+    );
+}
+function conversion(project) {
+  guard(project);
+  const view = readActionSequence(project), ran = new Set(
+    [...project.records.values()].filter((record2) => record2.kind === "run").map((record2) => String(record2.document.data.action))
+  );
+  if (view.problems.length) throw Error(view.problems.join(" \xB7 "));
+  const fresh = projectTasks(project).filter(
+    (task) => task.kind === "action" && task.column === "todo" && task.status === "ready" && !ran.has(task.id) && project.records.get(task.path)?.document.data.doneBy === "agent"
+  ).map((task) => task.id);
+  const pending = view.enabled ? view.pending : [.../* @__PURE__ */ new Set([...view.pending, ...fresh])];
+  const sources = [...project.files].filter(
+    ([path]) => !path.startsWith(".voidra/local/") || [ACTION_SEQUENCE_PATH, ACTION_QUEUE_PATH].includes(path)
+  ).map(([path, bytes]) => [path, hash2(bytes)]).sort((a, b) => (a[0] ?? "").localeCompare(b[0] ?? ""));
+  return {
+    enabled: view.enabled,
+    revision: hash2(
+      JSON.stringify({ version: 1, sources, order: view.order, pending })
+    ),
+    order: view.order,
+    pending
+  };
+}
+function initializeActionSequenceChanges(project) {
+  const preview = conversion(project);
+  if (preview.enabled) return [];
+  const doc = project.records.get(ACTION_QUEUE_PATH)?.document ?? parseRecord(ACTION_QUEUE_PATH, "---\n{}\n---\n");
+  return [
+    {
+      path: ACTION_SEQUENCE_PATH,
+      expectedHash: project.files.has(ACTION_SEQUENCE_PATH) ? hash2(project.files.get(ACTION_SEQUENCE_PATH)) : null,
+      content: `${JSON.stringify({ version: 1, order: preview.order }, null, 2)}
+`
+    },
+    {
+      path: ACTION_QUEUE_PATH,
+      expectedHash: project.files.has(ACTION_QUEUE_PATH) ? hash2(project.files.get(ACTION_QUEUE_PATH)) : null,
+      content: serializeRecord(
+        doc,
+        { ...doc.data, orderedIntent: 1 },
+        preview.pending.map((id2, index) => `${index + 1}. [ ] ${id2}`).join("\n")
+      ).toString()
+    }
+  ];
+}
 var enableInput = external_exports.strictObject({
   revision: hashSchema,
   by: external_exports.string().min(1)
@@ -29056,7 +29330,80 @@ var replaceInput = external_exports.strictObject({
 });
 
 // packages/voidra/src/project-release.ts
+import { constants } from "node:fs";
+import { lstat as lstat3, open as open3, realpath as realpath2 } from "node:fs/promises";
+import { join as join3 } from "node:path";
 var limit = 256 * 1024;
+async function packagePath(root, path) {
+  releasePackageSchema.parse(path);
+  let cursor = await realpath2(root);
+  const parts = path.split("/");
+  for (const [index, part] of parts.entries()) {
+    cursor = join3(cursor, part);
+    const info = await lstat3(cursor);
+    if (info.isSymbolicLink()) throw Error("Package path contains a symlink");
+    if (index === parts.length - 1 ? !info.isFile() : !info.isDirectory())
+      throw Error(
+        "Package path must use directories and a regular package file"
+      );
+  }
+  return cursor;
+}
+async function readProjectRelease(root, selected) {
+  const path = selected ?? (await checkProject(root)).metadata?.releasePackage ?? "package.json";
+  const result2 = {
+    path,
+    version: null,
+    revision: null,
+    message: null
+  };
+  try {
+    const target = await packagePath(root, path);
+    const file2 = await open3(target, constants.O_RDONLY | constants.O_NOFOLLOW);
+    let bytes;
+    try {
+      await packagePath(root, path);
+      const info = await file2.stat();
+      if (!info.isFile()) throw Error("Package must be a regular file");
+      if (info.size > limit)
+        throw Error("Package exceeds the 256 KiB reading limit");
+      const buffer = Buffer.alloc(limit + 1);
+      let total = 0;
+      while (total <= limit) {
+        const { bytesRead } = await file2.read(
+          buffer,
+          total,
+          buffer.length - total,
+          total
+        );
+        if (!bytesRead) break;
+        total += bytesRead;
+        if (total > limit)
+          throw Error("Package exceeds the 256 KiB reading limit");
+      }
+      bytes = buffer.subarray(0, total);
+      await packagePath(root, path);
+    } finally {
+      await file2.close();
+    }
+    result2.revision = hash2(bytes);
+    let data;
+    try {
+      data = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+      );
+    } catch {
+      throw Error("Package must contain valid UTF-8 JSON");
+    }
+    const parsed = external_exports.looseObject({ version: version2 }).safeParse(data);
+    if (!parsed.success) throw Error("Package needs a valid X.Y.Z version");
+    result2.version = parsed.data.version;
+  } catch (error62) {
+    const code = error62.code;
+    result2.message = code === "ENOENT" ? "Package not found; choose the project's package.json" : error62 instanceof external_exports.ZodError ? "Choose a contained project package.json path" : error62 instanceof Error ? error62.message : "Package version is unavailable";
+  }
+  return result2;
+}
 var selectionSchema = external_exports.strictObject({
   path: releasePackageSchema,
   revision: hashSchema
@@ -29186,7 +29533,7 @@ var selection = external_exports.strictObject({
 
 // packages/voidra/src/templates.ts
 import {
-  lstat as lstat3,
+  lstat as lstat4,
   mkdir as mkdir2,
   mkdtemp,
   readdir as readdir2,
@@ -29195,7 +29542,7 @@ import {
   rm,
   writeFile
 } from "node:fs/promises";
-import { dirname as dirname2, join as join3, resolve } from "node:path";
+import { dirname as dirname2, join as join4, resolve } from "node:path";
 var slug2 = external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 var text2 = external_exports.string().min(1);
 var templateQuestionSchema = external_exports.looseObject({
@@ -29343,7 +29690,7 @@ async function detectCode(root) {
   const evidence = [];
   const visit2 = async (path, depth) => {
     if (evidence.length || depth > 6) return;
-    for (const item of (await readdir2(join3(root, path), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const item of (await readdir2(join4(root, path), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       if (item.isSymbolicLink() || ignored.has(item.name) || item.name.startsWith(".voidra-staging-"))
         continue;
       const file2 = path ? `${path}/${item.name}` : item.name;
@@ -29368,16 +29715,17 @@ async function initializeProject(root, input4, options, writer) {
   );
   for (const key of Object.keys(options.answers))
     if (!known.has(key)) throw new Error(`Unknown profile answer ${key}`);
-  const exists = async () => lstat3(join3(root, ".voidra")).then(() => true).catch((error62) => {
+  const exists = async () => lstat4(join4(root, ".voidra")).then(() => true).catch((error62) => {
     if (error62.code === "ENOENT") return false;
     throw error62;
   });
   if (!writer && await exists())
     throw new Error("Planning directory already exists");
+  const release = await readProjectRelease(root, "package.json");
   const files = /* @__PURE__ */ new Map([
     [
       ".voidra/voidra.json",
-      `${JSON.stringify({ format: FORMAT_VERSION, requiredVoidra: PACKAGE_VERSION, project: { id: createId("prj"), name: options.name.trim() }, template: { id: template.id, version: template.version }, createdWith: `voidra/${PACKAGE_VERSION}`, lifecycleOverrides: template.lifecycleOverrides }, null, 2)}
+      `${JSON.stringify({ format: FORMAT_VERSION, requiredVoidra: PACKAGE_VERSION, taskTracking: 1, project: { id: createId("prj"), name: options.name.trim() }, template: { id: template.id, version: template.version }, createdWith: `voidra/${PACKAGE_VERSION}`, lifecycleOverrides: template.lifecycleOverrides }, null, 2)}
 `
     ],
     [
@@ -29430,6 +29778,8 @@ Read the profile and actions before work. Use the Voidra skills and preserve hum
           id: bootstrap,
           type: "feature",
           title: "Bootstrap",
+          targetRelease: release.version,
+          taskColumn: release.version ? "todo" : "backlog",
           stage: (template.lifecycleOverrides?.feature ?? lifecycles.feature).stages[0],
           status: "ready",
           doneBy: "agent",
@@ -29440,19 +29790,25 @@ Read the profile and actions before work. Use the Voidra skills and preserve hum
       )
     );
   }
+  const initial = inspectFiles(
+    new Map([...files].map(([path, raw]) => [path, Buffer.from(raw)])),
+    { lifecycles: { ...lifecycles, ...template.lifecycleOverrides } }
+  );
+  for (const change of initializeActionSequenceChanges(initial))
+    if (change.content !== null) files.set(change.path, change.content);
   if (writer) {
     const sharedFiles = async (folder) => {
       for (const entry of await readdir2(folder, { withFileTypes: true })) {
-        if (folder === join3(root, ".voidra") && entry.name === "local")
+        if (folder === join4(root, ".voidra") && entry.name === "local")
           continue;
-        if (!entry.isDirectory() || await sharedFiles(join3(folder, entry.name)))
+        if (!entry.isDirectory() || await sharedFiles(join4(folder, entry.name)))
           return true;
       }
       return false;
     };
     if (await exists()) {
-      const state = await lstat3(join3(root, ".voidra"));
-      if (!state.isDirectory() || state.isSymbolicLink() || await sharedFiles(join3(root, ".voidra")))
+      const state2 = await lstat4(join4(root, ".voidra"));
+      if (!state2.isDirectory() || state2.isSymbolicLink() || await sharedFiles(join4(root, ".voidra")))
         throw new Error("Planning directory already exists");
     }
     await applyOperation(
@@ -29471,11 +29827,11 @@ Read the profile and actions before work. Use the Voidra skills and preserve hum
     );
     return { paths: [...files.keys()], ...bootstrap ? { bootstrap } : {} };
   }
-  const stage = await mkdtemp(join3(dirname2(resolve(root)), ".voidra-staging-"));
+  const stage = await mkdtemp(join4(dirname2(resolve(root)), ".voidra-staging-"));
   try {
     for (const [path, content] of files) {
-      await mkdir2(dirname2(join3(stage, path)), { recursive: true });
-      await writeFile(join3(stage, path), content);
+      await mkdir2(dirname2(join4(stage, path)), { recursive: true });
+      await writeFile(join4(stage, path), content);
     }
     const checked = await checkProject(stage, {
       lifecycles: { ...lifecycles, ...template.lifecycleOverrides }
@@ -29483,7 +29839,7 @@ Read the profile and actions before work. Use the Voidra skills and preserve hum
     if (checked.diagnostics.length)
       throw new Error(checked.diagnostics.map((d) => d.message).join("; "));
     if (await exists()) throw new Error("Planning directory already exists");
-    await rename2(join3(stage, ".voidra"), join3(root, ".voidra"));
+    await rename2(join4(stage, ".voidra"), join4(root, ".voidra"));
   } finally {
     await rm(stage, { recursive: true, force: true });
   }
@@ -29531,14 +29887,14 @@ var moveInput = external_exports.strictObject({
 // tools/run-engine/src/init.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
 import {
-  lstat as lstat4,
+  lstat as lstat5,
   readFile as readFile4,
-  realpath as realpath2,
+  realpath as realpath3,
   rename as rename3,
   rm as rm2,
   writeFile as writeFile2
 } from "node:fs/promises";
-import { dirname as dirname3, isAbsolute as isAbsolute2, join as join4, relative, resolve as resolve2 } from "node:path";
+import { dirname as dirname3, isAbsolute as isAbsolute2, join as join5, relative, resolve as resolve2 } from "node:path";
 var section = `
 <!-- Voidra planning -->
 ## Voidra planning
@@ -29547,9 +29903,9 @@ Read [.voidra/README.md](.voidra/README.md), the project profile and action befo
 `;
 async function readInstruction(root, name) {
   try {
-    if ((await lstat4(join4(root, name))).isSymbolicLink())
+    if ((await lstat5(join5(root, name))).isSymbolicLink())
       throw new Error(`Instruction path is a symlink: ${name}`);
-    return await readFile4(join4(root, name), "utf8");
+    return await readFile4(join5(root, name), "utf8");
   } catch (error62) {
     if (error62.code === "ENOENT") return null;
     throw error62;
@@ -29560,7 +29916,7 @@ async function writeInstruction(root, name, before, after) {
   if (current !== before)
     throw new Error(`Instruction changed during intake: ${name}`);
   if (before === after) return;
-  const file2 = join4(root, name), temp = join4(dirname3(file2), `.${name}.voidra-${randomUUID2()}.tmp`);
+  const file2 = join5(root, name), temp = join5(dirname3(file2), `.${name}.voidra-${randomUUID2()}.tmp`);
   try {
     await writeFile2(temp, after, { mode: 420 });
     if (await readInstruction(root, name) !== before)
@@ -29574,16 +29930,16 @@ async function validSource(root, source) {
   const path = source.split(/:\d+/)[0]?.trim() ?? "";
   if (!path || isAbsolute2(path) || path.split(/[\\/]/).includes(".."))
     throw new Error("Inference source must name a file inside the project");
-  const canonical = await realpath2(root);
+  const canonical = await realpath3(root);
   let target = canonical;
   for (const part of path.split("/")) {
-    target = join4(target, part);
-    const stat = await lstat4(target).catch(() => null);
+    target = join5(target, part);
+    const stat = await lstat5(target).catch(() => null);
     if (!stat || stat.isSymbolicLink())
       throw new Error(`Inference source is missing or linked: ${path}`);
   }
-  const located = await realpath2(resolve2(root, path));
-  if (relative(canonical, located).startsWith("..") || !(await lstat4(located)).isFile())
+  const located = await realpath3(resolve2(root, path));
+  if (relative(canonical, located).startsWith("..") || !(await lstat5(located)).isFile())
     throw new Error(`Inference source is not a project file: ${path}`);
 }
 async function initializeExisting(root, template, options) {
@@ -29694,7 +30050,7 @@ async function runIntake(args, stdin, cwd = process.cwd()) {
       )
     );
     const template = await loadTemplate(
-      join5(directory, templateId, "template.yaml")
+      join6(directory, templateId, "template.yaml")
     );
     const raw = flags.has("--report") ? await readFile5(resolve3(root, flags.get("--report")), "utf8") : stdin;
     const result2 = await initializeExisting(

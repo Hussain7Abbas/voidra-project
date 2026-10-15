@@ -3,6 +3,8 @@
   id: act-000002,
   type: feature,
   title: Search saved notes,
+  targetRelease,
+  taskColumn: backlog,
   stage: discovery,
   status: ready,
   doneBy: agent,

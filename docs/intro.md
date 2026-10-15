@@ -26,3 +26,5 @@ P00 supplies repository tooling and policies. P01 publishes the format package a
 - [V2 design index](architecture/v2/Intro.md): all 15 approved future-scope items, grounded in built v1 code and evidence.
 
 - [App icon review](icon-review.md): original directions and delegated P15 acceptance.
+
+- [V11-P10 verification](verification/v1.1.0-p10.md): final candidate and delivery evidence, with current limitations.

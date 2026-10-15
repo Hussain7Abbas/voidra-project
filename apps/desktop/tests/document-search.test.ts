@@ -81,3 +81,26 @@ it("lazily indexes only contained public documents and rebuilds after edits, add
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("keeps contextual Greek and expanding Unicode case mappings aligned with highlight positions", () => {
+  const body = "# Unicode\n\nΟΣ ος οσ İ🙂\n";
+  const text = visibleDocumentText(documentTree(body)).text;
+  for (const [query, count] of [
+    ["ΟΣ", 3],
+    ["ος", 3],
+    ["οσ", 3],
+    ["İ🙂", 1],
+  ] as const) {
+    expect(literalMatches(text, query)).toHaveLength(count);
+    const html = renderToStaticMarkup(
+      createElement(MarkdownContent, { body, search: query }),
+    );
+    expect(
+      new Set(
+        [...html.matchAll(/data-document-match="(\d+)"/g)].map(
+          (match) => match[1],
+        ),
+      ).size,
+    ).toBe(count);
+  }
+});

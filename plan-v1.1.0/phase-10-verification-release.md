@@ -1,6 +1,6 @@
 # V11-P10 — Compatibility, accessibility and v1.1.0 delivery
 
-> **Needs:** P08, P09 · **Status:** Not started
+> **Needs:** P08, P09 · **Status:** In progress
 
 ## Outcome
 

@@ -3,6 +3,8 @@
   id: act-000001,
   type: feature,
   title: Save and reopen one private note,
+  targetRelease,
+  taskColumn: backlog,
   stage: discovery,
   status: ready,
   doneBy: agent,

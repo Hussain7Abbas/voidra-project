@@ -253,3 +253,27 @@ it("bounds deduplicated history and isolates corrupt history from project/index 
     60000,
   );
 }, 75000);
+it("builds the initial workspace on demand and reads fresh source after edits, mutations and cache deletion", async () => {
+  await scenario(`
+    const first = new ProjectWorkspace(root,databasePath+'.startup');
+    await first.start();
+    const startupDb=new Database(databasePath+'.startup');
+    assert.equal(startupDb.prepare('select count(*) as n from ideas').get().n,0);startupDb.close();
+    await createIdea(root,{title:'Before first read',description:'Current disk source',by:'You'});
+    const initial=await first.handle({command:'workspace'});
+    assert.ok(initial.ideas.some(idea=>idea.data.title==='Before first read'));
+    await createIdea(root,{title:'Outside startup edit',description:'Fresh disk source',by:'You'});
+    const fresh=await first.handle({command:'workspace'});
+    assert.equal(fresh.ideas.length,initial.ideas.length+1);
+    await first.close();
+    const second = new ProjectWorkspace(root,databasePath+'.mutation');
+    await second.start();
+    await second.handle({command:'create-idea',title:'Mutation before first read',description:'Current result'});
+    assert.equal((await second.handle({command:'workspace'})).ideas.length,fresh.ideas.length+1);
+    await second.close();
+    const third = new ProjectWorkspace(root,databasePath+'.removed');
+    await third.start();await unlink(databasePath+'.removed');
+    assert.equal((await third.handle({command:'workspace'})).ideas.length,fresh.ideas.length+1);
+    await third.close();
+  `);
+});

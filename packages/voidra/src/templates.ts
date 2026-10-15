@@ -11,6 +11,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
+import { initializeActionSequenceChanges } from "./action-sequence.ts";
 import { type Diagnostic, VoidraError } from "./errors.ts";
 import { createId } from "./ids.ts";
 import { hash, lifecycles, validateLifecycles } from "./lifecycle.ts";
@@ -18,8 +19,10 @@ import {
   blockingPlanningDiagnostics,
   checkProject,
   FORMAT_VERSION,
+  inspectFiles,
   PACKAGE_VERSION,
 } from "./project.ts";
+import { readProjectRelease } from "./project-release.ts";
 import { fieldLine, parseRecord, serializeRecord } from "./records.ts";
 import { lifecycleOverridesSchema, schemas, version } from "./schemas.ts";
 import { newTaskFields } from "./task-metadata.ts";
@@ -302,10 +305,11 @@ export async function initializeProject(
       });
   if (!writer && (await exists()))
     throw new Error("Planning directory already exists");
+  const release = await readProjectRelease(root, "package.json");
   const files = new Map<string, string | Buffer>([
     [
       ".voidra/voidra.json",
-      `${JSON.stringify({ format: FORMAT_VERSION, requiredVoidra: PACKAGE_VERSION, project: { id: createId("prj"), name: options.name.trim() }, template: { id: template.id, version: template.version }, createdWith: `voidra/${PACKAGE_VERSION}`, lifecycleOverrides: template.lifecycleOverrides }, null, 2)}\n`,
+      `${JSON.stringify({ format: FORMAT_VERSION, requiredVoidra: PACKAGE_VERSION, taskTracking: 1, project: { id: createId("prj"), name: options.name.trim() }, template: { id: template.id, version: template.version }, createdWith: `voidra/${PACKAGE_VERSION}`, lifecycleOverrides: template.lifecycleOverrides }, null, 2)}\n`,
     ],
     [
       ".voidra/README.md",
@@ -363,6 +367,8 @@ export async function initializeProject(
           id: bootstrap,
           type: "feature",
           title: "Bootstrap",
+          targetRelease: release.version,
+          taskColumn: release.version ? "todo" : "backlog",
           stage: (template.lifecycleOverrides?.feature ?? lifecycles.feature)
             .stages[0],
           status: "ready",
@@ -374,6 +380,12 @@ export async function initializeProject(
       ),
     );
   }
+  const initial = inspectFiles(
+    new Map([...files].map(([path, raw]) => [path, Buffer.from(raw)])),
+    { lifecycles: { ...lifecycles, ...template.lifecycleOverrides } },
+  );
+  for (const change of initializeActionSequenceChanges(initial))
+    if (change.content !== null) files.set(change.path, change.content);
   if (writer) {
     const sharedFiles = async (folder: string): Promise<boolean> => {
       for (const entry of await readdir(folder, { withFileTypes: true })) {

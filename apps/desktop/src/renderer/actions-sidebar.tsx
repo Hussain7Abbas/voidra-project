@@ -197,6 +197,8 @@ export const ActionsSidebar = memo(function ActionsSidebar({
         <section
           className="sequence-notice"
           aria-label="Dependency order warning"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: The warning list scrolls independently and can contain no focusable Rearrange control.
+          tabIndex={0}
         >
           <h3>Dependency order needs attention</h3>
           <ul>

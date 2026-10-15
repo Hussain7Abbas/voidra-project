@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+Voidra becomes a Tasks workspace with a draggable Kanban board, release filters, an ordered Actions sidebar with dependency warnings, and a bottom Waiting for you panel. All panels toggle and resize; Undo/Redo and panel controls live in the titlebar.
+
+Adds rendered Markdown editing with cursor/selection source reveal, Normal/Agentic capture with optional AI titles, Team/Me assignment, a default coding client and two complete skill installers. Unfinished forms save private durable drafts with top restore badges. Decisions and Glossary render complete Markdown; Documentation has a directory, global content search, counts and highlighted matches.
+
+Xeploy-guided release preparation binds the chosen package, next version, exact completed tickets and explicit Keep/Move choice to Review. Fresh projects enable release-aware Tasks automatically; existing projects use a guarded migration that preserves history. Startup indexing runs on demand to avoid duplicate work.
+
 ## 1.0.0
 
 Complete v1 planning and tracking for local projects: onboarding and the general profile, backlog and all action types, dependencies and human checklists, exact questions/plan/review gates, ordered standalone Go/Plan execution, releases and Sync, commit history, persistent undo/redo, searchable decisions and documents, offline skill installation, optional editable AI suggestions and update notices. Includes the user guide, approved Bootstrap Git initialization with valid first-commit project records, canonical worktree protection, and matching CLI version/help output. App, library and all six bundled skills share the release version; format and template versions remain independent.

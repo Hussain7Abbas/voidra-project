@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -11,7 +11,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
-import { checkProject, replaceActionQueue, schemas } from "voidra";
+import { checkProject, hash, moveTask, schemas } from "voidra";
 import {
   publishPlanning,
   startRun,
@@ -163,9 +163,18 @@ for (const value of ["light", "dark"])
       (r) => r.kind === "action" && r.document.data.title === "Bootstrap",
     );
     const id = String(bootstrap?.document.data.id);
-    await replaceActionQueue(root, {
-      ids: [id],
-      revision: null,
+    expect(checked.metadata?.taskTracking).toBe(1);
+    expect(bootstrap?.document.data).toMatchObject({
+      taskColumn: "backlog",
+      targetRelease: null,
+    });
+    // Supplying the project's real version permits the explicit TODO move and enrolls it once.
+    await writeFile(join(root, "package.json"), '{"version":"0.1.0"}\n');
+    if (!bootstrap) throw Error("Bootstrap missing");
+    await moveTask(root, {
+      id,
+      revision: hash(bootstrap.document.raw),
+      column: "todo",
       by: "Verification owner",
     });
     const run = await startRun(root, "codex", process.pid, "plan");

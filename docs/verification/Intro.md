@@ -60,3 +60,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [V11-P08 Markdown knowledge and documentation](v1.1.0-p08.md): complete blocks, full-page directory/search/counts/highlights, live refresh and actual Electron checks.
 
 - [V11-P09 guided releases](v1.1.0-p09.md): 475 quality tests, exact Keep/Move, real process-death recovery, both actual clients and packaged Xeploy/skill verification.
+
+- [V11-P10 final candidate](v1.1.0-p10.md): in-progress compatibility, fresh defaults, measured startup and final delivery checks.

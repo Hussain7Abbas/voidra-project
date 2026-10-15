@@ -19,7 +19,7 @@ import { PaneResize } from "./workspace-panels.tsx";
 
 type Navigation = {
   path: string | null;
-  open: (path: string) => void;
+  open: (path: string) => Promise<boolean>;
   back: () => void;
   forward: () => void;
   canBack: boolean;
@@ -39,30 +39,35 @@ export function DocumentViewerProvider({ children }: { children: ReactNode }) {
     toast = useToast(),
     snapshot = useSnapshot(),
     root = snapshot.data?.project?.path;
+  const currentRoot = useRef(root);
+  currentRoot.current = root;
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset private navigation when the registered project changes.
   useEffect(() => {
     setHistory({ paths: [], index: -1 });
     setQuery("");
   }, [root]);
   const open = useCallback(
-    (path: string) => {
-      void flushFormDrafts()
-        .then(() => {
-          setHistory((old) =>
-            old.paths[old.index] === path
-              ? old
-              : {
-                  paths: [...old.paths.slice(0, old.index + 1), path],
-                  index: old.index + 1,
-                },
-          );
-          window.dispatchEvent(new Event("voidra-open-document"));
-        })
-        .catch((cause) =>
-          toast.error(
-            cause instanceof Error ? cause.message : "Draft could not be saved",
-          ),
+    async (path: string): Promise<boolean> => {
+      const context = currentRoot.current;
+      try {
+        await flushFormDrafts();
+        if (currentRoot.current !== context) return false;
+        setHistory((old) =>
+          old.paths[old.index] === path
+            ? old
+            : {
+                paths: [...old.paths.slice(0, old.index + 1), path],
+                index: old.index + 1,
+              },
         );
+        window.dispatchEvent(new Event("voidra-open-document"));
+        return true;
+      } catch (cause) {
+        toast.error(
+          cause instanceof Error ? cause.message : "Draft could not be saved",
+        );
+        return false;
+      }
     },
     [toast],
   );
@@ -214,11 +219,7 @@ export function DocumentationPage() {
       return result;
     },
   });
-  const path =
-    nav?.path ??
-    directory.data?.items.find((item) => item.path === "docs/intro.md")?.path ??
-    directory.data?.items[0]?.path ??
-    null;
+  const path = nav?.path ?? null;
   const page = useQuery({
     queryKey: ["document", snapshot.data?.project?.path, path],
     enabled: !!path,
@@ -264,8 +265,8 @@ export function DocumentationPage() {
   const save = async (patch: {
     documentationOpen?: boolean;
     documentationWidth?: number;
-  }) => {
-    if (!layout) return;
+  }): Promise<boolean> => {
+    if (!layout) return false;
     try {
       await request({
         command: "set-workspace-layout",
@@ -273,12 +274,14 @@ export function DocumentationPage() {
         patch,
       });
       await client.invalidateQueries({ queryKey: ["snapshot"] });
+      return true;
     } catch (cause) {
       toast.error(
         cause instanceof Error
           ? cause.message
           : "Could not save directory layout",
       );
+      return false;
     }
   };
   if (!nav) return null;
@@ -362,8 +365,14 @@ export function DocumentationPage() {
                   selected={path}
                   query={q}
                   open={(file) => {
-                    nav.open(file);
-                    if (compact) void save({ documentationOpen: false });
+                    void nav.open(file).then(async (opened) => {
+                      if (
+                        opened &&
+                        compact &&
+                        (await save({ documentationOpen: false }))
+                      )
+                        article.current?.focus({ preventScroll: true });
+                    });
                   }}
                 />
                 {!directory.data.items.length && <p>No matching documents.</p>}
@@ -454,7 +463,7 @@ export function DocumentationPage() {
           ) : path ? (
             <Spinner label="Opening document" />
           ) : (
-            <p>Project documentation will appear here.</p>
+            <p>Choose a document from the directory.</p>
           )}
         </article>
       </div>
