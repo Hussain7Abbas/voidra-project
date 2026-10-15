@@ -2,6 +2,10 @@ import { existsSync, unlinkSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  projectReleaseOptions,
+  selectedReleaseVersion,
+} from "@voidra/release-engine";
+import {
   commitPlanning,
   discardPlanning,
   inspectLock,
@@ -255,6 +259,11 @@ export class ProjectWorkspace {
     }
     if (request.command === "search-documents")
       return this.documents.search(request.q);
+    if (request.command === "release-options")
+      return {
+        kind: "release-options",
+        ...(await projectReleaseOptions(this.root)),
+      };
     if (request.command === "read-document")
       return {
         kind: "document",
@@ -359,7 +368,18 @@ export class ProjectWorkspace {
         throw new Error(
           "Finish or recover pending work before creating a release",
         );
+      if (
+        request.preparation &&
+        selectedReleaseVersion(
+          request.preparation.source.version,
+          request.preparation.bump,
+          request.preparation.version,
+        ) !== request.preparation.version
+      )
+        throw Error("The proposed version does not match its Xeploy choice");
       await createReleaseAction(this.root, {
+        ...(request.preparation ? { preparation: request.preparation } : {}),
+        ...(request.notes !== undefined ? { notes: request.notes } : {}),
         actions: request.actions,
         by: "You",
       });

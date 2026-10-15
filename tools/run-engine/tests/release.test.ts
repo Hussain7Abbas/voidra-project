@@ -263,7 +263,7 @@ for (const point of [
     }
   });
 it("recovers an actual process death during grouped Released updates without another commit/tag", async () => {
-  const { root, id } = await releaseFixture();
+  const { root, id } = await versionChoiceFixture("move");
   try {
     await accepted(root, id);
     const count = Number(git(root, ["rev-list", "--count", "HEAD"]));
@@ -309,6 +309,15 @@ it("recovers an actual process death during grouped Released updates without ano
     expect(Number(git(root, ["rev-list", "--count", "HEAD"]))).toBe(count + 1);
     expect(git(root, ["tag", "--list"])).toBe(proposal.tag);
     expect(await recoverRun(root, run)).toEqual(recovered);
+    const complete = await checkProject(root);
+    expect(
+      complete.records.get(".voidra/actions/act-000000/action.md")?.document
+        .data.targetRelease,
+    ).toBe(proposal.version);
+    expect(
+      complete.records.get(".voidra/actions/act-000001/action.md")?.document
+        .data.targetRelease,
+    ).toBe("0.0.1");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -579,6 +588,166 @@ it("the public Release CLI publishes a proposal and its approved notes-only scop
     expect(
       JSON.parse(await readFile(join(root, "package.json"), "utf8")).version,
     ).toBe("0.1.0");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+for (const choice of ["keep", "move"] as const)
+  it(`finalizes ${choice} for the exact current-version Done subset and retries without duplicate Git effects`, async () => {
+    const { root, id } = await versionChoiceFixture(choice);
+    try {
+      await accepted(root, id);
+      const before = Number(git(root, ["rev-list", "--count", "HEAD"])),
+        ctx = await startRun(root, "codex", process.pid);
+      if (!ctx) throw Error("Run missing");
+      await bump(root, ctx.ownerToken);
+      const commit = await commitResult(root, ctx.ownerToken, proposal.message);
+      await expect(
+        finalizeResult(root, ctx.ownerToken, {
+          checkpoint(point) {
+            if (point === "after-tag") throw Error("Injected interruption");
+          },
+        }),
+      ).rejects.toThrow("Injected interruption");
+      await finalizeResult(root, ctx.ownerToken);
+      const finalized = await runContext(root, ctx.run);
+      expect(finalized.phase).toBe("finalized");
+      const after = await checkProject(root);
+      expect(after.diagnostics).toEqual([]);
+      expect(
+        after.records.get(".voidra/actions/act-000000/action.md")?.document
+          .data,
+      ).toMatchObject({
+        targetRelease: choice === "keep" ? "0.1.0" : proposal.version,
+        releasedIn: proposal.version,
+      });
+      expect(
+        after.records.get(".voidra/actions/act-000001/action.md")?.document
+          .data,
+      ).toMatchObject({
+        targetRelease: "0.0.1",
+        releasedIn: proposal.version,
+        doneBy: "you",
+      });
+      expect(releaseCandidates(after)).toEqual([]);
+      expect(git(root, ["rev-list", "--count", "HEAD"])).toBe(
+        String(before + 1),
+      );
+      expect(git(root, ["rev-parse", `${proposal.tag}^{commit}`])).toBe(commit);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+async function versionChoiceFixture(choice: "keep" | "move") {
+  const { readProjectRelease, releaseVersionTickets } = await import("voidra");
+  const { root, id } = await releaseFixture();
+  for (const [member, targetRelease] of [
+    ["act-000000", "0.1.0"],
+    ["act-000001", "0.0.1"],
+  ] as const) {
+    const path = `.voidra/actions/${member}/action.md`,
+      record = parseRecord(path, await readFile(join(root, path)));
+    await writeFile(
+      join(root, path),
+      serializeRecord(record, { ...record.data, targetRelease }),
+    );
+  }
+  const meta = ".voidra/voidra.json",
+    metadata = parseRecord(meta, await readFile(join(root, meta)));
+  await writeFile(
+    join(root, meta),
+    serializeRecord(metadata, {
+      ...metadata.data,
+      requiredVoidra: "1.1.0",
+    }),
+  );
+  const project = await checkProject(root),
+    source = await readProjectRelease(root);
+  if (!source.version || !source.revision)
+    throw Error("Missing fixture source");
+  const preparation = {
+    source: {
+      path: source.path,
+      version: source.version,
+      revision: source.revision,
+    },
+    version: proposal.version,
+    bump: "minor",
+    ticketChoice: choice,
+    tickets: releaseVersionTickets(
+      project,
+      ["act-000000", "act-000001"],
+      source.version,
+    ),
+  };
+  const path = `.voidra/actions/${id}/action.md`,
+    record = parseRecord(path, await readFile(join(root, path)));
+  await writeFile(
+    join(root, path),
+    serializeRecord(record, {
+      ...record.data,
+      releasePreparation: preparation,
+    }),
+  );
+  git(root, ["add", "."]);
+  git(root, ["commit", "-qm", "Prepared version choice"]);
+
+  return { root, id };
+}
+it("binds keep/move into exact Review and refuses changed package or ticket context before effects", async () => {
+  const { readPlan } = await import("voidra"),
+    { root, id } = await versionChoiceFixture("keep");
+  try {
+    const ctx = await startRun(root, "codex", process.pid);
+    if (!ctx) throw Error("Plan run missing");
+    await publishReleasePlan(root, ctx.ownerToken, proposal);
+    let project = await checkProject(root);
+    const original = readPlan(project.files, id)?.revision,
+      path = `.voidra/actions/${id}/action.md`,
+      record = project.records.get(path)?.document;
+    if (!record) throw Error("Release missing");
+    await writeFile(
+      join(root, path),
+      serializeRecord(record, {
+        ...record.data,
+        releasePreparation: {
+          ...(record.data.releasePreparation as object),
+          ticketChoice: "move",
+        },
+      }),
+    );
+    project = await checkProject(root);
+    expect(readPlan(project.files, id)?.revision).not.toBe(original);
+    const packageBytes = await readFile(join(root, "package.json"));
+    await writeFile(join(root, "package.json"), `${packageBytes.toString()}\n`);
+    const revision = reviewRevision(project, id),
+      actionBytes = await readFile(join(root, path));
+    await expect(
+      decideReview(root, id, revision, "accepted", "", "You"),
+    ).rejects.toThrow(/source changed/);
+    expect(await readFile(join(root, path))).toEqual(actionBytes);
+    await writeFile(join(root, "package.json"), packageBytes);
+    await decideReview(root, id, revision, "accepted", "", "You");
+    await queued(root, id);
+    const queue = await readFile(
+      join(root, ".voidra/local/pending-actions.md"),
+    );
+    await writeFile(
+      join(root, ".voidra/actions/act-000000/action.md"),
+      `${await readFile(join(root, ".voidra/actions/act-000000/action.md"), "utf8")}\nChanged outside Review.\n`,
+    );
+    await expect(startRun(root, "codex", process.pid)).rejects.toThrow(
+      /scope changed/,
+    );
+    expect(
+      await readFile(join(root, ".voidra/local/pending-actions.md")),
+    ).toEqual(queue);
+    expect((await checkProject(root)).files.has(".voidra/local/run.lock")).toBe(
+      false,
+    );
+    expect(git(root, ["tag", "--list"])).toBe("");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

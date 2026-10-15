@@ -90,6 +90,14 @@ The agent records the files changed, actual checks, review notes and commit iden
 
 A Release follows a different final step: accepting its proposal authorizes the agent to change the approved version/changelog files and create the local commit and tag. Acceptance itself does not create a tag. The action becomes **Released** after the agent completes and records those effects. Voidra’s local Release workflow does not publish your project to hosting or registries.
 
+## Prepare a release
+
+Open **Releases → New release**. Select completed unreleased work, choose a Xeploy Bug fix/Minor/Major/Custom version, and write Markdown notes. Before creating the Release action, explicitly choose whether the listed current-version Done tickets **keep the current release** or **move to the new release**. Other historical assignments stay as recorded. The wizard saves every unfinished step and invalid value privately; restore it from the top draft badge after closing or restarting. A changed package keeps the old draft for reference and requires a fresh version context.
+
+Your selected coding client prepares the exact Release proposal and stops for Review. The proposal shows its source, new version, tag, notes, members and Done-ticket choice. Only acceptance permits source/version changes and the runtime-owned commit/tag. Both Keep and Move record completed release membership, preventing duplicate publication. If finalization stops, use the existing recovery flow; matching commits/tags are retained.
+
+Standalone agents use their bundled `release-options` command for the same read-only Xeploy preview. Missing keep/move decisions go through questions. Local planning/tagging and publishing remain separate operations.
+
 ## Outside changes, history and undo
 
 Git history links action commits using their recorded trailers. **Commit planning changes** shows a preview of selected shared planning files before creating a separate planning commit. It excludes private local state and preserves unrelated staging. No commit operation automatically pushes your project.

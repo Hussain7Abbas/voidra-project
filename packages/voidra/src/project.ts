@@ -214,6 +214,9 @@ export function readPlan(
           tag: action.releaseTag ?? null,
           paths: action.releaseFiles ?? null,
           message: action.releaseMessage ?? null,
+          ...(action.releasePreparation
+            ? { preparation: action.releasePreparation }
+            : {}),
           record: record ? { data, body: record.body } : null,
         }),
       ),
@@ -619,6 +622,13 @@ export function inspectFiles(
           "Released membership requires its completed release record",
         );
     }
+    if (a.releasePreparation && !taskAware)
+      add(
+        "minimum-reader",
+        metaPath,
+        "requiredVoidra",
+        "Release ticket choices require voidra ≥ 1.1.0",
+      );
     if (a.releaseActions) {
       if (!extendedActions)
         add(

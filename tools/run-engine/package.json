@@ -7,7 +7,8 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "voidra": "workspace:*",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@voidra/release-engine": "workspace:*"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

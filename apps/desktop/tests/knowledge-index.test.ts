@@ -45,7 +45,12 @@ it("searches actual SQLite FTS with ranking, kind/action/date filters and litera
     `,
         resolveDir: resolve("apps/desktop"),
       },
-      alias: { voidra: resolve("packages/voidra/src/index.ts") },
+      alias: {
+        "voidra/release-preparation": resolve(
+          "packages/voidra/src/release-preparation-schema.ts",
+        ),
+        voidra: resolve("packages/voidra/src/index.ts"),
+      },
       external: ["better-sqlite3", require.resolve("better-sqlite3")],
       outfile: bundle,
       bundle: true,

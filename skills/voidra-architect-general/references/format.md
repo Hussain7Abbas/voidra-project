@@ -512,6 +512,85 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
         "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"
       }
     },
+    "releasePreparation": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "version": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "path",
+            "version",
+            "revision"
+          ],
+          "additionalProperties": {}
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+        },
+        "bump": {
+          "type": "string",
+          "enum": [
+            "patch",
+            "minor",
+            "major",
+            "custom"
+          ]
+        },
+        "ticketChoice": {
+          "type": "string",
+          "enum": [
+            "keep",
+            "move"
+          ]
+        },
+        "tickets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^act-[0-9a-hjkmnp-tv-z]{6}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "additionalProperties": {}
+          }
+        }
+      },
+      "required": [
+        "source",
+        "version",
+        "bump",
+        "ticketChoice",
+        "tickets"
+      ],
+      "additionalProperties": {}
+    },
     "releaseVersion": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"

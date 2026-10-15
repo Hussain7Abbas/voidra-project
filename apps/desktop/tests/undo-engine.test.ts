@@ -52,7 +52,12 @@ async function scenario(body: string, timeout = 25000): Promise<void> {
       `,
         resolveDir: resolve("apps/desktop"),
       },
-      alias: { voidra: resolve("packages/voidra/src/index.ts") },
+      alias: {
+        "voidra/release-preparation": resolve(
+          "packages/voidra/src/release-preparation-schema.ts",
+        ),
+        voidra: resolve("packages/voidra/src/index.ts"),
+      },
       define: {
         "import.meta.url": "__voidraModuleURL",
         __voidraProcessHelper: JSON.stringify(

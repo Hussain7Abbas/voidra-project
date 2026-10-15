@@ -13,6 +13,7 @@ export * from "./project.ts";
 export * from "./project-release.ts";
 export * from "./queue.ts";
 export * from "./records.ts";
+export * from "./release-preparation.ts";
 export * from "./releases.ts";
 export * from "./schemas.ts";
 export * from "./sync.ts";

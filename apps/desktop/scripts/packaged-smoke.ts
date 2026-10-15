@@ -15,6 +15,7 @@ const project = join(root, "project");
 await cp(resolve("../../fixtures/new-project/project"), project, {
   recursive: true,
 });
+await writeFile(join(project, "package.json"), '{"version":"1.2.3"}\n');
 const actionPath = ".voidra/actions/act-000000/action.md";
 const action = parseRecord(
   actionPath,
@@ -86,6 +87,23 @@ try {
   );
   if (result.ok && result.data.kind === "snapshot")
     assert.match(result.data.project?.sqliteVersion ?? "", /^\d+\.\d+\.\d+$/);
+  const releaseOptions = await page.evaluate(() =>
+    window.voidra.invoke({ command: "release-options" }),
+  );
+  assert.ok(
+    releaseOptions.ok && releaseOptions.data.kind === "release-options",
+  );
+  if (releaseOptions.ok && releaseOptions.data.kind === "release-options") {
+    assert.deepEqual(
+      releaseOptions.data.choices.map((choice) => choice.version),
+      ["1.2.4", "1.3.0", "2.0.0"],
+    );
+    assert.equal(releaseOptions.data.source.version, "1.2.3");
+  }
+  assert.equal(
+    await readFile(join(project, "package.json"), "utf8"),
+    '{"version":"1.2.3"}\n',
+  );
   const workspace = await page.evaluate(() =>
     window.voidra.invoke({ command: "workspace" }),
   );

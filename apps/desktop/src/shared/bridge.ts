@@ -1,3 +1,4 @@
+import { releasePreparationSchema } from "voidra/release-preparation";
 import { z } from "zod";
 import {
   actionSequenceRequestSchemas,
@@ -150,6 +151,22 @@ export const knowledgeDataSchema = z.discriminatedUnion("kind", [
     ),
   }),
   z.strictObject({
+    kind: z.literal("release-options"),
+    source: z.strictObject({
+      path: z.string(),
+      version: z.string().nullable(),
+      revision: z.string().nullable(),
+      message: z.string().nullable(),
+    }),
+    choices: z.array(
+      z.strictObject({
+        value: z.enum(["patch", "minor", "major"]),
+        label: z.string(),
+        version: z.string(),
+      }),
+    ),
+  }),
+  z.strictObject({
     kind: z.literal("documents"),
     items: z.array(
       z.strictObject({
@@ -177,6 +194,7 @@ export type KnowledgeData = z.infer<typeof knowledgeDataSchema>;
 export type KnowledgeEntry = z.infer<typeof knowledgeEntrySchema>;
 export const knowledgeRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({ command: z.literal("ai-context"), intent: aiIntentSchema }),
+  z.strictObject({ command: z.literal("release-options") }),
   knowledgeSearchSchema.extend({ command: z.literal("search-decisions") }),
   z.strictObject({
     command: z.literal("search-documents"),
@@ -378,6 +396,7 @@ export const workspaceSchema = z.strictObject({
           .optional(),
         commits: z.array(z.string()).optional(),
         releaseActions: z.array(z.string()).optional(),
+        releasePreparation: releasePreparationSchema.optional(),
         releaseVersion: z.string().optional(),
         releaseTag: z.string().optional(),
         releasedIn: z.string().optional(),
@@ -555,6 +574,8 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("create-release"),
+    preparation: releasePreparationSchema.optional(),
+    notes: z.string().max(100000).optional(),
     actions: z
       .array(
         z.strictObject({

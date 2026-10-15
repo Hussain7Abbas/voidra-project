@@ -27119,6 +27119,36 @@ var VoidraError = class extends Error {
   }
 };
 
+// packages/voidra/src/release-preparation-schema.ts
+var releasePackageSchema = external_exports.string().max(4096).refine(
+  (path) => (path === "package.json" || path.endsWith("/package.json")) && !path.includes("\\") && !path.includes("\0") && !path.split("/").some(
+    (part) => !part || [".", "..", ".git", ".voidra", "node_modules"].includes(
+      part.toLowerCase()
+    )
+  ),
+  "Choose a contained project package.json path"
+);
+var stableReleaseVersionSchema = external_exports.string().max(64).regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/).refine(
+  (value) => value.split(".").every((part) => Number.isSafeInteger(Number(part))),
+  "Release components must be safe integers"
+);
+var releasePreparationSchema = external_exports.looseObject({
+  source: external_exports.looseObject({
+    path: releasePackageSchema,
+    version: stableReleaseVersionSchema,
+    revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+  }),
+  version: stableReleaseVersionSchema,
+  bump: external_exports.enum(["patch", "minor", "major", "custom"]),
+  ticketChoice: external_exports.enum(["keep", "move"]),
+  tickets: external_exports.array(
+    external_exports.looseObject({
+      id: external_exports.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
+      revision: external_exports.string().regex(/^[a-f0-9]{64}$/)
+    })
+  )
+});
+
 // packages/voidra/src/records.ts
 var import_yaml = __toESM(require_dist(), 1);
 import { isDeepStrictEqual } from "node:util";
@@ -27281,14 +27311,6 @@ var id = (prefix) => external_exports.string().regex(new RegExp(`^${prefix}-[0-9
 var date5 = external_exports.iso.datetime({ offset: true });
 var version2 = external_exports.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 var hashSchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
-var releasePackageSchema = external_exports.string().max(4096).refine(
-  (path) => (path === "package.json" || path.endsWith("/package.json")) && !path.includes("\\") && !path.includes("\0") && !path.split("/").some(
-    (part) => !part || [".", "..", ".git", ".voidra", "node_modules"].includes(
-      part.toLowerCase()
-    )
-  ),
-  "Choose a contained project package.json path"
-);
 var types = [
   "feature",
   "bug",
@@ -27370,6 +27392,7 @@ var actionSchema = object2({
   links: external_exports.array(text).optional(),
   commits: external_exports.array(text).optional(),
   releaseActions: external_exports.array(id("act")).min(1).optional(),
+  releasePreparation: releasePreparationSchema.optional(),
   releaseVersion: version2.optional(),
   releaseTag: text.optional(),
   releaseFiles: external_exports.array(text).optional(),
@@ -27571,6 +27594,31 @@ function validateRecord(kind, record2) {
   };
   const d = record2.data;
   if (kind === "action") {
+    if (d.releasePreparation !== void 0) {
+      const prep = releasePreparationSchema.parse(d.releasePreparation);
+      if (d.type !== "release")
+        add(
+          "releasePreparation",
+          "Only Release actions have release preparation"
+        );
+      if (new Set(prep.tickets.map((ticket) => ticket.id)).size !== prep.tickets.length)
+        add(
+          "releasePreparation.tickets",
+          "Release ticket choices must be unique"
+        );
+      if (prep.tickets.some(
+        (ticket) => !Array.isArray(d.releaseActions) || !d.releaseActions.includes(ticket.id)
+      ))
+        add(
+          "releasePreparation.tickets",
+          "Versioned tickets must belong to the selected release work"
+        );
+      if (d.releaseVersion !== void 0 && prep.version !== d.releaseVersion)
+        add(
+          "releasePreparation.version",
+          "Preparation must match the proposed release version"
+        );
+    }
     if (d.releaseActions !== void 0) {
       if (d.type !== "release")
         add("releaseActions", "Only Release actions select release members");
@@ -27955,6 +28003,7 @@ function readPlan(files, id2, records) {
           tag: action.releaseTag ?? null,
           paths: action.releaseFiles ?? null,
           message: action.releaseMessage ?? null,
+          ...action.releasePreparation ? { preparation: action.releasePreparation } : {},
           record: record2 ? { data, body: record2.body } : null
         })
       )
@@ -28287,6 +28336,13 @@ function inspectFiles(files, options = {}) {
           "Released membership requires its completed release record"
         );
     }
+    if (a.releasePreparation && !taskAware)
+      add(
+        "minimum-reader",
+        metaPath,
+        "requiredVoidra",
+        "Release ticket choices require voidra \u2265 1.1.0"
+      );
     if (a.releaseActions) {
       if (!extendedActions)
         add(
@@ -29499,7 +29555,9 @@ var selection = external_exports.strictObject({
     })
   ).min(1),
   by: external_exports.string().trim().min(1),
-  queue: external_exports.boolean().optional()
+  queue: external_exports.boolean().optional(),
+  preparation: releasePreparationSchema.optional(),
+  notes: external_exports.string().max(1e5).optional()
 });
 
 // packages/voidra/src/templates.ts
@@ -29735,7 +29793,8 @@ var checkpointSchema = external_exports.looseObject({
   release: external_exports.strictObject({
     version: schemas.release.shape.version,
     tag: external_exports.string().min(1),
-    message: external_exports.string().min(1)
+    message: external_exports.string().min(1),
+    preparation: releasePreparationSchema.optional()
   }).optional()
 });
 var reportSchema = external_exports.strictObject({
@@ -29753,6 +29812,7 @@ var reportSchema = external_exports.strictObject({
   )
 });
 var releasePlanSchema = external_exports.strictObject({
+  preparation: releasePreparationSchema.optional(),
   version: schemas.release.shape.version,
   tag: external_exports.string().min(1),
   message: external_exports.string().min(1),

@@ -13,6 +13,7 @@ import {
   readPlan,
 } from "./project.ts";
 import { serializeRecord } from "./records.ts";
+import { checkReleasePreparation } from "./release-preparation.ts";
 import { questionSchema, schemas } from "./schemas.ts";
 import { applyOperation, type WriteOptions } from "./writer.ts";
 
@@ -281,6 +282,13 @@ export async function decideReview(
       ],
     };
   }
+  if (decision === "accepted" && action.releasePreparation)
+    await checkReleasePreparation(
+      root,
+      project,
+      action.releasePreparation,
+      action.releaseActions ?? [],
+    );
   const current = action.type === "release" ? plan?.revision : revision;
   const next = transition(
     action,

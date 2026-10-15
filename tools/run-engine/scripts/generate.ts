@@ -24,7 +24,13 @@ for (const [skill, entry, script] of [
     target: "node24",
     write: false,
     minify: false,
-    alias: { voidra: resolve(root, "packages/voidra/src/index.ts") },
+    alias: {
+      "voidra/release-preparation": resolve(
+        root,
+        "packages/voidra/src/release-preparation-schema.ts",
+      ),
+      voidra: resolve(root, "packages/voidra/src/index.ts"),
+    },
     banner: {
       js: "// Generated from tools/run-engine. AGPL-3.0-or-later; bundled dependency notices are in references/third-party-notices.txt.\nimport { createRequire as __voidraCreateRequire } from 'node:module'; import { fileURLToPath as __voidraFileURL } from 'node:url'; const require = __voidraCreateRequire(import.meta.url); const __voidraProcessHelper=__voidraFileURL(new URL('./process-info',import.meta.url)); const __voidraIntakeTemplates=__voidraFileURL(new URL('../references/templates/',import.meta.url));",
     },

@@ -1,6 +1,6 @@
 # V11-P09 — Xeploy-guided releases and ticket versions
 
-> **Needs:** P05, P07 · **Status:** Not started
+> **Needs:** P05, P07 · **Status:** Done — 2026-10-16
 
 ## Outcome
 

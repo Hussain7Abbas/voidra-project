@@ -9,6 +9,7 @@ import {
 } from "./lifecycle.ts";
 import { checkProject, type ProjectInspection, readPlan } from "./project.ts";
 import { serializeRecord } from "./records.ts";
+import { checkReleasePreparation } from "./release-preparation.ts";
 import { schemas } from "./schemas.ts";
 import {
   applyOperation,
@@ -109,6 +110,13 @@ export async function approveAction(
     questionsOpen,
   };
   if (action.type === "release") {
+    if (action.releasePreparation)
+      await checkReleasePreparation(
+        root,
+        checked,
+        action.releasePreparation,
+        action.releaseActions ?? [],
+      );
     if (action.reviewDecision && action.reviewDecision.revision !== revision) {
       const { reviewDecision, ...rest } = action;
       action = {

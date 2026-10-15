@@ -42,7 +42,7 @@ Status values: **Not started**, **In progress**, **Blocked** with reason, **Done
 | [V11-P06](phase-06-actions-sequence.md) | Actions sidebar, TODO enrollment and dependency rearrangement | P05 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p06.md) |
 | [V11-P07](phase-07-workspace-panels.md) | Resizable/toggleable panels, bottom human gates and titlebar controls | P02, P06 | Done — 2026-10-15 | [Verification](../docs/verification/v1.1.0-p07.md) |
 | [V11-P08](phase-08-knowledge-documentation.md) | Markdown knowledge pages and searchable documentation tree | P02, P07 | Done — 2026-10-16 | [Verification](../docs/verification/v1.1.0-p08.md) |
-| [V11-P09](phase-09-release-flow.md) | Xeploy UI questions and recoverable Done-ticket release choice | P05, P07 | Not started | — |
+| [V11-P09](phase-09-release-flow.md) | Xeploy UI questions and recoverable Done-ticket release choice | P05, P07 | Done — 2026-10-16 | [Verification](../docs/verification/v1.1.0-p09.md) |
 | [V11-P10](phase-10-verification-release.md) | Full compatibility, real-agent, accessibility and release evidence | P08, P09 | Not started | — |
 
 Use full IDs when referring to phases to avoid confusion with the completed v1 P01–P17. Run the first eligible phase after its understanding check and applicable approval. Existing D24 delegation concerns the original v1 plan; it is not blanket v1.1.0 implementation approval.

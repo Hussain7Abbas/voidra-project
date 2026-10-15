@@ -9,6 +9,8 @@ import {
   type ProjectInspection,
 } from "./project.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
+import { checkReleasePreparation } from "./release-preparation.ts";
+import { releasePreparationSchema } from "./release-preparation-schema.ts";
 import type { Action } from "./schemas.ts";
 import { schemas } from "./schemas.ts";
 import { newTaskFields } from "./task-metadata.ts";
@@ -100,6 +102,8 @@ const selection = z.strictObject({
     .min(1),
   by: z.string().trim().min(1),
   queue: z.boolean().optional(),
+  preparation: releasePreparationSchema.optional(),
+  notes: z.string().max(100000).optional(),
 });
 export async function createReleaseAction(
   root: string,
@@ -131,6 +135,13 @@ export async function createReleaseAction(
     if (candidate.revision !== chosen.revision)
       throw new Error("Selected action changed; refresh its revision");
   }
+  if (input.preparation)
+    await checkReleasePreparation(
+      root,
+      project,
+      input.preparation,
+      input.actions.map((member) => member.id),
+    );
   const id = createId(
       "act",
       new Set(
@@ -165,11 +176,17 @@ export async function createReleaseAction(
               status: "ready",
               doneBy: "agent",
               releaseActions: input.actions.map((a) => a.id),
+              ...(input.preparation
+                ? { releasePreparation: input.preparation }
+                : {}),
               links: input.actions.map((a) => a.id),
               createdBy: input.by,
               createdAt: new Date().toISOString(),
             },
-            "Plan the version, release notes and changelog for the selected completed actions. Follow the repository's version and changelog conventions. Leave the exact proposal at Review; commit and tag only after acceptance.\n",
+            (input.notes
+              ? `## Proposed release notes\n${input.notes}\n\n`
+              : "") +
+              "Plan the version, release notes and changelog for the selected completed actions. Follow the repository's version and changelog conventions. Leave the exact proposal at Review; commit and tag only after acceptance.\n",
           ).toString(),
         },
         ...input.actions.map((chosen) => {

@@ -614,6 +614,33 @@ export function ProjectActions({
                 Tag: <code>{current.data.releaseTag}</code>
               </p>
             )}
+            {current.data.releasePreparation && (
+              <section aria-label="Done-ticket release choice">
+                <h3>Done-ticket release choice</h3>
+                <p>
+                  Source: {current.data.releasePreparation.source.path} ·{" "}
+                  {current.data.releasePreparation.source.version}
+                </p>
+                <p>
+                  {current.data.releasePreparation.ticketChoice === "keep"
+                    ? `Keep Done tickets at ${current.data.releasePreparation.source.version} (current release)`
+                    : `Move these Done tickets to ${current.data.releasePreparation.version} (new release)`}
+                </p>
+                <ul>
+                  {current.data.releasePreparation.tickets.map((ticket) => (
+                    <li key={ticket.id}>
+                      {data.actions.find(
+                        (action) => action.data.id === ticket.id,
+                      )?.data.title ?? ticket.id}{" "}
+                      · {ticket.id}
+                    </li>
+                  ))}
+                </ul>
+                {!current.data.releasePreparation.tickets.length && (
+                  <p>No selected tickets require a target-release change.</p>
+                )}
+              </section>
+            )}
             <h3>Selected work</h3>
             <ul>
               {current.data.releaseActions.map((id) => (

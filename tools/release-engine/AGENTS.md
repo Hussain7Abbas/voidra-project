@@ -10,3 +10,5 @@ Extends [root instructions](../../AGENTS.md). This tool owns version alignment, 
 - Tests use real temporary files/tar archives/git and mock external services only. Live test-tag results remain distinct from fixture simulations and public test versions are retained.
 
 Keep CLAUDE.md as only @AGENTS.md with a trailing newline; update release architecture/evidence and indexes with behavior changes.
+
+- `src/choices.ts` is the narrow exported adapter used by desktop utility and standalone `release-options`. Keep it read-only and independent of the repository publication coordinator. Use pinned Xeploy for Bug fix/Minor/Major, canonical safe forward custom versions, and only contained chosen-package metadata. Do not expose its interactive deploy/merge operations.

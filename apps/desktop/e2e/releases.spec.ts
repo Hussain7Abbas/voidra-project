@@ -4,8 +4,17 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { _electron, expect, type Page, test } from "@playwright/test";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
+
+async function chooseVersion(page: Page) {
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByLabel("Xeploy bump type", { exact: true })
+    .selectOption("minor");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("radio", { name: /^Keep Done tickets at/ }).check();
+}
 
 for (const theme of ["light", "dark"] as const)
   test(`release selection and history are keyboard accessible in ${theme}`, async () => {
@@ -40,6 +49,7 @@ for (const theme of ["light", "dark"] as const)
         record.document.data.stage === "done",
     );
     if (!selected) throw new Error("Missing done Docs action");
+    await writeFile(join(root, "package.json"), '{"version":"0.1.0"}\n');
     for (const args of [
       ["init", "-q"],
       ["config", "user.name", "Release fixture"],
@@ -91,6 +101,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("checkbox", { name: "docs released", exact: true }),
       ).toHaveCount(0);
+      await chooseVersion(page);
       await page
         .getByRole("button", { name: "Create Release action", exact: true })
         .click();
@@ -243,6 +254,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("checkbox", { name: "Completed documentation", exact: true })
         .check();
+      await chooseVersion(page);
       await page
         .getByRole("button", { name: "Create Release action", exact: true })
         .click();

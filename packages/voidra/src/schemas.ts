@@ -1,4 +1,16 @@
 import { z } from "zod";
+import {
+  releasePackageSchema,
+  releasePreparationSchema,
+} from "./release-preparation-schema.ts";
+
+export type { ReleasePreparation } from "./release-preparation-schema.ts";
+export {
+  releasePackageSchema,
+  releasePreparationSchema,
+  stableReleaseVersionSchema,
+} from "./release-preparation-schema.ts";
+
 import type { Diagnostic } from "./errors.ts";
 import { fieldLine, type RecordDocument } from "./records.ts";
 
@@ -14,25 +26,6 @@ const id = (prefix: string) =>
 const date = z.iso.datetime({ offset: true });
 export const version = z.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 export const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
-export const releasePackageSchema = z
-  .string()
-  .max(4096)
-  .refine(
-    (path) =>
-      (path === "package.json" || path.endsWith("/package.json")) &&
-      !path.includes("\\") &&
-      !path.includes("\0") &&
-      !path
-        .split("/")
-        .some(
-          (part) =>
-            !part ||
-            [".", "..", ".git", ".voidra", "node_modules"].includes(
-              part.toLowerCase(),
-            ),
-        ),
-    "Choose a contained project package.json path",
-  );
 export const types = [
   "feature",
   "bug",
@@ -114,6 +107,7 @@ export const actionSchema = object({
   links: z.array(text).optional(),
   commits: z.array(text).optional(),
   releaseActions: z.array(id("act")).min(1).optional(),
+  releasePreparation: releasePreparationSchema.optional(),
   releaseVersion: version.optional(),
   releaseTag: text.optional(),
   releaseFiles: z.array(text).optional(),
@@ -332,6 +326,38 @@ export function validateRecord(
   };
   const d = record.data;
   if (kind === "action") {
+    if (d.releasePreparation !== undefined) {
+      const prep = releasePreparationSchema.parse(d.releasePreparation);
+      if (d.type !== "release")
+        add(
+          "releasePreparation",
+          "Only Release actions have release preparation",
+        );
+      if (
+        new Set(prep.tickets.map((ticket) => ticket.id)).size !==
+        prep.tickets.length
+      )
+        add(
+          "releasePreparation.tickets",
+          "Release ticket choices must be unique",
+        );
+      if (
+        prep.tickets.some(
+          (ticket) =>
+            !Array.isArray(d.releaseActions) ||
+            !d.releaseActions.includes(ticket.id),
+        )
+      )
+        add(
+          "releasePreparation.tickets",
+          "Versioned tickets must belong to the selected release work",
+        );
+      if (d.releaseVersion !== undefined && prep.version !== d.releaseVersion)
+        add(
+          "releasePreparation.version",
+          "Preparation must match the proposed release version",
+        );
+    }
     if (d.releaseActions !== undefined) {
       if (d.type !== "release")
         add("releaseActions", "Only Release actions select release members");

@@ -50,7 +50,7 @@ All rows have adapters accepted under P04 on 2026-10-15. The [evidence](../docs/
 | Planning commit | `planning-commit.tsx` | Selected paths, message, exact preview revision and operation identity; no commit on restore | P04 |
 | Question answer | `action-gates.tsx` | Action/question/round, original revision, selected options, delegation/free-text state and text | P04/P07 |
 | Plan change request | `action-gates.tsx` | Action and original plan revision, feedback | P04/P07 |
-| Release preparation | `project-releases.tsx` | Member IDs/hashes now; wizard step/version/notes/keep-move decision under P09 | P04/P09 |
+| Release preparation | `project-releases.tsx` | Member IDs/hashes, wizard step, original package path/version/hash, bump/custom input, Markdown notes, exact Done subset and keep/move decision | P04/P09 |
 
 Search/filter controls are view state. Theme/client/Me/membership/model preferences and checklist/queue actions apply immediately and retain their existing persistence/error handling. Pure confirmations, fixed recovery commands, read-only viewers and the OS folder chooser contain no unfinished app data-entry values; they do not create empty draft badges. This distinction does not exempt the actual entry/review forms above.
 

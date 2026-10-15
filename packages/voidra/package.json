@@ -16,6 +16,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./release-preparation": {
+      "types": "./dist/release-preparation-schema.d.ts",
+      "import": "./dist/release-preparation-schema.js"
     }
   },
   "bin": {

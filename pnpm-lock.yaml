@@ -29,6 +29,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@voidra/release-engine':
+        specifier: workspace:*
+        version: link:../../tools/release-engine
       '@voidra/run-engine':
         specifier: workspace:*
         version: link:../../tools/run-engine
@@ -165,6 +168,9 @@ importers:
 
   tools/run-engine:
     dependencies:
+      '@voidra/release-engine':
+        specifier: workspace:*
+        version: link:../release-engine
       voidra:
         specifier: workspace:*
         version: link:../../packages/voidra

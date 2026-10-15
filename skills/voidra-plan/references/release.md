@@ -23,3 +23,13 @@ Only a complete unchanged accepted proposal may proceed. Read `releaseFiles` and
 Run actual project/version checks and `voidra check`; record results and both standards/plan reviews in the ordinary implementation report. Its paths match `releaseFiles`, including an explicit empty list for a notes-only release. Call `prepare`, `commit` with the exact `releaseMessage`, then `finalize`, validating after each. The helper tags its journaled commit and atomically marks the release/members Released. Human actions retain checklist semantics and gain released membership.
 
 Recovery reconciles approved prepared intent, existing run-trailer commit, matching tag and grouped updates. Never move a conflicting tag, repeat a version bump or clear a live owner. Outside edits stop recovery. Report actual commit/tag and Released state, with no publishing claim.
+
+## Versioned Done-ticket preparation (reader 1.1.0)
+
+Run the bundled `release-options --project FOLDER` command for a read-only Xeploy preview of the selected package source and stable version choices. It requires no owner and makes no file/Git effects. The desktop uses the same adapter.
+
+The desktop release wizard uses Xeploy for stable version choices and saves `releasePreparation` on the Release action: source package path/current version/SHA-256, proposed version, bump type, `ticketChoice` (`keep` or `move`) and the exact current-version selected Done tickets with their action-file SHA-256 values. Read and preserve this choice. Source version files stay unchanged during planning. The proposed version must be higher, and the selected source package must be among the approved `paths`.
+
+For a task-tracked project, `release-plan` requires this preparation. If standalone intake has no choice, ask through owned planning before producing a proposal; do not infer a keep/move answer. You may supply `preparation` in the release-plan report to propose a revised source/version/scope after feedback. Use the current contained package SHA-256 and only selected, completed, unreleased actions whose targetRelease equals the displayed current version. Preserve the requested choice; changed source/member hashes need a fresh exact proposal and Review. Never retag unrelated historical tickets.
+
+The runtime refuses stale source or member context at acceptance and implementation startup. After the approved source bump, preparation requires the selected package to contain the accepted new version. Finalization atomically assigns the new targetRelease only to the shown subset for `move`; `keep` preserves assignments. Both modes record immutable `releasedIn` membership, preventing duplicate release. Commit/tag/checkpoint recovery stays owned by the runtime; never update ticket metadata manually.

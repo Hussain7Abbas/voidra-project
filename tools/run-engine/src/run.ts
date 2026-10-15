@@ -16,6 +16,7 @@ import {
   type Action,
   applyOperation,
   checkProject,
+  checkReleasePreparation,
   createId,
   hash,
   newTaskFields,
@@ -24,9 +25,11 @@ import {
   queueDecision,
   readActionSequence,
   readPlan,
+  readProjectRelease,
   recoverOperation,
   releaseCandidates,
   releasedMember,
+  releasePreparationSchema,
   schemas,
   serializeRecord,
   transition,
@@ -87,6 +90,7 @@ const checkpointSchema = z.looseObject({
       version: schemas.release.shape.version,
       tag: z.string().min(1),
       message: z.string().min(1),
+      preparation: releasePreparationSchema.optional(),
     })
     .optional(),
 });
@@ -132,9 +136,13 @@ function releaseIntent(
     version: action.releaseVersion,
     tag: action.releaseTag,
     message: action.releaseMessage,
+    ...(action.releasePreparation
+      ? { preparation: action.releasePreparation }
+      : {}),
   };
 }
 const releasePlanSchema = z.strictObject({
+  preparation: releasePreparationSchema.optional(),
   version: schemas.release.shape.version,
   tag: z.string().min(1),
   message: z.string().min(1),
@@ -213,6 +221,26 @@ export async function publishReleasePlan(
   for (const member of selected)
     if (candidates.get(member.id)?.revision !== member.revision)
       throw new Error("Release selection changed or is ineligible");
+  const preparation = report.preparation ?? action.releasePreparation;
+  if (project.metadata?.taskTracking === 1 && !preparation)
+    throw Error(
+      "Tracked releases require an explicit version and Done-ticket preparation choice",
+    );
+  if (preparation) {
+    if (
+      preparation.version !== report.version ||
+      !report.paths.includes(preparation.source.path)
+    )
+      throw Error(
+        "Release preparation must match the proposed version and include its selected package path",
+      );
+    await checkReleasePreparation(
+      root,
+      project,
+      preparation,
+      selected.map((member) => member.id),
+    );
+  }
   const recordPath = `.voidra/releases/${report.version}.md`,
     prior = project.records.get(recordPath)?.document;
   if (
@@ -223,6 +251,7 @@ export async function publishReleasePlan(
   const next: Action = {
     ...action,
     releaseActions: selected.map((member) => member.id),
+    ...(preparation ? { releasePreparation: preparation } : {}),
     releaseVersion: report.version,
     releaseTag: report.tag,
     releaseFiles: report.paths,
@@ -408,10 +437,16 @@ async function finalizeRelease(
     if (!member) throw new Error("Release member missing");
     add(
       memberPath,
-      serializeRecord(
-        member,
-        releasedMember(schemas.action.parse(member.data), ctx.release.version),
-      ),
+      serializeRecord(member, {
+        ...releasedMember(
+          schemas.action.parse(member.data),
+          ctx.release.version,
+        ),
+        ...(ctx.release.preparation?.ticketChoice === "move" &&
+        ctx.release.preparation.tickets.some((ticket) => ticket.id === id)
+          ? { targetRelease: ctx.release.version }
+          : {}),
+      }),
     );
   }
   const final: RunContext = {
@@ -701,6 +736,18 @@ export async function startRun(
   const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
   if (!decision.allowed)
     throw new Error(decision.reason ?? "Queued action cannot run");
+  if (
+    action.type === "release" &&
+    action.stage === "review" &&
+    action.reviewDecision?.decision === "accepted" &&
+    action.releasePreparation
+  )
+    await checkReleasePreparation(
+      root,
+      checked,
+      action.releasePreparation,
+      action.releaseActions ?? [],
+    );
   const identity = await processIdentity(ownerPid);
   if (!identity) throw new Error("Run owner process is missing");
   const repository = await repositoryRoot(root);
@@ -1087,6 +1134,16 @@ export async function prepareResult(
     throw new Error(
       "Release paths must match the accepted version/changelog files",
     );
+  if (release?.preparation) {
+    const source = await readProjectRelease(
+      root,
+      release.preparation.source.path,
+    );
+    if (source.version !== release.version)
+      throw Error(
+        "Selected package must contain the accepted new release version before preparation",
+      );
+  }
   let next = release ? { ...action, status: "ready" as const } : action;
   for (let i = 0; i < 8 && next.stage !== "review"; i++)
     next = transition(next, "advance", plan ? { plan } : {}, rules).action;
