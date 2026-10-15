@@ -121,7 +121,7 @@ test("late board rendering uses the complete selected palette and stays reachabl
             values.push({
               color: getComputedStyle(element).color,
               background: getComputedStyle(
-                element.closest("li.card") as Element,
+                element.closest("article.task-card") as Element,
               ).backgroundColor,
             });
             if (values.length === 6) resolve(values);
@@ -136,7 +136,7 @@ test("late board rendering uses the complete selected palette and stays reachabl
         background: "rgb(34, 35, 46)",
       })),
     );
-    // Tab crosses a board-row boundary using native navigation, revealing the next item.
+    // Native Tab navigation remains available after scrolling a task into view.
     await target.focus();
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(
