@@ -37,6 +37,10 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("heading", { name: "Tasks", exact: true }),
       ).toBeVisible();
+      await page
+        .locator("summary")
+        .filter({ hasText: "Release settings" })
+        .click();
       await expect(
         page.getByText("Current release 0.0.0", { exact: true }),
       ).toBeVisible();
@@ -217,8 +221,10 @@ for (const theme of ["light", "dark"] as const)
           (task) => task.title === "Unassigned task",
         ),
       ).toMatchObject({ targetRelease: "2.5.0" });
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Title", { exact: true })

@@ -73,7 +73,7 @@ async function recover(run: string) {
   await expect(
     page.getByRole("button", { name: "Recover run", exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page.getByRole("button", { name: "Tasks", exact: true }).click();
   await page
     .getByRole("button", { name: "Document installation", exact: true })
     .click();
@@ -116,7 +116,7 @@ test.beforeEach(async () => {
   await expect(
     page.getByText("Project profile created", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "New action", exact: true }).click();
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByRole("radio", { name: "Normal", exact: true }).check();
   await page.getByLabel("Action type", { exact: true }).selectOption("docs");
   await page.getByLabel("Title", { exact: true }).fill("Document installation");
@@ -168,7 +168,7 @@ for (const theme of ["light", "dark"])
         .toBe(command);
     }
     await axe();
-    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await page.getByRole("button", { name: "Tasks", exact: true }).click();
     await page
       .getByRole("button", { name: "Document installation", exact: true })
       .click();
@@ -237,7 +237,7 @@ test("invalid agent output shows the action path and field", async () => {
   await expect(problems).toContainText("action.md:2 · id");
   await axe();
   await page
-    .getByRole("button", { name: "Back to actions", exact: true })
+    .getByRole("button", { name: "Back to Tasks", exact: true })
     .click();
   await page
     .getByRole("button", { name: /Inspect invalid action/ })

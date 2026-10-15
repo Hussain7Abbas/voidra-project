@@ -46,9 +46,7 @@ for (const type of [
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
 
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page.getByLabel("Action type", { exact: true }).selectOption(type);
       await page.getByLabel("Title", { exact: true }).fill(`Lifecycle ${type}`);
@@ -131,7 +129,7 @@ for (const type of [
         type === "research" ? undefined : [expect.any(String)],
       );
       await page
-        .getByRole("button", { name: "Back to actions", exact: true })
+        .getByRole("button", { name: "Back to Tasks", exact: true })
         .click();
     } finally {
       await app.close();

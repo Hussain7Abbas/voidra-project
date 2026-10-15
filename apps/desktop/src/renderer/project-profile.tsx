@@ -20,6 +20,7 @@ type Value = string | string[] | null;
 export function useWorkspace(enabled = true) {
   return useQuery({
     queryKey: ["workspace"],
+    refetchOnMount: false,
     enabled,
     queryFn: async () => {
       const result = await request({ command: "workspace" });

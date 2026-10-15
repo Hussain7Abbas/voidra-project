@@ -61,7 +61,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("radio", { name: "a · Recommended Only the owner" })
         .check();
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await nav.click();
       await page
         .getByRole("button", { name: "Who can read the notes?", exact: true })
@@ -277,7 +277,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("region", { name: "Planning file problems" }),
       ).toBeVisible();
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page
         .getByRole("button", { name: "Export notes", exact: true })
         .click();

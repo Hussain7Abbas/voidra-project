@@ -68,7 +68,8 @@ it("shows conflicted records and permits only unrelated edits through the real s
     ).toBe(false);
     expect(await readFile(join(root, path))).toEqual(bytes);
     await page
-      .getByRole("button", { name: "Conflicted act-000000", exact: true })
+      .getByRole("button", { name: "Open affected task", exact: true })
+      .first()
       .click();
     await page
       .getByRole("heading", { name: "Conflicted planning files", exact: true })

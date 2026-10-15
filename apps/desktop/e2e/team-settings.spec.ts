@@ -75,9 +75,7 @@ for (const theme of ["light", "dark"] as const)
         path: resolve(`../../.cache/screenshots/v11-p03-team-${theme}.png`),
       });
       await page.keyboard.press("Escape");
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page
@@ -101,9 +99,7 @@ for (const theme of ["light", "dark"] as const)
       app = await launch();
       page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page
@@ -125,7 +121,7 @@ for (const theme of ["light", "dark"] as const)
       const second = await opened;
       await second.locator('[data-app-ready="true"]').waitFor();
       await second
-        .getByRole("button", { name: "New action", exact: true })
+        .getByRole("button", { name: "Add task", exact: true })
         .click();
       await second.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(

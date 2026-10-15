@@ -76,9 +76,9 @@ for (const theme of ["light", "dark"] as const)
       await run();
       await expect(suggestion).toHaveCount(0);
       await expect(
-        page.getByRole("button", { name: "Backlog", exact: true }),
+        page.getByRole("button", { name: "Tasks", exact: true }),
       ).toBeEnabled();
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await expect(
         page.getByText("Document outside changes", { exact: true }),
       ).toBeVisible();

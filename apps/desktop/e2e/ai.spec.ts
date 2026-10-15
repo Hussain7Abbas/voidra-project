@@ -72,8 +72,10 @@ for (const theme of ["light", "dark"] as const)
     try {
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
@@ -111,7 +113,9 @@ for (const theme of ["light", "dark"] as const)
           .violations,
       ).toEqual([]);
       await page.getByRole("button", { name: "Done", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Description", { exact: true })
@@ -174,7 +178,9 @@ for (const theme of ["light", "dark"] as const)
         page.getByText("No key saved", { exact: true }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Done", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
@@ -406,7 +412,7 @@ for (const theme of ["light", "dark"] as const)
         { status: "confirmed" },
         { status: "confirmed", answer: "A reviewed offline workflow" },
       ]);
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page
         .getByRole("button", { name: "Documentation result", exact: true })
         .first()
@@ -418,7 +424,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("complementary", { name: "AI summary draft" }),
       ).toContainText("waiting for review");
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page
         .getByRole("button", { name: "Planned release", exact: true })
         .first()

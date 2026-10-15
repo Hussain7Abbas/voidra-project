@@ -80,7 +80,7 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("dialog", { name: "Architecture", exact: true }),
       ).toContainText("private planning files");
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page
         .getByRole("button", { name: "feature discovery", exact: true })
         .click();

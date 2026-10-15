@@ -18,7 +18,7 @@ import {
   PanelLeft,
   Settings,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   BridgeRequest,
   BridgeResponse,
@@ -33,7 +33,6 @@ import { EditHistory } from "./edit-history.tsx";
 import { flushFormDrafts } from "./form-drafts.tsx";
 import { inboxItems } from "./inbox.ts";
 import { ProjectActions } from "./project-actions.tsx";
-import { ProjectBacklog } from "./project-backlog.tsx";
 import { ProjectDecisions, ProjectGlossary } from "./project-knowledge.tsx";
 import {
   ProjectOnboarding,
@@ -142,22 +141,43 @@ function Shell() {
     | "decisions"
     | "glossary"
     | "releases"
-  >("actions");
+  >("tasks");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
-  const showAction = (id: string): void => {
-    void flushFormDrafts()
-      .then(() => {
-        setSelectedAction(id);
-        setNavigationTarget("actions");
-        setNavigationEpoch((value) => value + 1);
-      })
-      .catch((cause) =>
-        toast.error(
-          cause instanceof Error ? cause.message : "Draft could not be saved",
-        ),
-      );
-  };
-  const showProfile = (): void => {
+  const [selectedIdea, setSelectedIdea] = useState<string | null>(null);
+  const showAction = useCallback(
+    (id: string): void => {
+      void flushFormDrafts()
+        .then(() => {
+          setSelectedAction(id);
+          setSelectedIdea(null);
+          setNavigationTarget("actions");
+          setNavigationEpoch((value) => value + 1);
+        })
+        .catch((cause) =>
+          toast.error(
+            cause instanceof Error ? cause.message : "Draft could not be saved",
+          ),
+        );
+    },
+    [toast],
+  );
+  const showIdea = useCallback(
+    (id: string | null): void => {
+      void flushFormDrafts()
+        .then(() => {
+          setSelectedIdea(id);
+          setSelectedAction(null);
+          setNavigationTarget("tasks");
+        })
+        .catch((cause) =>
+          toast.error(
+            cause instanceof Error ? cause.message : "Draft could not be saved",
+          ),
+        );
+    },
+    [toast],
+  );
+  const showProfile = useCallback((): void => {
     void flushFormDrafts()
       .then(() => {
         setSelectedAction(null);
@@ -169,7 +189,7 @@ function Shell() {
           cause instanceof Error ? cause.message : "Draft could not be saved",
         ),
       );
-  };
+  }, [toast]);
   const data = snapshot.data;
   const workspace = useWorkspace(!!data?.project);
   const hasPlanning = workspace.data
@@ -228,8 +248,6 @@ function Shell() {
     { label: "Overview", icon: Layers },
     { label: "Tasks", icon: ListChecks },
     { label: "Profile", icon: BookOpen },
-    { label: "Backlog", icon: Inbox },
-    { label: "Actions", icon: ListChecks },
     { label: "Decisions", icon: BookOpen },
     { label: "Glossary", icon: BookOpen },
     { label: "Waiting for you", icon: Inbox },
@@ -351,7 +369,7 @@ function Shell() {
                   <button
                     type="button"
                     aria-label={item.label}
-                    className={`nav-item ${(hasPlanning ? item.label === (navigationTarget === "tasks" ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                     disabled={
                       hasPlanning
                         ? ![
@@ -379,6 +397,7 @@ function Shell() {
                         return;
                       }
                       setSelectedAction(null);
+                      setSelectedIdea(null);
                       setNavigationEpoch((value) => value + 1);
                       setNavigationTarget(
                         item.label === "Tasks"
@@ -405,7 +424,9 @@ function Shell() {
                       (
                         hasPlanning
                           ? item.label ===
-                            (navigationTarget === "tasks"
+                            (["tasks", "actions", "backlog"].includes(
+                              navigationTarget,
+                            )
                               ? "Tasks"
                               : navigationTarget === "inbox"
                                 ? "Waiting for you"
@@ -559,9 +580,13 @@ function Shell() {
                 navigationEpoch={navigationEpoch}
                 navigationTarget={navigationTarget}
                 selectedAction={selectedAction}
+                selectedIdea={selectedIdea}
+                onIdea={showIdea}
                 onAction={showAction}
-                onBacklog={() => {
-                  setNavigationTarget("backlog");
+                onTasks={() => {
+                  setSelectedAction(null);
+                  setSelectedIdea(null);
+                  setNavigationTarget("tasks");
                   setNavigationEpoch((value) => value + 1);
                 }}
                 onProfile={showProfile}
@@ -678,13 +703,17 @@ function Content({
   navigationEpoch,
   navigationTarget,
   selectedAction,
+  selectedIdea,
+  onIdea,
   onAction,
-  onBacklog,
+  onTasks,
   onProfile,
 }: {
   selectedAction: string | null;
+  selectedIdea: string | null;
+  onIdea: (id: string | null) => void;
   onAction: (id: string) => void;
-  onBacklog: () => void;
+  onTasks: () => void;
   onProfile: () => void;
   data: Snapshot;
   hasPlanning: boolean;
@@ -704,11 +733,15 @@ function Content({
 }) {
   const project = data.project;
   if (project && hasPlanning)
-    return navigationTarget === "tasks" ? (
+    return ["tasks", "actions", "backlog"].includes(navigationTarget) ? (
       <ProjectTasks
-        key={navigationEpoch}
+        key={project.path}
         onAction={onAction}
-        onBacklog={onBacklog}
+        onIdea={onIdea}
+        selectedIdea={selectedIdea}
+        selectedAction={navigationTarget === "actions" ? selectedAction : null}
+        onTasks={onTasks}
+        navigationEpoch={navigationEpoch}
       />
     ) : navigationTarget === "releases" ? (
       <ProjectReleases key={navigationEpoch} onAction={onAction} />
@@ -722,13 +755,12 @@ function Content({
       <ProjectGlossary key={navigationEpoch} />
     ) : navigationTarget === "profile" ? (
       <ProjectProfile key={navigationEpoch} />
-    ) : navigationTarget === "backlog" ? (
-      <ProjectBacklog key={navigationEpoch} />
     ) : (
       <ProjectActions
         key={navigationEpoch}
-        view={navigationTarget}
+        view={navigationTarget === "inbox" ? "inbox" : "run"}
         initialAction={selectedAction}
+        {...(navigationTarget === "actions" ? { onBack: onTasks } : {})}
       />
     );
   if (project) return <ProjectOnboarding name={project.name} />;

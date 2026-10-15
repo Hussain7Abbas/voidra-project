@@ -52,7 +52,7 @@ for (const theme of ["light", "dark"] as const)
           return;
         }
         await page
-          .getByRole("button", { name: "New action", exact: true })
+          .getByRole("button", { name: "Add task", exact: true })
           .click();
         await page.getByRole("radio", { name: "Normal", exact: true }).check();
         await page
@@ -93,14 +93,16 @@ for (const theme of ["light", "dark"] as const)
           .click();
         await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
         await page
-          .getByRole("button", { name: "Back to actions", exact: true })
+          .getByRole("button", { name: "Back to Tasks", exact: true })
           .click();
       }
       await expect(
-        page.getByRole("button", {
-          name: "Slices of Provision dependencies",
-          exact: true,
-        }),
+        page
+          .getByRole("button", {
+            name: "Slices of Provision dependencies",
+            exact: true,
+          })
+          .first(),
       ).toBeVisible();
       await page
         .getByRole("button", { name: "Document integration", exact: true })
@@ -119,7 +121,7 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("button", { name: "Queue for agent", exact: true }),
       ).toBeDisabled();
       await page
-        .getByRole("button", { name: "Back to actions", exact: true })
+        .getByRole("button", { name: "Back to Tasks", exact: true })
         .click();
       for (const child of ["Create account", "Confirm access"]) {
         await page.getByRole("button", { name: child, exact: true }).click();
@@ -133,7 +135,7 @@ for (const theme of ["light", "dark"] as const)
           )
           .toBe("complete");
         await page
-          .getByRole("button", { name: "Back to actions", exact: true })
+          .getByRole("button", { name: "Back to Tasks", exact: true })
           .click();
       }
       expect(

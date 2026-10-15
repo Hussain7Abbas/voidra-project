@@ -152,7 +152,7 @@ for (const value of ["light", "dark"])
         (r) => r.kind === "action" && r.document.data.type === "profile-change",
       ),
     ).toHaveLength(1);
-    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await page.getByRole("button", { name: "Tasks", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Bootstrap", exact: true }),
     ).toBeVisible();

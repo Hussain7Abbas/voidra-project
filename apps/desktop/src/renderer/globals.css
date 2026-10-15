@@ -1108,3 +1108,47 @@
   opacity: 0.65;
   cursor: default;
 }
+
+/* Five stable columns; offscreen columns and card drags stay local to the board. */
+.tasks-board {
+  grid-template-columns: repeat(5, minmax(14rem, 1fr));
+  overflow-x: auto;
+  align-items: stretch;
+  overscroll-behavior-x: contain;
+  padding-block-end: 0.75rem;
+}
+.task-column {
+  min-height: 18rem;
+  max-height: min(52rem, 70dvh);
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 14rem auto 30rem;
+}
+.task-column > ul {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.task-column[data-drop-target] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.task-card {
+  margin-block-end: 0;
+  padding: 0.75rem;
+}
+.task-drag-handle {
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.task-drag-handle:active {
+  cursor: grabbing;
+}

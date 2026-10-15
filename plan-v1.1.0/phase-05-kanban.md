@@ -1,6 +1,6 @@
 # V11-P05 — Tasks Kanban and release filters
 
-> **Needs:** P04 · **Status:** Not started · **Confirmed:** C01–C03 · **Proposals:** record/migration details in A01, A02, A07
+> **Needs:** P04 · **Status:** Done — 2026-10-15 · **Confirmed:** C01–C03 · **Proposals:** record/migration details in A01, A02, A07
 
 ## Outcome
 
@@ -44,3 +44,7 @@ C01–C03 are implemented and board mappings documented; all stories and `make c
 ## Hand-off
 
 Update board/backlog architecture and user guide. P06 consumes TODO membership events without duplicate enrollment; P07 adds final pane layout.
+
+## Executed acceptance
+
+All four stories are complete. [Evidence](../docs/verification/v1.1.0-p05.md) records 453-test final quality acceptance, real pointer/keyboard/stale/cancellation workflows, source-bound release behavior, existing detail/checklist/undo flows, both-theme axe/visual review and retained 1,000-task measurements. The proposed startup target remains a documented P10 performance gap; it is not claimed passed. P06 is next.

@@ -37,8 +37,10 @@ for (const theme of ["light", "dark"] as const)
       await page.getByRole("tab", { name: "Appearance", exact: true }).click();
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       const title = page.getByLabel("Title", { exact: true }),
         editor = page.getByLabel("Description", { exact: true });

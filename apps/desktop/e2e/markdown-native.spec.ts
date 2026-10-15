@@ -24,8 +24,10 @@ test("Markdown clipboard, native-menu history, IME and Unicode retain source ind
   try {
     const page = await app.firstWindow();
     await page.locator('[data-app-ready="true"]').waitFor();
-    await page.getByRole("button", { name: "Backlog", exact: true }).click();
-    await page.getByRole("button", { name: "New idea", exact: true }).click();
+    await page.getByRole("button", { name: "Tasks", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Add to Backlog", exact: true })
+      .click();
     await page.getByRole("radio", { name: "Normal", exact: true }).check();
     await page.getByLabel("Title", { exact: true }).fill("Native editing");
     const editor = page.getByLabel("Description", { exact: true });

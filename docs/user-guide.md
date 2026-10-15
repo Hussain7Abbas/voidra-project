@@ -34,7 +34,7 @@ The general template also includes `voidra-architect-general`, which Go and Plan
 
 ## Turn an idea into work
 
-Save rough ideas in **Backlog**. Clarify them, mark them ready, or reject them with a reason. Promote an idea when it is ready for action. You can also create an action directly.
+Open **Tasks** to work in Backlog, TODO, In progress, Review and Done. **Add task** (Cmd/Ctrl+N) creates executable work; **Add to Backlog** captures an idea. Open a card to clarify, edit or promote it, review its plans/results, or use a human checklist. **Back to Tasks** returns to the board.
 
 Choose an action type that matches the work:
 
@@ -48,7 +48,7 @@ Choose an action type that matches the work:
 | Research | Record findings and recommendations without changing code. |
 | Release | Propose a version and notes, then commit and tag after acceptance. |
 
-New ordinary work uses your coding agent. Existing human tasks and human blockers still have usable checklists. Dependencies block an action until the required work is complete. The board lets you filter and group actions; it does not override their lifecycle or approval gates. Large work can be split into demonstrable child slices, each with its own planning loop.
+New ordinary work uses your coding agent. Existing human tasks and human blockers still have usable checklists. Dependencies block an action until the required work is complete. The board filters tasks by release, type, status and assignee; it does not override their lifecycle or approval gates. Drag a card by its grip or focus the grip and use Left/Right. Visible Backlog/TODO buttons provide another way to move unstarted work. Escape cancels a drag. Run, Review and Done remain controlled by their existing gates; a refused move offers the relevant task steps. Existing release assignments survive moves; a missing release is filled from the current package when leaving Backlog. Open **Release settings** to choose the package or enable release-aware movement. Closing it preserves unfinished setup values. The Release filter offers Current, previous versions, All releases and Unassigned Backlog; it never changes the run queue. Large work can be split into demonstrable child slices, each with its own planning loop.
 
 Fresh action and Backlog capture opens in **Agentic**: describe one outcome in a Markdown input, review the OpenRouter request and generated title/type/description, then save. **Normal** shows Title and Description with the relevant metadata. Title is optional; leaving it empty requests a reviewed AI title. A manual title is preserved. Switching modes retains each mode’s text and reviewed result; generated fields seed untouched Normal inputs for editing. No key or generation failure leaves the draft available for retry or manual completion. Assignee comes from Team; Backlog assignment and proposed type survive promotion.
 

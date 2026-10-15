@@ -72,9 +72,7 @@ for (const theme of ["light", "dark"] as const)
             .every((animation) => animation.playState !== "running"),
         ),
       );
-      await page
-        .getByRole("heading", { name: "Actions", exact: true })
-        .waitFor();
+      await page.getByRole("heading", { name: "Tasks", exact: true }).waitFor();
       expect(
         (await new AxeBuilder({ page }).setLegacyMode(true).analyze())
           .violations,
@@ -132,10 +130,10 @@ for (const theme of ["light", "dark"] as const)
         path: resolve(`../../.cache/screenshots/p03-action-${theme}.png`),
       });
       await page
-        .getByRole("button", { name: "Back to actions", exact: true })
+        .getByRole("button", { name: "Back to Tasks", exact: true })
         .click();
       await expect(
-        page.getByRole("heading", { name: "Actions", exact: true }),
+        page.getByRole("heading", { name: "Tasks", exact: true }),
       ).toBeVisible();
     } finally {
       await app.close();

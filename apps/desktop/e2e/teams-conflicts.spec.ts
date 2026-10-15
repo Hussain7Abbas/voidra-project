@@ -37,12 +37,13 @@ for (const theme of ["light", "dark"] as const)
       await page.keyboard.press("Escape");
       await expect(
         page.getByRole("heading", {
-          name: "Conflicted planning files",
+          name: "Planning files needing attention",
           exact: true,
         }),
       ).toBeVisible();
       await page
-        .getByRole("button", { name: "Conflicted act-000000", exact: true })
+        .getByRole("button", { name: "Open affected task", exact: true })
+        .first()
         .click();
       await expect(
         page.getByRole("button", { name: "Queue for agent", exact: true }),
@@ -52,11 +53,9 @@ for (const theme of ["light", "dark"] as const)
           .violations,
       ).toEqual([]);
       await page
-        .getByRole("button", { name: "Back to actions", exact: true })
+        .getByRole("button", { name: "Back to Tasks", exact: true })
         .click();
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Action type", { exact: true })

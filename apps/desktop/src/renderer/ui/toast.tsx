@@ -81,9 +81,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function useToast() {
   const show = useContext(ToastContext);
-  if (!show) throw new Error("useToast must be used inside ToastProvider");
-  return {
-    success: (text: string) => show("success", text),
-    error: (text: string) => show("error", text),
-  };
+  return useMemo(() => {
+    if (!show) throw new Error("useToast must be used inside ToastProvider");
+    return {
+      success: (text: string) => show("success", text),
+      error: (text: string) => show("error", text),
+    };
+  }, [show]);
 }

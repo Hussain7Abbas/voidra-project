@@ -25,15 +25,18 @@ import { useToast } from "./ui/toast.tsx";
 export function ProjectActions({
   view,
   initialAction = null,
+  onBack,
 }: {
   view: "actions" | "run" | "inbox";
   initialAction?: string | null;
+  onBack?: () => void;
 }) {
   const client = useCodingClient();
   const query = useQueryClient(),
     toast = useToast();
   const workspace = useQuery({
     queryKey: ["workspace"],
+    refetchOnMount: false,
     queryFn: async () => {
       const result = await request({ command: "workspace" });
       if (result.kind !== "workspace")
@@ -65,7 +68,10 @@ export function ProjectActions({
     [busy, setBusy] = useState(false);
   const selectAction = (id: string | null): void => {
     void flushFormDrafts()
-      .then(() => setSelected(id))
+      .then(() => {
+        if (id === null && onBack) onBack();
+        else setSelected(id);
+      })
       .catch((cause) =>
         toast.error(
           cause instanceof Error ? cause.message : "Draft could not be saved",
@@ -256,7 +262,11 @@ export function ProjectActions({
     return (
       <>
         <Button className="mb-6" onClick={() => selectAction(null)}>
-          {view === "inbox" ? "Back to inbox" : "Back to actions"}
+          {view === "inbox"
+            ? "Back to inbox"
+            : onBack
+              ? "Back to Tasks"
+              : "Back to actions"}
         </Button>
         <PageHeader
           title="Action file needs attention"
@@ -274,7 +284,11 @@ export function ProjectActions({
           variant="ghost"
           onClick={() => selectAction(null)}
         >
-          {view === "inbox" ? "Back to inbox" : "Back to actions"}
+          {view === "inbox"
+            ? "Back to inbox"
+            : onBack
+              ? "Back to Tasks"
+              : "Back to actions"}
         </Button>
         <PageHeader
           title={current.data.title}

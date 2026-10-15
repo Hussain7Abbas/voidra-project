@@ -174,7 +174,7 @@ for (const theme of ["light", "dark"] as const)
             path.startsWith(".voidra/") && !path.startsWith(".voidra/local/"),
         ),
       ).toBe(true);
-      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page
         .getByRole("button", { name: "First task", exact: true })
         .click();

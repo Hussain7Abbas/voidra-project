@@ -48,8 +48,10 @@ for (const theme of ["light", "dark"] as const)
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       const title = page.getByLabel("Title", { exact: true });
       await title.fill("Export");
@@ -69,6 +71,9 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
+      await page
+        .getByRole("button", { name: "Export notes", exact: true })
+        .click();
       await page
         .getByRole("button", {
           name: "Promote idea: Export notes",

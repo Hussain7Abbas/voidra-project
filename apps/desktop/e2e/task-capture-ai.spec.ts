@@ -87,9 +87,7 @@ for (const theme of ["light", "dark"] as const)
           (record) => record.kind === "action",
         ).length;
       const originalCount = await count();
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       const dialog = page.getByRole("dialog", {
         name: "Create action",
         exact: true,
@@ -137,9 +135,7 @@ for (const theme of ["light", "dark"] as const)
           (record) => record.document.data.title === "Generated Normal title",
         )?.document.body,
       ).toBe("# Exact description\n\nالعربية 🧭");
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await expect(
         dialog.getByRole("radio", { name: "Agentic", exact: true }),
       ).toBeChecked();
@@ -192,9 +188,7 @@ for (const theme of ["light", "dark"] as const)
       expect(requests).toHaveLength(generationCalls);
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await dialog
         .getByRole("button", { name: /Restore draft .*Generated Agentic bug/ })
         .click();
@@ -211,9 +205,7 @@ for (const theme of ["light", "dark"] as const)
           (record) => record.document.data.title === "Generated Agentic bug",
         )?.document.data.type,
       ).toBe("bug");
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await dialog.getByRole("radio", { name: "Normal", exact: true }).check();
       await dialog.getByLabel("Title", { exact: true }).fill("My manual title");
       await dialog
@@ -226,9 +218,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(dialog).toBeHidden({ timeout: 30000 });
       expect(requests).toHaveLength(calls);
       delay = true;
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await dialog
         .getByRole("textbox", { name: "Task", exact: true })
         .fill("Cancelled prompt remains");

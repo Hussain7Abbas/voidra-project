@@ -39,11 +39,18 @@ const labels: Record<Status, string> = {
   rejected: "Rejected",
 };
 
-export function ProjectBacklog() {
+export function ProjectBacklog({
+  selectedId,
+  onBack,
+}: {
+  selectedId?: string;
+  onBack?: () => void;
+} = {}) {
   const query = useQueryClient(),
     toast = useToast();
   const workspace = useQuery({
     queryKey: ["workspace"],
+    refetchOnMount: false,
     queryFn: async () => {
       const result = await request({ command: "workspace" });
       if (result.kind !== "workspace")
@@ -192,8 +199,10 @@ export function ProjectBacklog() {
       setBusy(false);
     }
   };
-  const ideas = data.ideas.filter(
-    (i) => filter === "all" || i.data.status === filter,
+  const ideas = data.ideas.filter((i) =>
+    selectedId
+      ? i.data.id === selectedId
+      : filter === "all" || i.data.status === filter,
   );
   const current = editing
     ? data.ideas.find((i) => i.data.id === editing.id)
@@ -201,18 +210,25 @@ export function ProjectBacklog() {
   const changed = editing && current && current.revision !== editing.revision;
   return (
     <>
+      {onBack && (
+        <Button className="mb-5" onClick={onBack}>
+          Back to Tasks
+        </Button>
+      )}
       <PageHeader
-        title="Backlog"
+        title={selectedId ? "Backlog task" : "Backlog"}
         description="Collect ideas and keep their decisions beside the project."
         actions={
-          <Button
-            variant="primary"
-            icon={<Plus size={16} aria-hidden />}
-            disabled={!editable}
-            onClick={() => setCapture(true)}
-          >
-            New idea
-          </Button>
+          !selectedId ? (
+            <Button
+              variant="primary"
+              icon={<Plus size={16} aria-hidden />}
+              disabled={!editable}
+              onClick={() => setCapture(true)}
+            >
+              New idea
+            </Button>
+          ) : undefined
         }
       />
       {!!data.diagnostics.length && (
@@ -230,7 +246,7 @@ export function ProjectBacklog() {
           </ul>
         </section>
       )}
-      <div className="mb-6 max-w-xs">
+      <div className="mb-6 max-w-xs" hidden={!!selectedId}>
         <Field label="Idea status">
           <select
             className="input"

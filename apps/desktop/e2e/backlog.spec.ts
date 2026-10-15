@@ -33,14 +33,16 @@ for (const theme of ["light", "dark"] as const)
       await page.keyboard.press("Escape");
       expect(
         await page
-          .getByRole("button", { name: "Backlog", exact: true })
+          .getByRole("button", { name: "Tasks", exact: true })
           .isEnabled(),
       ).toBe(true);
-      await page.getByRole("button", { name: "Backlog", exact: true }).click();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Backlog", level: 1, exact: true }),
+        page.getByRole("heading", { name: "Tasks", level: 1, exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Add to Backlog", exact: true })
+        .click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page.getByLabel("Title", { exact: true }).fill("Export notes");
       await page
@@ -55,13 +57,14 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
-      await expect(
-        page.getByRole("heading", { name: "Export notes", exact: true }),
-      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Export notes", exact: true })
+        .click();
       await page
         .getByRole("button", { name: "Edit idea: Export notes", exact: true })
         .click();
       await page
+        .getByRole("dialog")
         .getByLabel("Status", { exact: true })
         .selectOption("needs-info");
       await page
@@ -71,7 +74,10 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Edit idea: Export notes", exact: true })
         .click();
-      await page.getByLabel("Status", { exact: true }).selectOption("rejected");
+      await page
+        .getByRole("dialog")
+        .getByLabel("Status", { exact: true })
+        .selectOption("rejected");
       await page
         .getByLabel("Rejection reason", { exact: true })
         .fill("Already covered by the CLI export command.");
@@ -79,9 +85,6 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
-      await page
-        .getByLabel("Idea status", { exact: true })
-        .selectOption("rejected");
       await expect(
         page.getByText("Already covered by the CLI export command.", {
           exact: true,
@@ -97,11 +100,13 @@ for (const theme of ["light", "dark"] as const)
         status: "rejected",
         reason: "Already covered by the CLI export command.",
       });
-      await page.getByLabel("Idea status", { exact: true }).selectOption("all");
       await page
         .getByRole("button", { name: "Edit idea: Export notes", exact: true })
         .click();
-      await page.getByLabel("Status", { exact: true }).selectOption("ready");
+      await page
+        .getByRole("dialog")
+        .getByLabel("Status", { exact: true })
+        .selectOption("ready");
       await page
         .getByRole("button", { name: "Save idea", exact: true })
         .click();

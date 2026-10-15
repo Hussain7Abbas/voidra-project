@@ -33,7 +33,7 @@ for (const theme of ["light", "dark"] as const)
       await page.keyboard.press("Escape");
       for (const type of Object.keys(lifecycles)) {
         await page
-          .getByRole("button", { name: "New action", exact: true })
+          .getByRole("button", { name: "Add task", exact: true })
           .click();
         await page.getByRole("radio", { name: "Normal", exact: true }).check();
         await page
@@ -108,7 +108,7 @@ for (const theme of ["light", "dark"] as const)
         )
         .toBe("complete");
       await page
-        .getByRole("button", { name: "Back to actions", exact: true })
+        .getByRole("button", { name: "Back to Tasks", exact: true })
         .click();
       await page.getByLabel("Type", { exact: true }).selectOption("bug");
       await expect(
@@ -116,10 +116,6 @@ for (const theme of ["light", "dark"] as const)
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Test feature", exact: true }),
-      ).toHaveCount(0);
-      await page.getByLabel("Done by", { exact: true }).selectOption("you");
-      await expect(
-        page.getByRole("button", { name: "Test bug", exact: true }),
       ).toHaveCount(0);
       await page.getByLabel("Type", { exact: true }).selectOption("all");
       await expect(

@@ -10,7 +10,8 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [V11-P03 — Team, client and skill bundles](v1.1.0-p03.md): local roster/project subsets/Me, selected-client guidance, full catalog installs, exact hand-edit review and recovery; 440 quality tests.
 
-- [V11-P04 — Capture and private drafts](v1.1.0-p04.md): in progress; capture foundation passes 448 quality tests, remaining form adoption is under verification.
+- [V11-P05 — Tasks Kanban](v1.1.0-p05.md): complete; 453 quality tests, real pointer/keyboard/release workflows, draft recovery and 1,000-task response/startup measurements.
+- [V11-P04 — Capture and private drafts](v1.1.0-p04.md): complete; 451 quality tests and affected desktop/recovery workflows cover reviewed capture, all-form drafts and Markdown cursor reuse.
 
 - [P00 — Repository foundation](p00.md): tooling, scanner, documentation and macOS CI.
 
