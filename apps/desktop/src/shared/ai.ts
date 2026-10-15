@@ -5,6 +5,16 @@ const text = z.string().max(20000),
   action = z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/);
 export const aiIntentSchema = z.discriminatedUnion("feature", [
   z.strictObject({
+    feature: z.literal("task-title"),
+    notes: text,
+    target: z.enum(["idea", "action"]),
+  }),
+  z.strictObject({
+    feature: z.literal("task-capture"),
+    notes: text,
+    target: z.enum(["idea", "action"]),
+  }),
+  z.strictObject({
     feature: z.literal("rewrite"),
     notes: text,
     target: z.enum(["idea", "action"]),
@@ -61,6 +71,8 @@ const sourcePath = z
   );
 export const aiContextSchema = z.strictObject({
   feature: z.enum([
+    "task-title",
+    "task-capture",
     "rewrite",
     "profile",
     "followup",
@@ -83,6 +95,24 @@ export const aiContextSchema = z.strictObject({
 });
 export type AiContext = z.infer<typeof aiContextSchema>;
 export const aiSuggestionSchema = z.discriminatedUnion("feature", [
+  z.strictObject({
+    feature: z.literal("task-title"),
+    title: z.string().trim().min(1).max(160),
+  }),
+  z.strictObject({
+    feature: z.literal("task-capture"),
+    title: z.string().trim().min(1).max(160),
+    description: z.string().min(1).max(20000),
+    type: z.enum([
+      "feature",
+      "bug",
+      "improvement",
+      "docs",
+      "profile-change",
+      "research",
+      "release",
+    ]),
+  }),
   z.strictObject({
     feature: z.literal("rewrite"),
     title: z.string().trim().min(1).max(2000),

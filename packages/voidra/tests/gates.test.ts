@@ -16,6 +16,7 @@ import {
   planRevision,
   requestPlanChanges,
   reviewRevision,
+  schemas,
   serializeRecord,
 } from "../src/index.ts";
 import { materialize } from "./helpers.ts";
@@ -127,6 +128,22 @@ it.each(["feature", "improvement"] as const)(
         kind: "agent-decides",
         by: "You",
       });
+      const markdownAnswer =
+        "\r\n    Preserve indentation\r\n**العربية** 🧭\r\n";
+      await answerQuestion(root, {
+        action,
+        question: "q-000001",
+        revision: hash(await readFile(join(root, path))),
+        answer: { kind: "text", text: markdownAnswer },
+        by: "You",
+      });
+      const saved = schemas.questions.parse(
+        (await checkProject(root)).records.get(path)?.document.data,
+      );
+      expect(saved.rounds[0]?.questions[1]?.answer).toMatchObject({
+        kind: "text",
+        text: markdownAnswer,
+      });
       await expect(
         answerQuestion(root, {
           action,
@@ -228,7 +245,7 @@ for (const [type, target] of [
         "act-000000",
         revision,
         "rejected",
-        "Fix the missing boundary",
+        "\n    Keep the boundary explicit\r\n\r\n**Verify** the fix.\r\n",
         "You",
       );
       project = await checkProject(root);
@@ -241,7 +258,8 @@ for (const [type, target] of [
         status: "ready",
         reviewDecision: {
           decision: "rejected",
-          feedback: "Fix the missing boundary",
+          feedback:
+            "\n    Keep the boundary explicit\r\n\r\n**Verify** the fix.\r\n",
         },
       });
       await expect(
@@ -282,7 +300,7 @@ it("requests a revised plan with durable feedback and refuses concurrent unseen 
       root,
       "act-000000",
       plan.revision,
-      "Narrow the acceptance criteria",
+      "\r\n    Keep indentation\r\n\r\n**Narrow** the acceptance criteria\r\n",
       "You",
     );
     let project = await checkProject(root);
@@ -292,7 +310,11 @@ it("requests a revised plan with durable feedback and refuses concurrent unseen 
     ).toMatchObject({
       stage: "plan",
       status: "ready",
-      planFeedback: { feedback: "Narrow the acceptance criteria", by: "You" },
+      planFeedback: {
+        feedback:
+          "\r\n    Keep indentation\r\n\r\n**Narrow** the acceptance criteria\r\n",
+        by: "You",
+      },
     });
     await approveAction(root, "act-000000", "You", plan.revision);
     project = await checkProject(root);

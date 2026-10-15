@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
-import { checkProject, parseRecord, serializeRecord } from "voidra";
+import {
+  checkProject,
+  createAction,
+  parseRecord,
+  serializeRecord,
+} from "voidra";
 
 for (const theme of ["light", "dark"] as const)
   test(`dependencies, slices and outside-edit conflicts in ${theme}`, async () => {
@@ -32,20 +37,31 @@ for (const theme of ["light", "dark"] as const)
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
       async function create(title: string, type: string, human = false) {
+        if (human) {
+          await createAction(root, {
+            title,
+            description: "Complete one observable setup outcome.",
+            type: "docs",
+            doneBy: "you",
+            steps: [title],
+            by: "Fixture",
+          });
+          await expect(
+            page.getByRole("button", { name: title, exact: true }),
+          ).toBeVisible();
+          return;
+        }
         await page
           .getByRole("button", { name: "New action", exact: true })
           .click();
+        await page.getByRole("radio", { name: "Normal", exact: true }).check();
         await page
           .getByLabel("Action type", { exact: true })
           .selectOption(type);
-        await page
-          .getByRole("radio", { name: human ? "You" : "Agent", exact: true })
-          .check();
         await page.getByLabel("Title", { exact: true }).fill(title);
         await page
           .getByLabel("Description", { exact: true })
           .fill("Complete one observable setup outcome.");
-        if (human) await page.getByLabel("Steps", { exact: true }).fill(title);
         await page
           .getByRole("button", { name: "Create action", exact: true })
           .click();
@@ -137,6 +153,18 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByLabel("Description", { exact: true })
         .fill("My intended updated description.");
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("button", { name: "Edit description", exact: true })
+        .click();
+      await page
+        .getByRole("button", {
+          name: /Restore draft .*My intended updated description/,
+        })
+        .click();
+      await expect(
+        page.getByLabel("Description", { exact: true }),
+      ).toContainText("My intended updated description.");
       const path = `.voidra/actions/${id("Document integration")}/action.md`,
         old = parseRecord(path, await readFile(join(root, path)));
       await writeFile(

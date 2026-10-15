@@ -360,3 +360,60 @@ it("promotes an idea atomically to a chosen lifecycle with reciprocal links and 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("retains Backlog assignment and proposed type through editing and promotion with the v1.1 reader contract", async () => {
+  const root = await materialize(minimalFiles());
+  try {
+    const id = await createIdea(root, {
+        title: "Assigned idea",
+        description: "**Exact**\r\n",
+        type: "bug",
+        assignee: "Ada <ada@example.test>",
+        by: "You",
+      }),
+      path = `.voidra/backlog/${id}.md`;
+    let bytes = await readFile(join(root, path));
+    expect(parseRecord(path, bytes).data).toMatchObject({
+      assignee: "Ada <ada@example.test>",
+      type: "bug",
+    });
+    expect((await checkProject(root)).metadata?.requiredVoidra).toBe("1.1.0");
+    const metadata = await readFile(join(root, ".voidra/voidra.json"));
+    await writeFile(
+      join(root, ".voidra/voidra.json"),
+      JSON.stringify({
+        ...JSON.parse(metadata.toString()),
+        requiredVoidra: "1.0.0",
+      }),
+    );
+    expect((await checkProject(root)).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "minimum-reader" }),
+      ]),
+    );
+    await writeFile(join(root, ".voidra/voidra.json"), metadata);
+    await editIdea(root, {
+      id,
+      revision: hash(bytes),
+      title: "Assigned idea edited",
+      description: "Kept",
+      status: "ready",
+    });
+    bytes = await readFile(join(root, path));
+    const action = await promoteIdea(root, {
+      id,
+      revision: hash(bytes),
+      type: "bug",
+      by: "You",
+    });
+    expect(
+      parseRecord(
+        `.voidra/actions/${action}/action.md`,
+        await readFile(join(root, `.voidra/actions/${action}/action.md`)),
+      ).data.assignee,
+    ).toBe("Ada <ada@example.test>");
+    expect((await checkProject(root)).diagnostics).toEqual([]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

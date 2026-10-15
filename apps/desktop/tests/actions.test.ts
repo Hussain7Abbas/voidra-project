@@ -43,6 +43,7 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
       )
       .toBe(1);
     await page.getByRole("button", { name: "New action", exact: true }).click();
+    await page.getByRole("radio", { name: "Normal", exact: true }).check();
     await page.getByLabel("Action type", { exact: true }).selectOption("docs");
     await page.getByLabel("Title", { exact: true }).fill('Fix docs: "install"');
     await page
@@ -51,6 +52,9 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
     await page
       .getByRole("button", { name: "Create action", exact: true })
       .click();
+    await page
+      .getByRole("dialog", { name: "Create action", exact: true })
+      .waitFor({ state: "hidden", timeout: 30000 });
     await page
       .getByText('Fix docs: "install"', { exact: true })
       .waitFor({ timeout: 5000 });

@@ -66,6 +66,11 @@ it("binds preview bytes, returns editable drafts with numeric-only progress and 
         () => {},
       ),
     ).rejects.toThrow(/changed/i);
+    await service.setModel("test/other-model");
+    await expect(
+      service.generate(1, "stale-model", context, preview.revision, () => {}),
+    ).rejects.toThrow(/model changed/);
+    await service.setModel("test/model");
     expect(
       await service.generate(
         1,

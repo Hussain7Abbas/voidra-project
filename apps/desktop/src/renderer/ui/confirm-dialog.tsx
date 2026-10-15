@@ -34,7 +34,7 @@ export function ConfirmDialog({
       size="sm"
       footer={
         <>
-          <Button onClick={onClose} disabled={busy}>
+          <Button data-dialog-close onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button variant={tone} loading={busy} onClick={onConfirm}>

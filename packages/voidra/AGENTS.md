@@ -11,12 +11,15 @@ Extends [root instructions](../../AGENTS.md). This package is the shared contrac
 - Every object schema preserves unknown keys. The public grouped writer checks expected hashes and the entire intended overlay before a durable prepared journal. Unchanged sibling stale-approval/stale-review gates may remain pending while a different action is approved; changed action directories must resolve their gate, and structural diagnostics always block. Rollback may restore a stale gate without authorizing work. It never writes code files; only an explicit flag permits root `GLOSSARY.md`.
 - Tests in `tests/` use real temporary folders. Failure injection belongs at explicit public checkpoints; test actual process death/rename errors as well. Do not mock the filesystem.
 - `scripts/generate.ts` produces schemas and shared references. Regenerate with `pnpm gen` whenever the contract changes. `pnpm gen:check` rejects missing, stale and orphan output.
+- Backlog capture may store optional proposed type and portable assignee; introducing them advertises reader 1.1.0 without enabling task tracking. Preserve omitted fields on edit and the assignee on promotion. Validation requires that reader minimum for typed/assigned ideas, including after external edits or undo.
 - `task-move.ts` owns exact-revision Backlog/TODO organization, using typed idea promotion without bypassing gates. Preserve assigned versions, fill missing TODO releases and guard metadata/run/planning locks. Explicit Profile activation and human/aggregate completion must satisfy release requirements atomically; untouched legacy history remains readable.
 - `scripts/fixtures.ts` builds the committed catalog and generates a separate large project. `pnpm fixtures` updates snapshots deliberately; do not regenerate expectations to hide a failure. `new-project` is generated through actual approved general-template initialization, with IDs/times normalized for reproducibility. Broken fixtures retain their isolated validation cases.
 - Package publication requires passing checks, built-artifact smoke tests and CI. Keep AGPL license, repository metadata and bin entry in the npm archive. npm account access is required; never print credentials.
 - Generated planning READMEs pin validation to PACKAGE_VERSION. Public release publication belongs to the exact-tag OIDC workflow in tools/release-engine; ordinary CI and package APIs never publish.
 
 Update the corresponding [format page](../../docs/format/Intro.md), API docs and generated references with every schema/API change. Keep sibling CLAUDE.md as `@AGENTS.md` plus newline.
+
+- Question/rejection/plan feedback retains raw nonblank Markdown; validate blankness without trimming the stored source.
 
 - `queue.ts` owns queue eligibility/reasons and ordered private queue writes, including displayed revisions, explicit Profile draft activation and lock/input guards. Runtime and desktop use this contract rather than duplicating eligibility rules.
 

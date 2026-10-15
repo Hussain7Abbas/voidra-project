@@ -78,6 +78,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "New action", exact: true })
         .click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page
           .getByRole("dialog", { name: "Create action", exact: true })
@@ -103,6 +104,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "New action", exact: true })
         .click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page
           .getByRole("dialog", { name: "Create action", exact: true })
@@ -125,6 +127,7 @@ for (const theme of ["light", "dark"] as const)
       await second
         .getByRole("button", { name: "New action", exact: true })
         .click();
+      await second.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         second
           .getByRole("dialog", { name: "Create action", exact: true })

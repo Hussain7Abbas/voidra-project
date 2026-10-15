@@ -48,11 +48,21 @@ Choose an action type that matches the work:
 | Research | Record findings and recommendations without changing code. |
 | Release | Propose a version and notes, then commit and tag after acceptance. |
 
-Assign work to an agent or make it human work with a checklist. Dependencies block an action until the required work is complete. The board lets you filter and group actions; it does not override their lifecycle or approval gates. Large work can be split into demonstrable child slices, each with its own planning loop.
+New ordinary work uses your coding agent. Existing human tasks and human blockers still have usable checklists. Dependencies block an action until the required work is complete. The board lets you filter and group actions; it does not override their lifecycle or approval gates. Large work can be split into demonstrable child slices, each with its own planning loop.
+
+Fresh action and Backlog capture opens in **Agentic**: describe one outcome in a Markdown input, review the OpenRouter request and generated title/type/description, then save. **Normal** shows Title and Description with the relevant metadata. Title is optional; leaving it empty requests a reviewed AI title. A manual title is preserved. Switching modes retains each mode’s text and reviewed result; generated fields seed untouched Normal inputs for editing. No key or generation failure leaves the draft available for retry or manual completion. Assignee comes from Team; Backlog assignment and proposed type survive promotion.
+
+## Resume unfinished forms
+
+Leaving an unfinished form saves a private draft on this computer, including incomplete values. Reopening shows a row of badges above the fields. Select a badge to restore its whole form, or choose **New draft** to start fresh. Fresh task capture always starts Agentic; restored drafts keep their saved mode. **Discard current draft** is separate from closing. Saving successfully removes that submitted draft.
+
+This applies to task edits, profile setup/answers, Team, questions/feedback, AI reviews, planning commits and release selection. Restoring keeps the original source revisions and never submits a decision or starts work. A changed source still requires the existing reload/review process. If local draft storage fails, the form stays open for correction or text recovery.
+
+**Settings → General → Unfinished forms** recovers text even when the original task or question has been removed. Use **Copy Markdown** to recover the original text, or explicitly discard a draft. API key drafts stay encrypted and appear separately under **AI suggestions**; selecting one does not reveal or apply its value. Drafts survive restart and cache rebuilds, and stay outside project Git history.
 
 ## Edit Markdown
 
-Action and Backlog descriptions render Markdown inside the input. Put the cursor on a line to reveal its source; selecting multiple lines reveals those lines. Headings, lists, tables, checklists and code remain readable around the text you edit. Copy and paste use Markdown source. Undo/Redo in the field change its text, independently of project history. Use Cmd/Ctrl+S in an edit dialog to activate its enabled Save button. Invalid text stays available for correction; saving still checks for outside file edits.
+Descriptions, long profile answers, free-text questions, feedback and AI review text render Markdown inside the input. Put the cursor on a line to reveal its source; selecting multiple lines reveals those lines. Headings, lists, tables, checklists and code remain readable around the text you edit. Copy and paste use Markdown source. Undo/Redo in the field change its text, independently of project history. Use Cmd/Ctrl+S in an edit dialog to activate its enabled Save button. Invalid text stays available for correction; saving still checks for outside file edits.
 
 ## Assign work with Team
 

@@ -22,11 +22,15 @@ const request = z.discriminatedUnion("command", [
     schema.extend({ requestId: z.string() }),
   ),
 ]);
-const [root, databasePath] = process.argv.slice(2);
+const [root, databasePath, submissionsDirectory] = process.argv.slice(2);
 if (!root || !databasePath || !process.parentPort)
   throw new Error("Project service needs its parent and validated paths");
-const workspace = new ProjectWorkspace(root, databasePath, () =>
-  process.parentPort?.postMessage({ event: "changed" }),
+const workspace = new ProjectWorkspace(
+  root,
+  databasePath,
+  () => process.parentPort?.postMessage({ event: "changed" }),
+  undefined,
+  submissionsDirectory,
 );
 const ready = workspace.start();
 const database = new Database(databasePath);

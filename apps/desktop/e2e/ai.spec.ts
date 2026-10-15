@@ -74,6 +74,7 @@ for (const theme of ["light", "dark"] as const)
       await page.locator('[data-app-ready="true"]').waitFor();
       await page.getByRole("button", { name: "Backlog", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
       ).toHaveCount(0);
@@ -111,6 +112,7 @@ for (const theme of ["light", "dark"] as const)
       ).toEqual([]);
       await page.getByRole("button", { name: "Done", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Description", { exact: true })
         .fill("rough idea: export offline notes to json");
@@ -173,6 +175,7 @@ for (const theme of ["light", "dark"] as const)
       ).toBeVisible();
       await page.getByRole("button", { name: "Done", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
       ).toHaveCount(0);
@@ -379,11 +382,11 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByLabel("Questions to consider", { exact: true }),
-      ).toHaveValue("Which devices must work offline?");
+      ).toContainText("Which devices must work offline?");
       await generate("Suggest answer with AI");
       await expect(
         page.getByLabel("Suggested answer", { exact: true }),
-      ).toHaveValue("A reviewed offline workflow");
+      ).toContainText("A reviewed offline workflow");
       expect(
         (await checkProject(root)).files.get(".voidra/profile/problem.md"),
       ).toEqual(original.files.get(".voidra/profile/problem.md"));
@@ -553,19 +556,19 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
     );
     await expect(
       page.getByLabel(/What should this project make possible/),
-    ).toHaveValue("My original notes");
+    ).toContainText("My original notes");
     await page
       .getByRole("button", { name: "Generate suggestion", exact: true })
       .click();
     await expect(
       page.getByLabel("Suggested answer", { exact: true }),
-    ).toHaveValue("Build a useful offline planner");
+    ).toContainText("Build a useful offline planner");
     await page
       .getByRole("button", { name: "Use suggestion", exact: true })
       .click();
     await expect(
       page.getByLabel(/What should this project make possible/),
-    ).toHaveValue("Build a useful offline planner");
+    ).toContainText("Build a useful offline planner");
     await expect(readFile(join(root, ".voidra/voidra.json"))).rejects.toThrow();
     await page
       .getByRole("button", { name: "Suggest follow-up questions", exact: true })
@@ -582,7 +585,7 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
       .click();
     await expect(
       page.getByLabel("Questions to consider", { exact: true }),
-    ).toHaveValue("What should work offline?");
+    ).toContainText("What should work offline?");
     expect(
       (await new AxeBuilder({ page }).setLegacyMode(true).analyze()).violations,
     ).toEqual([]);

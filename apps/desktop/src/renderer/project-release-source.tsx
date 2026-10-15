@@ -3,12 +3,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { WorkspaceSnapshot } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
+import { DraftNavigation, useFormDraft } from "./form-drafts.tsx";
 import { Button } from "./ui/button.tsx";
 import { Field } from "./ui/field.tsx";
 import { useToast } from "./ui/toast.tsx";
 
 export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
-  const [path, setPath] = useState<string | null>(null);
+  const draft = useFormDraft("release-source", "", () => ({
+    path: data.projectRelease.path,
+    revision: data.metadataRevision ?? "",
+  }));
+  const path = draft.values.path;
+  const setPath = (path: string) =>
+    draft.set((previous) => ({ ...previous, path }));
   const [busy, setBusy] = useState(false);
   const query = useQueryClient(),
     toast = useToast();
@@ -23,12 +30,18 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
     if (disabled || !data.metadataRevision) return;
     setBusy(true);
     try {
-      await request({
+      await draft.flush();
+      const result = await request({
         command: "set-release-package",
-        path: path ?? data.projectRelease.path,
-        revision: data.metadataRevision,
+        path,
+        revision: draft.values.revision,
       });
-      setPath(null);
+      await draft.submitted();
+      if (result.kind === "workspace")
+        await draft.fresh({
+          path: result.workspace.projectRelease.path,
+          revision: result.workspace.metadataRevision ?? "",
+        });
       await query.invalidateQueries({ queryKey: ["workspace"] });
       toast.success("Project release source saved");
     } catch (error) {
@@ -55,6 +68,7 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
           tasks need a release before leaving Backlog.
         </p>
       )}
+      <DraftNavigation form={draft} disabled={busy} />
       <form
         className="flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
@@ -69,7 +83,7 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
         >
           <input
             className="input"
-            value={path ?? data.projectRelease.path}
+            value={path}
             onChange={(event) => setPath(event.target.value)}
             disabled={busy}
             required

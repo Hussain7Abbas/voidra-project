@@ -1,6 +1,10 @@
 import type { AiContext } from "../../shared/ai.ts";
 export const PROMPT_VERSION = 1;
 export const prompts: Record<AiContext["feature"], string> = {
+  "task-title":
+    "Create a concise title of at most 160 characters from the supplied task description. Preserve facts and uncertainty. Return only JSON with a nonempty title string. Do not invent completed work or approvals.",
+  "task-capture":
+    "Turn the supplied task notes into one clear software task. Return only JSON with title (at most 160 characters), description (Markdown, at most 20000 characters), and type (feature, bug, improvement, docs, profile-change, research, or release). Preserve facts and uncertainty; do not invent implementation, approvals or completion.",
   rewrite:
     "Rewrite the supplied rough notes into a clear software idea or action. Preserve facts and uncertainty. Return only JSON with title and description strings. Do not invent implementation, approvals or completed work.",
   profile:

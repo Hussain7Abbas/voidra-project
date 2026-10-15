@@ -10,8 +10,11 @@ import {
 import { actionLabels } from "./action-labels.ts";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
 import { request } from "./app.tsx";
+import { DraftNavigation, draftField, useFormDraft } from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { MarkdownEditor } from "./markdown-editor.tsx";
+import { TaskCapture } from "./task-capture.tsx";
+import { AssigneeSelect } from "./team-settings.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -48,16 +51,39 @@ export function ProjectBacklog() {
       return result.workspace;
     },
   });
+  const [capture, setCapture] = useState(false);
+  const draft = useFormDraft<{
+    promoting: boolean;
+    actionType: ActionType;
+    editing: { id: string; revision: string; originalStatus: Status } | null;
+    title: string;
+    description: string;
+    status: Status;
+    reason: string;
+    targetRelease: string;
+    assignee: string;
+  }>("idea-edit", "", () => ({
+    promoting: false,
+    actionType: "feature",
+    editing: null,
+    title: "",
+    description: "",
+    status: "new",
+    reason: "",
+    targetRelease: "",
+    assignee: "",
+  }));
+  const [promoting] = draftField(draft, "promoting"),
+    [actionType, setActionType] = draftField(draft, "actionType"),
+    [editing] = draftField(draft, "editing"),
+    [title, setTitle] = draftField(draft, "title"),
+    [description, setDescription] = draftField(draft, "description"),
+    [status, setStatus] = draftField(draft, "status"),
+    [reason, setReason] = draftField(draft, "reason"),
+    [targetRelease, setTargetRelease] = draftField(draft, "targetRelease"),
+    [assignee, setAssignee] = draftField(draft, "assignee");
   const [filter, setFilter] = useState("all"),
     [open, setOpen] = useState(false),
-    [promoting, setPromoting] = useState(false),
-    [actionType, setActionType] = useState<ActionType>("feature"),
-    [editing, setEditing] = useState<Idea | null>(null),
-    [title, setTitle] = useState(""),
-    [description, setDescription] = useState(""),
-    [status, setStatus] = useState<Status>("new"),
-    [reason, setReason] = useState(""),
-    [targetRelease, setTargetRelease] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const errorRef = useRef<HTMLParagraphElement>(null);
@@ -75,30 +101,57 @@ export function ProjectBacklog() {
   const data = workspace.data,
     editable =
       !data.readOnly && data.lock.state === "none" && !data.recoveries.length;
-  const start = (idea: Idea | null, promote = false) => {
-    setPromoting(promote);
-    setActionType("feature");
-    setEditing(idea);
-    setTitle(idea?.data.title ?? "");
-    setDescription(idea?.body ?? "");
-    setStatus((idea?.data.status as Status) ?? "new");
-    setReason(idea?.data.reason ?? "");
-    setTargetRelease(
-      idea
+  const close = async () => {
+    try {
+      await draft.flush();
+      setOpen(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Draft could not be saved",
+      );
+    }
+  };
+  const start = async (idea: Idea | null, promote = false) => {
+    await draft.fresh({
+      promoting: promote,
+      actionType: idea?.data.type ?? "feature",
+      editing: idea
+        ? {
+            id: idea.data.id,
+            revision: idea.revision,
+            originalStatus: idea.data.status as Status,
+          }
+        : null,
+      title: idea?.data.title ?? "",
+      description: idea?.body ?? "",
+      status: (idea?.data.status as Status) ?? "new",
+      reason: idea?.data.reason ?? "",
+      targetRelease: idea
         ? (idea.data.targetRelease ?? "")
         : (data.projectRelease.version ?? ""),
-    );
+      assignee: idea?.data.assignee ?? "",
+    });
     setError("");
     setOpen(true);
   };
   const save = async (revision = editing?.revision) => {
+    if (!editing) {
+      setError("Open an existing idea to edit or promote it.");
+      return;
+    }
+    if (!title.trim()) {
+      setError("Generate and review a title, or enter one, before saving.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
+      await draft.flush();
       if (promoting && editing && revision) {
         await request({
           command: "promote-idea",
-          id: editing.data.id,
+          assignee: assignee || null,
+          id: editing.id,
           revision,
           type: actionType,
           title,
@@ -108,8 +161,9 @@ export function ProjectBacklog() {
       } else if (editing && revision)
         await request({
           command: "edit-idea",
+          assignee: assignee || null,
           targetRelease: data.taskTracking ? targetRelease || null : undefined,
-          id: editing.data.id,
+          id: editing.id,
           revision,
           title,
           description,
@@ -128,6 +182,7 @@ export function ProjectBacklog() {
           reason: status === "rejected" ? reason : undefined,
         });
       }
+      await draft.submitted();
       await query.invalidateQueries();
       setOpen(false);
       toast.success(promoting ? "Idea promoted to an action" : "Idea saved");
@@ -141,7 +196,7 @@ export function ProjectBacklog() {
     (i) => filter === "all" || i.data.status === filter,
   );
   const current = editing
-    ? data.ideas.find((i) => i.data.id === editing.data.id)
+    ? data.ideas.find((i) => i.data.id === editing.id)
     : undefined;
   const changed = editing && current && current.revision !== editing.revision;
   return (
@@ -154,7 +209,7 @@ export function ProjectBacklog() {
             variant="primary"
             icon={<Plus size={16} aria-hidden />}
             disabled={!editable}
-            onClick={() => start(null)}
+            onClick={() => setCapture(true)}
           >
             New idea
           </Button>
@@ -229,7 +284,7 @@ export function ProjectBacklog() {
               {idea.data.reason && (
                 <div className="mt-4">
                   <h3 className="font-semibold">Reason for rejection</h3>
-                  <p>{idea.data.reason}</p>
+                  <SafeMarkdown body={idea.data.reason} />
                 </div>
               )}
               {idea.data.promotedTo && (
@@ -247,31 +302,61 @@ export function ProjectBacklog() {
           <p>Capture a possibility, then refine its scope.</p>
         </section>
       )}
+      {capture && (
+        <TaskCapture
+          kind="idea"
+          data={data}
+          onClose={() => setCapture(false)}
+        />
+      )}
       <Dialog
         closeDisabled={busy}
         open={open}
         title={promoting ? "Promote idea" : editing ? "Edit idea" : "New idea"}
         description="Describe the possibility and its current status."
-        onClose={() => {
-          if (!busy) setOpen(false);
-        }}
+        onClose={close}
         footer={
           <>
-            <Button disabled={busy} onClick={() => setOpen(false)}>
+            <Button
+              data-dialog-close
+              disabled={busy}
+              onClick={() => void close()}
+            >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              form="idea-editor"
-              variant="primary"
-              loading={busy}
-            >
-              {promoting ? "Create action" : "Save idea"}
-            </Button>
+            {!title.trim() ? (
+              <AiSuggestionButton
+                key={`${draft.id}:title`}
+                owner={draft.id}
+                showUnavailable
+                label="Generate title"
+                disabled={busy}
+                intent={{
+                  feature: "task-title",
+                  notes: description,
+                  target: promoting ? "action" : "idea",
+                }}
+                onApply={(suggestion) => {
+                  if (suggestion.feature === "task-title")
+                    setTitle(suggestion.title);
+                }}
+              />
+            ) : (
+              <Button
+                type="submit"
+                form="idea-editor"
+                variant="primary"
+                loading={busy}
+              >
+                {promoting ? "Create action" : "Save idea"}
+              </Button>
+            )}
           </>
         }
       >
+        <DraftNavigation form={draft} disabled={busy} />
         <form
+          inert={busy}
           id="idea-editor"
           className="space-y-4"
           onInvalidCapture={(e) => {
@@ -289,6 +374,8 @@ export function ProjectBacklog() {
           }}
         >
           <AiSuggestionButton
+            key={draft.id}
+            owner={draft.id}
             label="Improve with AI"
             intent={{
               feature: "rewrite",
@@ -307,10 +394,16 @@ export function ProjectBacklog() {
             <input
               className="input"
               name="title"
-              required
               maxLength={160}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+            />
+          </Field>
+          <Field label="Assignee">
+            <AssigneeSelect
+              value={assignee}
+              onChange={setAssignee}
+              disabled={busy}
             />
           </Field>
           {data.taskTracking && !promoting && (
@@ -346,7 +439,7 @@ export function ProjectBacklog() {
             hint="Write Markdown; formatting stays visible around the line you edit."
           >
             <MarkdownEditor
-              documentKey={`idea:${editing?.data.id ?? "new"}:${promoting ? "promote" : "edit"}`}
+              documentKey={`idea:${editing?.id ?? "new"}:${promoting ? "promote" : "edit"}`}
               disabled={busy}
               required
               rows={6}
@@ -377,13 +470,14 @@ export function ProjectBacklog() {
                 className="input"
                 name="status"
                 value={status}
-                disabled={editing?.data.status === "promoted"}
+                disabled={editing?.originalStatus === "promoted"}
                 onChange={(e) => setStatus(e.target.value as Status)}
               >
                 {statuses
                   .filter(
                     (s) =>
-                      s !== "promoted" || editing?.data.status === "promoted",
+                      s !== "promoted" ||
+                      editing?.originalStatus === "promoted",
                   )
                   .map((s) => (
                     <option value={s} key={s}>
@@ -395,14 +489,13 @@ export function ProjectBacklog() {
           )}
           {!promoting && status === "rejected" && (
             <Field label="Rejection reason">
-              <textarea
-                className="input"
-                name="reason"
+              <MarkdownEditor
+                documentKey={`${draft.id}:reason`}
                 required
                 rows={3}
                 maxLength={20000}
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={setReason}
               />
             </Field>
           )}

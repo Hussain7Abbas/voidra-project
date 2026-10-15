@@ -175,3 +175,45 @@ it("parses the five recorded v1 response fixtures and keeps prompt version/sourc
     }),
   ).toThrow(/too long/i);
 });
+
+it("generates bounded task titles and complete capture metadata from only the supplied form text", () => {
+  const context: AiContext = {
+    feature: "task-capture",
+    notes: "# Add offline search\r\nKeep Unicode 🧭",
+    target: "action",
+    sources: [],
+  };
+  expect(buildAiPrompt(context).preview).toContain(context.notes);
+  expect(
+    parseAiSuggestion(
+      context,
+      JSON.stringify({
+        title: "Offline search",
+        description: "**Search** locally\r\n",
+        type: "feature",
+      }),
+    ),
+  ).toEqual({
+    feature: "task-capture",
+    title: "Offline search",
+    description: "**Search** locally\r\n",
+    type: "feature",
+  });
+  for (const output of [
+    { title: "x", description: "x" },
+    { title: "x", description: "x", type: "unknown" },
+    { title: "x".repeat(161), description: "x", type: "bug" },
+  ])
+    expect(() => parseAiSuggestion(context, JSON.stringify(output))).toThrow(
+      /invalid/,
+    );
+  expect(
+    parseAiSuggestion(
+      { ...context, feature: "task-title" },
+      '{"title":"A concise title"}',
+    ),
+  ).toEqual({ feature: "task-title", title: "A concise title" });
+  expect(() =>
+    parseAiSuggestion({ ...context, feature: "task-title" }, '{"title":" "}'),
+  ).toThrow(/invalid/);
+});

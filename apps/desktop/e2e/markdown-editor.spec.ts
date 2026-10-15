@@ -39,6 +39,7 @@ for (const theme of ["light", "dark"] as const)
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Backlog", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       const title = page.getByLabel("Title", { exact: true }),
         editor = page.getByLabel("Description", { exact: true });
       const source =

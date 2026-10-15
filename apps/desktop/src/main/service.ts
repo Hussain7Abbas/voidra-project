@@ -77,7 +77,15 @@ export class ProjectService {
     await mkdir(directory, { recursive: true });
     this.child = utilityProcess.fork(
       this.entry,
-      [this.root, join(directory, "index.sqlite")],
+      [
+        this.root,
+        join(directory, "index.sqlite"),
+        join(
+          this.data,
+          "form-submissions",
+          createHash("sha256").update(this.root).digest("hex"),
+        ),
+      ],
       { serviceName: "Voidra project service" },
     );
     this.child.on("message", (input) => {

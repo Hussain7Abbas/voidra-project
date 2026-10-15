@@ -28,7 +28,9 @@ import type {
 import { AiSettingsPanel } from "./ai-settings.tsx";
 import { CodingClientSetting } from "./coding-client.tsx";
 import { DocumentViewerProvider } from "./document-viewer.tsx";
+import { DraftRecovery } from "./draft-recovery.tsx";
 import { EditHistory } from "./edit-history.tsx";
+import { flushFormDrafts } from "./form-drafts.tsx";
 import { inboxItems } from "./inbox.ts";
 import { ProjectActions } from "./project-actions.tsx";
 import { ProjectBacklog } from "./project-backlog.tsx";
@@ -88,6 +90,31 @@ function applyTheme(preference: ThemePreference): void {
 }
 function Shell() {
   const snapshot = useSnapshot();
+  useEffect(() => {
+    const unsubscribe = window.voidra.subscribe((event) => {
+      if (event.type !== "draft-flush") return;
+      document.body.inert = true;
+      void flushFormDrafts()
+        .then(
+          () =>
+            request({ command: "draft-flushed", id: event.id, error: null }),
+          (cause) =>
+            request({
+              command: "draft-flushed",
+              id: event.id,
+              error:
+                cause instanceof Error
+                  ? cause.message
+                  : "Draft could not be saved",
+            }),
+        )
+        .finally(() => {
+          document.body.inert = false;
+        });
+    });
+    void request({ command: "draft-ready" });
+    return unsubscribe;
+  }, []);
   const query = useQueryClient();
   const toast = useToast();
   const [settings, setSettings] = useState(false);
@@ -118,14 +145,30 @@ function Shell() {
   >("actions");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const showAction = (id: string): void => {
-    setSelectedAction(id);
-    setNavigationTarget("actions");
-    setNavigationEpoch((value) => value + 1);
+    void flushFormDrafts()
+      .then(() => {
+        setSelectedAction(id);
+        setNavigationTarget("actions");
+        setNavigationEpoch((value) => value + 1);
+      })
+      .catch((cause) =>
+        toast.error(
+          cause instanceof Error ? cause.message : "Draft could not be saved",
+        ),
+      );
   };
   const showProfile = (): void => {
-    setSelectedAction(null);
-    setNavigationTarget("profile");
-    setNavigationEpoch((value) => value + 1);
+    void flushFormDrafts()
+      .then(() => {
+        setSelectedAction(null);
+        setNavigationTarget("profile");
+        setNavigationEpoch((value) => value + 1);
+      })
+      .catch((cause) =>
+        toast.error(
+          cause instanceof Error ? cause.message : "Draft could not be saved",
+        ),
+      );
   };
   const data = snapshot.data;
   const workspace = useWorkspace(!!data?.project);
@@ -138,7 +181,11 @@ function Shell() {
     () =>
       window.voidra.subscribe((event) => {
         if (event.type === "settings") setSettings(true);
-        else if (event.type !== "edit-history" && event.type !== "ai-progress")
+        else if (
+          event.type !== "edit-history" &&
+          event.type !== "ai-progress" &&
+          event.type !== "draft-deleted"
+        )
           void query.invalidateQueries();
       }),
     [query],
@@ -155,6 +202,15 @@ function Shell() {
   const act = async (input: BridgeRequest, success?: string): Promise<void> => {
     setBusy(true);
     try {
+      if (
+        [
+          "choose-folder",
+          "open-recent",
+          "locate-recent",
+          "window-control",
+        ].includes(input.command)
+      )
+        await flushFormDrafts();
       await request(input);
       await query.invalidateQueries({ queryKey: ["snapshot"] });
       if (success) toast.success(success);
@@ -311,7 +367,17 @@ function Shell() {
                           ].includes(item.label)
                         : index !== 0
                     }
-                    onClick={() => {
+                    onClick={async () => {
+                      try {
+                        await flushFormDrafts();
+                      } catch (cause) {
+                        toast.error(
+                          cause instanceof Error
+                            ? cause.message
+                            : "Draft could not be saved",
+                        );
+                        return;
+                      }
                       setSelectedAction(null);
                       setNavigationEpoch((value) => value + 1);
                       setNavigationTarget(
@@ -506,7 +572,8 @@ function Shell() {
       </div>
       <Dialog
         open={settings}
-        onClose={() => {
+        onClose={async () => {
+          await flushFormDrafts(["team-member", "credential"]);
           setSettings(false);
           setTeamSettings(false);
         }}
@@ -514,7 +581,14 @@ function Shell() {
         description="Make this workspace feel like yours."
         footer={
           <Button
-            onClick={() => {
+            data-dialog-close
+            onClick={async () => {
+              try {
+                await flushFormDrafts(["team-member", "credential"]);
+              } catch (cause) {
+                toast.error(String(cause));
+                return;
+              }
               setSettings(false);
               setTeamSettings(false);
             }}
@@ -531,6 +605,7 @@ function Shell() {
             <>
               <CodingClientSetting />
               <AiSettingsPanel />
+              <DraftRecovery />
               <SkillSettingsPanel />
               <UpdateSettings />
             </>

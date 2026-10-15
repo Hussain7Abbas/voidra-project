@@ -1,8 +1,11 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { QuestionView, WorkspaceSnapshot } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
+import { DraftNavigation, draftField, useFormDraft } from "./form-drafts.tsx";
+import { SafeMarkdown } from "./markdown.tsx";
+import { MarkdownEditor } from "./markdown-editor.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -13,34 +16,32 @@ function QuestionCard({
   question,
   revision,
   action,
+  round,
   disabled,
 }: {
+  round: number;
   question: QuestionView;
   revision: string;
   action: string;
   disabled: boolean;
 }) {
   const query = useQueryClient(),
+    optionPrefix = useId(),
     ref = useRef<HTMLElement>(null);
-  const [choice, setChoice] = useState(""),
-    [text, setText] = useState(""),
-    [captured, setCaptured] = useState<string | null>(null),
-    [busy, setBusy] = useState(false),
+  const draft = useFormDraft<{
+    choice: string;
+    text: string;
+    captured: string | null;
+  }>("question-answer", `${action}:${round}:${question.id}`, () => ({
+    choice: "",
+    text: "",
+    captured: null,
+  }));
+  const [choice, setChoice] = draftField(draft, "choice"),
+    [text, setText] = draftField(draft, "text"),
+    [captured, setCaptured] = draftField(draft, "captured");
+  const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const [reloadRevision, setReloadRevision] = useState<string | null>(null);
-  useEffect(() => {
-    if (
-      reloadRevision &&
-      (revision === reloadRevision || revision !== captured)
-    ) {
-      setCaptured(null);
-      setChoice("");
-      setText("");
-      setError("");
-      setReloadRevision(null);
-      setBusy(false);
-    }
-  }, [reloadRevision, revision, captured]);
   const answer = question.answer;
   return (
     <article
@@ -49,18 +50,43 @@ function QuestionCard({
       tabIndex={-1}
       data-question-id={question.id}
     >
-      <h3>{question.text}</h3>
-      <p className="text-muted">Why: {question.why}</p>
+      <h3>Question</h3>
+      <SafeMarkdown body={question.text} />
+      <div className="text-muted">
+        <SafeMarkdown body={`Why: ${question.why}`} />
+      </div>
+      <DraftNavigation
+        form={draft}
+        label={`Answer drafts: ${question.text} (${question.id})`}
+        disabled={disabled || busy}
+      />
+      {answer && (text || choice) && (
+        <section aria-label="Recovered answer draft">
+          <SafeMarkdown
+            body={
+              text ||
+              (choice === "delegate"
+                ? "Let the agent decide"
+                : choice.replace(/^choice:/, "Selected option: "))
+            }
+          />
+        </section>
+      )}
       {answer ? (
         <div className="mt-3">
-          <p>
-            Answer:{" "}
-            {answer.kind === "choice"
-              ? answer.choice
-              : answer.kind === "text"
-                ? answer.text
+          {answer.kind === "text" ? (
+            <>
+              <p>Answer:</p>
+              <SafeMarkdown body={answer.text} />
+            </>
+          ) : (
+            <p>
+              Answer:{" "}
+              {answer.kind === "choice"
+                ? answer.choice
                 : "Let the agent decide"}
-          </p>
+            </p>
+          )}
           <p className="text-muted">
             Saved by {answer.by} · {new Date(answer.at).toLocaleString()}
           </p>
@@ -70,8 +96,8 @@ function QuestionCard({
               aria-label={`Assumption for ${question.text}`}
             >
               <h4>Assumption · {question.id}</h4>
-              <p>{question.agentChoice.choice}</p>
-              <p>{question.agentChoice.reason}</p>
+              <SafeMarkdown body={question.agentChoice.choice} />
+              <SafeMarkdown body={question.agentChoice.reason} />
               <p>
                 Chosen by {question.agentChoice.by} ·{" "}
                 {new Date(question.agentChoice.at).toLocaleString()}
@@ -87,12 +113,14 @@ function QuestionCard({
         </div>
       ) : (
         <form
+          inert={busy}
           className="mt-4 space-y-4"
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
             setError("");
             try {
+              await draft.flush();
               await request({
                 command: "answer-question",
                 id: action,
@@ -102,9 +130,10 @@ function QuestionCard({
                   choice === "delegate"
                     ? { kind: "agent-decides" }
                     : choice === "text"
-                      ? { kind: "text", text: text.trim() }
+                      ? { kind: "text", text }
                       : { kind: "choice", choice: choice.slice(7) },
               });
+              await draft.submitted();
               await query.invalidateQueries();
               ref.current?.focus();
             } catch (e) {
@@ -117,34 +146,43 @@ function QuestionCard({
           <fieldset disabled={disabled || busy}>
             <legend>Choose an answer</legend>
             <div className="space-y-3 mt-3">
-              {question.options.map((o) => (
-                <label key={o.label} className="flex gap-3">
+              {question.options.map((o, index) => (
+                <div key={o.label} className="flex items-start gap-3">
                   <input
+                    className="mt-1"
+                    id={`${optionPrefix}-${index}`}
+                    aria-labelledby={`${optionPrefix}-${index}-label ${optionPrefix}-${index}-description`}
                     type="radio"
-                    name={question.id}
+                    name={`${action}:${round}:${question.id}`}
                     value={`choice:${o.label}`}
                     checked={choice === `choice:${o.label}`}
                     required
-                    onChange={(e) => {
-                      setChoice(e.target.value);
+                    onChange={(event) => {
+                      setChoice(event.target.value);
                       setCaptured(captured ?? revision);
                     }}
                   />
-                  <span>
-                    <strong>
-                      {o.label}
-                      {o.recommended ? " · Recommended" : ""}
-                    </strong>
-                    <br />
-                    {o.description}
-                  </span>
-                </label>
+                  <div className="min-w-0">
+                    <label
+                      htmlFor={`${optionPrefix}-${index}`}
+                      id={`${optionPrefix}-${index}-label`}
+                    >
+                      <strong>
+                        {o.label}
+                        {o.recommended ? " · Recommended" : ""}
+                      </strong>
+                    </label>
+                    <div id={`${optionPrefix}-${index}-description`}>
+                      <SafeMarkdown body={o.description} />
+                    </div>
+                  </div>
+                </div>
               ))}
               {question.allowFreeText && (
                 <label className="flex gap-3">
                   <input
                     type="radio"
-                    name={question.id}
+                    name={`${action}:${round}:${question.id}`}
                     checked={choice === "text"}
                     required
                     onChange={() => {
@@ -158,7 +196,7 @@ function QuestionCard({
               <label className="flex gap-3">
                 <input
                   type="radio"
-                  name={question.id}
+                  name={`${action}:${round}:${question.id}`}
                   checked={choice === "delegate"}
                   required
                   onChange={() => {
@@ -172,14 +210,14 @@ function QuestionCard({
           </fieldset>
           {choice === "text" && (
             <Field label="Your answer">
-              <textarea
-                className="input"
+              <MarkdownEditor
+                documentKey={draft.id}
                 rows={4}
                 required
                 maxLength={20000}
                 disabled={disabled || busy}
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={setText}
               />
             </Field>
           )}
@@ -203,7 +241,9 @@ function QuestionCard({
                       throw new Error(
                         "The questions were removed; return to the action list",
                       );
-                    setReloadRevision(current.revision);
+                    await draft.fresh();
+                    setError("");
+                    setBusy(false);
                   } catch (e) {
                     setError(
                       e instanceof Error ? e.message : "Please try again.",
@@ -255,6 +295,7 @@ export function ActionQuestions({
               question={q}
               revision={action.questions?.revision ?? ""}
               action={action.data.id}
+              round={round.round}
               disabled={disabled}
             />
           ))}
@@ -270,13 +311,27 @@ export function PlanGate({
   action: ActionView;
   disabled: boolean;
 }) {
+  const draft = useFormDraft("plan-feedback", action.data.id, () => ({
+    feedback: "",
+    captured: "",
+  }));
+  const [feedback, setFeedback] = draftField(draft, "feedback"),
+    [captured] = draftField(draft, "captured");
   const query = useQueryClient(),
     toast = useToast(),
     [busy, setBusy] = useState(false),
     [reject, setReject] = useState(false),
-    [feedback, setFeedback] = useState(""),
-    [captured, setCaptured] = useState(""),
     [error, setError] = useState("");
+  async function close() {
+    try {
+      await draft.flush();
+      setReject(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Draft could not be saved",
+      );
+    }
+  }
   const unresolved = action.questions?.rounds.some((r) =>
     r.questions.some(
       (q) => !q.answer || (q.answer.kind === "agent-decides" && !q.agentChoice),
@@ -355,8 +410,11 @@ export function PlanGate({
         </Button>
         <Button
           disabled={disabled || busy || !action.planRevision || !!unresolved}
-          onClick={() => {
-            setCaptured(action.planRevision ?? "");
+          onClick={async () => {
+            await draft.fresh({
+              feedback: "",
+              captured: action.planRevision ?? "",
+            });
             setReject(true);
             setError("");
           }}
@@ -367,12 +425,16 @@ export function PlanGate({
       <Dialog
         open={reject}
         closeDisabled={busy}
-        onClose={() => setReject(false)}
+        onClose={close}
         title="Request plan changes"
         description="The agent will read your feedback and revise the plan."
         footer={
           <>
-            <Button disabled={busy} onClick={() => setReject(false)}>
+            <Button
+              data-dialog-close
+              disabled={busy}
+              onClick={() => void close()}
+            >
               Cancel
             </Button>
             <Button
@@ -386,22 +448,25 @@ export function PlanGate({
           </>
         }
       >
+        <DraftNavigation form={draft} disabled={busy} />
         <form
+          inert={busy}
           id="reject-plan"
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
             setError("");
             try {
+              await draft.flush();
               await request({
                 command: "reject-plan",
                 id: action.data.id,
                 revision: captured,
                 feedback,
               });
+              await draft.submitted();
               await query.invalidateQueries();
               setReject(false);
-              setFeedback("");
               toast.success("Plan changes requested");
             } catch (e) {
               setError(e instanceof Error ? e.message : "Please try again.");
@@ -411,13 +476,13 @@ export function PlanGate({
           }}
         >
           <Field label="Feedback">
-            <textarea
-              className="input"
+            <MarkdownEditor
+              documentKey={draft.id}
               required
               rows={5}
               maxLength={20000}
               value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
+              onChange={setFeedback}
             />
           </Field>
           {error && (

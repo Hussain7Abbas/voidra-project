@@ -1,6 +1,6 @@
 # V11-P04 — Normal and Agentic task capture
 
-> **Needs:** P02, P03 · **Status:** Not started · **Confirmed:** C06–C09, R18 · **Proposals:** A04, A08, A09
+> **Needs:** P02, P03 · **Status:** Done — 2026-10-15 · **Confirmed:** C06–C09, R18 · **Proposals:** A04, A08, A09
 
 ## Outcome
 
@@ -52,3 +52,11 @@ All creation paths implement C06–C09 and every existing data-entry form is inv
 ## Hand-off
 
 Update form, draft durability, AI/privacy and legacy-human behavior docs. P05 embeds these creators into Tasks; remove redundant entry points only once the new paths work. P07/P09 reuse the draft API and badge navigation; later forms opt in by default, with P10 auditing the inventory.
+
+## Implementation sequence within this phase
+
+The first Normal capture slice introduces the reusable private draft store/session with that working form, avoiding a second incompatible form-state implementation. Full generation/mode/durability and all-form acceptance remain the explicit later stories; implementing the foundation early does not mark those acceptance checks complete. Keep original revisions and typed invalid partial values throughout.
+
+## Executed acceptance
+
+All six stories are complete. [P04 evidence](../docs/verification/v1.1.0-p04.md) records final 451-test quality acceptance and the broad/focused desktop runs, including actual storage failure, process death, encrypted credentials, restart, stale source and Markdown cursor reuse. M11-1 is reached; P05 follows.

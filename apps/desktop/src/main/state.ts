@@ -102,6 +102,12 @@ export class AppStore {
           await handle.close();
         }
         await rename(temp, this.file);
+        const directory = await open(dirname(this.file), "r");
+        try {
+          await directory.sync();
+        } finally {
+          await directory.close();
+        }
       });
     return this.queue;
   }

@@ -41,6 +41,7 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("heading", { name: "Backlog", level: 1, exact: true }),
       ).toBeVisible();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page.getByLabel("Title", { exact: true }).fill("Export notes");
       await page
         .getByLabel("Description", { exact: true })

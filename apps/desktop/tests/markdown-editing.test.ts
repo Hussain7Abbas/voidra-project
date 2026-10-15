@@ -2,6 +2,11 @@ import { redo, undo } from "@codemirror/commands";
 import type { Transaction } from "@codemirror/state";
 import { expect, it } from "vitest";
 import {
+  decorations,
+  focusEffect,
+  focused,
+} from "../src/renderer/markdown-editor.tsx";
+import {
   createMarkdownState,
   rawPaste,
   rawSource,
@@ -89,4 +94,30 @@ it("keeps nested lists, escapes, tables and large descriptions source-addressabl
     ),
   ).toBe(true);
   expect(createMarkdownState(source).field(rawSource)).toBe(source);
+});
+
+it("reuses formatting for cursor movement within the same revealed lines", () => {
+  let state = createMarkdownState(
+    `# Heading\n${"A **formatted** line\n".repeat(1000)}`,
+    [focused, decorations],
+  );
+  state = state.update({
+    effects: focusEffect.of(true),
+    selection: { anchor: 13 },
+  }).state;
+  const original = state.field(decorations);
+  for (let position = 14; position < 25; position++) {
+    state = state.update({ selection: { anchor: position } }).state;
+    expect(state.field(decorations)).toBe(original);
+  }
+  state = state.update({ selection: { anchor: 35 } }).state;
+  expect(state.field(decorations)).not.toBe(original);
+  const nextLine = state.field(decorations);
+  state = state.update({ selection: { anchor: 35, head: 38 } }).state;
+  expect(state.field(decorations)).toBe(nextLine);
+  state = state.update({ selection: { anchor: 13, head: 38 } }).state;
+  expect(state.field(decorations)).not.toBe(nextLine);
+  const selected = state.field(decorations);
+  state = state.update({ effects: focusEffect.of(false) }).state;
+  expect(state.field(decorations)).not.toBe(selected);
 });

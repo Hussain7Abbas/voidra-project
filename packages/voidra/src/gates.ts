@@ -185,7 +185,7 @@ export async function requestPlanChanges(
   const next = {
     ...action,
     planFeedback: {
-      feedback: feedback.trim(),
+      feedback,
       by,
       at: new Date().toISOString(),
       revision,
@@ -296,7 +296,7 @@ export async function decideReview(
     options.lifecycles ?? projectLifecycles(project.metadata),
   ).action;
   if (next.reviewDecision && decision === "rejected")
-    next.reviewDecision.feedback = feedback.trim();
+    next.reviewDecision.feedback = feedback;
   await applyOperation(
     root,
     {

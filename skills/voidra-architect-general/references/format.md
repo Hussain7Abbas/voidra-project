@@ -331,6 +331,22 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
       "type": "string",
       "pattern": "^idea-[0-9a-hjkmnp-tv-z]{6}$"
     },
+    "assignee": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "feature",
+        "bug",
+        "improvement",
+        "docs",
+        "profile-change",
+        "research",
+        "release"
+      ]
+    },
     "title": {
       "type": "string",
       "minLength": 1

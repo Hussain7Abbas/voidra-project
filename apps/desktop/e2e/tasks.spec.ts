@@ -219,6 +219,7 @@ for (const theme of ["light", "dark"] as const)
       ).toMatchObject({ targetRelease: "2.5.0" });
       await page.getByRole("button", { name: "Backlog", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Title", { exact: true })
         .fill("Unversioned backlog capture");

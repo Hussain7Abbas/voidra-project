@@ -1004,6 +1004,9 @@
   padding: 12px 8px;
   caret-color: var(--ink);
 }
+.markdown-editor .cm-placeholder {
+  color: var(--muted);
+}
 .markdown-editor .cm-line {
   padding: 2px 6px;
   line-height: 1.65;
@@ -1046,6 +1049,21 @@
 }
 .markdown-editor .cm-md-symbol {
   user-select: none;
+}
+
+.draft-badge {
+  max-width: min(100%, 18rem);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+}
+.draft-badge > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-badge[aria-current="page"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .segmented-switch {

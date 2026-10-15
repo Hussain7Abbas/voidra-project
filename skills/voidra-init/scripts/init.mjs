@@ -27432,6 +27432,8 @@ var schemas = {
   }),
   idea: object2({
     id: id("idea"),
+    assignee: text.optional(),
+    type: actionSchema.shape.type.optional(),
     title: text,
     targetRelease: version2.nullable().optional(),
     status: external_exports.enum(["new", "needs-info", "ready", "promoted", "rejected"]),
@@ -28066,6 +28068,13 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "idea" && file2 !== `.voidra/backlog/${d.id}.md`)
       add("identity", file2, "id", "Idea ID must match its filename");
+    if (kind === "idea" && !taskAware && (d.type !== void 0 || d.assignee !== void 0))
+      add(
+        "minimum-reader",
+        file2,
+        d.type !== void 0 ? "type" : "assignee",
+        "Backlog type and assignment require voidra \u2265 1.1.0"
+      );
     if (kind === "idea" && metadata.taskTracking === 1 && !["promoted", "rejected"].includes(String(d.status)) && d.targetRelease === void 0)
       add(
         "task-metadata",
@@ -28954,6 +28963,8 @@ var revisitInput = external_exports.strictObject({
 var title = external_exports.string().trim().min(1).max(160);
 var description = external_exports.string().min(1).max(2e4);
 var ideaInput = external_exports.strictObject({
+  assignee: external_exports.string().min(1).nullable().optional(),
+  type: schemas.action.shape.type.optional(),
   targetRelease: taskInputFields.targetRelease,
   title,
   description,
@@ -28973,7 +28984,7 @@ var promotionInput = external_exports.strictObject({
   by: external_exports.string().min(1),
   title: title.optional(),
   description: description.optional(),
-  assignee: external_exports.string().min(1).optional()
+  assignee: external_exports.string().min(1).nullable().optional()
 });
 var actionInput = external_exports.strictObject({
   ...taskInputFields,

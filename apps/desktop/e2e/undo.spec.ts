@@ -50,12 +50,17 @@ for (const theme of ["light", "dark"] as const)
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Backlog", exact: true }).click();
       await page.getByRole("button", { name: "New idea", exact: true }).click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       const title = page.getByLabel("Title", { exact: true });
       await title.fill("Export");
       await title.press("End");
       await title.pressSequentially(" notes");
       await title.press("Meta+z");
-      await expect(title).toHaveValue("Export");
+      // Chromium owns native input undo grouping; an async autosave may split typing.
+      await expect(title).not.toHaveValue("Export notes");
+      await expect(title).toHaveValue(/^Export/);
+      await title.press("Meta+Shift+z");
+      await expect(title).toHaveValue("Export notes");
       await title.fill("Export notes");
       await page
         .getByLabel("Description", { exact: true })

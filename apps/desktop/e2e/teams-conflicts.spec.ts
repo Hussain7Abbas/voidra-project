@@ -57,6 +57,7 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "New action", exact: true })
         .click();
+      await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Action type", { exact: true })
         .selectOption("docs");

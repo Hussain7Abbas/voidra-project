@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { TeamRequest } from "../shared/team.ts";
 import { assigneeOptions } from "../shared/team.ts";
 import { request, useSnapshot } from "./app.tsx";
+import { DraftNavigation, useFormDraft } from "./form-drafts.tsx";
 import { Button } from "./ui/button.tsx";
 import { Field } from "./ui/field.tsx";
 import { Spinner } from "./ui/spinner.tsx";
@@ -11,9 +12,25 @@ import { Spinner } from "./ui/spinner.tsx";
 export function TeamSettings() {
   const snapshot = useSnapshot(),
     query = useQueryClient();
-  const [name, setName] = useState(""),
-    [email, setEmail] = useState(""),
-    [busy, setBusy] = useState(false),
+  const draft = useFormDraft("team-member", "", () => ({
+    name: "",
+    email: "",
+    revision: "",
+  }));
+  const { name, email } = draft.values;
+  const setName = (name: string) =>
+    draft.set((previous) => ({
+      ...previous,
+      name,
+      revision: previous.revision || snapshot.data?.team.revision || "",
+    }));
+  const setEmail = (email: string) =>
+    draft.set((previous) => ({
+      ...previous,
+      email,
+      revision: previous.revision || snapshot.data?.team.revision || "",
+    }));
+  const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [pending, setPending] = useState<TeamRequest | null>(null);
   const entryForm = useRef<HTMLFormElement>(null);
@@ -25,11 +42,11 @@ export function TeamSettings() {
     setBusy(true);
     setError("");
     try {
+      if (command.command === "team-add") await draft.flush();
       await request(command);
       if (command.command === "team-add") {
         entryForm.current?.reset();
-        setName("");
-        setEmail("");
+        await draft.submitted();
       }
       await query.invalidateQueries({ queryKey: ["snapshot"] });
     } catch (cause) {
@@ -49,7 +66,9 @@ export function TeamSettings() {
         Team stays on this computer. Choose who belongs to each project; saved
         task assignments remain in project files.
       </p>
+      <DraftNavigation form={draft} disabled={busy} />
       <form
+        inert={busy}
         ref={entryForm}
         className="space-y-3"
         onSubmit={(event) => {
@@ -58,7 +77,7 @@ export function TeamSettings() {
             command: "team-add",
             name,
             email,
-            revision: team.revision,
+            revision: draft.values.revision || team.revision,
           });
         }}
       >

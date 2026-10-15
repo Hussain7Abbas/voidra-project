@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
+import { DraftNavigation, useFormDraft } from "./form-drafts.tsx";
+import { MarkdownEditor } from "./markdown-editor.tsx";
 import { Field } from "./ui/field.tsx";
 
 export function ProfileAiControls({
@@ -20,7 +21,13 @@ export function ProfileAiControls({
   onChange: (value: string | string[] | null) => void;
   disabled?: boolean;
 }) {
-  const [questions, setQuestions] = useState("");
+  const draft = useFormDraft(
+    "profile-followup",
+    `${template}:${templateVersion}:${block}:${answer}`,
+    () => ({ questions: "" }),
+  );
+  const questions = draft.values.questions,
+    setQuestions = (questions: string) => draft.set({ questions });
   const context = {
     template,
     templateVersion,
@@ -33,6 +40,13 @@ export function ProfileAiControls({
   };
   return (
     <div className="space-y-3">
+      {!!draft.drafts.length && (
+        <DraftNavigation
+          form={draft}
+          label={`Follow-up drafts: ${block} / ${answer}`}
+          disabled={disabled}
+        />
+      )}
       <div className="flex flex-wrap gap-2">
         <AiSuggestionButton
           label="Suggest answer with AI"
@@ -68,11 +82,11 @@ export function ProfileAiControls({
             label="Questions to consider"
             hint="Edit these prompts and use them to refine your answer above. Save the answer when you are ready."
           >
-            <textarea
-              className="input"
+            <MarkdownEditor
+              documentKey={draft.id}
               rows={4}
               value={questions}
-              onChange={(event) => setQuestions(event.target.value)}
+              onChange={setQuestions}
             />
           </Field>
         </aside>

@@ -17,11 +17,7 @@ import {
 } from "@codemirror/view";
 import { useEffect, useId, useRef, useState } from "react";
 import { markdownPresentation } from "../shared/markdown-presentation.ts";
-import {
-  normalizeSource,
-  selectedLines,
-  sourceOffset,
-} from "../shared/markdown-source.ts";
+import { normalizeSource, sourceOffset } from "../shared/markdown-source.ts";
 import {
   createMarkdownState,
   rawPaste,
@@ -29,8 +25,8 @@ import {
   sourceSnapshot,
 } from "./markdown-engine.ts";
 
-const focusEffect = StateEffect.define<boolean>();
-const focused = StateField.define({
+export const focusEffect = StateEffect.define<boolean>();
+export const focused = StateField.define({
   create: () => false,
   update: (value, tr) =>
     tr.effects.find((effect) => effect.is(focusEffect))?.value ?? value,
@@ -54,11 +50,20 @@ class TextWidget extends WidgetType {
     return false;
   }
 }
+/** Query CodeMirror's line index instead of scanning the whole source for cursor moves. */
+function revealedLines(state: EditorState): number[] {
+  if (!state.field(focused)) return [];
+  const lines = new Set<number>();
+  for (const range of state.selection.ranges) {
+    const first = state.doc.lineAt(range.from).number;
+    const last = state.doc.lineAt(range.empty ? range.to : range.to - 1).number;
+    for (let line = first; line <= last; line++) lines.add(line);
+  }
+  return [...lines].sort((a, b) => a - b);
+}
 function decorate(state: EditorState): DecorationSet {
   const source = state.doc.toString();
-  const active = state.field(focused)
-    ? selectedLines(source, state.selection.ranges)
-    : [];
+  const active = revealedLines(state);
   const model = markdownPresentation(source, active),
     ranges: Range<Decoration>[] = [];
   for (const span of model.hidden)
@@ -85,14 +90,19 @@ function decorate(state: EditorState): DecorationSet {
     );
   return Decoration.set(ranges, true);
 }
-const decorations = StateField.define<DecorationSet>({
+export const decorations = StateField.define<DecorationSet>({
   create: decorate,
-  update: (value, tr) =>
-    tr.docChanged ||
-    tr.selection ||
-    tr.effects.some((effect) => effect.is(focusEffect))
-      ? decorate(tr.state)
-      : value,
+  update: (value, tr) => {
+    if (tr.docChanged) return decorate(tr.state);
+    if (!tr.selection && !tr.effects.some((effect) => effect.is(focusEffect)))
+      return value;
+    const before = revealedLines(tr.startState),
+      after = revealedLines(tr.state);
+    return before.length === after.length &&
+      before.every((line, index) => line === after[index])
+      ? value
+      : decorate(tr.state);
+  },
   provide: (field) => EditorView.decorations.from(field),
 });
 

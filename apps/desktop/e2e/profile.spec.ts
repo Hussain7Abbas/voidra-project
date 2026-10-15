@@ -11,7 +11,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
-import { checkProject, replaceActionQueue } from "voidra";
+import { checkProject, replaceActionQueue, schemas } from "voidra";
 import {
   publishPlanning,
   startRun,
@@ -76,7 +76,7 @@ for (const value of ["light", "dark"])
     });
     await page
       .getByLabel(/What should this project make possible/)
-      .fill("Track useful work");
+      .fill("    Track useful work\n\n**Keep** it readable\n");
     await page.getByLabel(/Who will use it/).fill("Independent developers");
     await page
       .getByLabel(/What are the first useful features/)
@@ -97,6 +97,13 @@ for (const value of ["light", "dark"])
     await expect(
       page.getByText("Project profile created", { exact: true }),
     ).toBeVisible();
+    const initialProfile = schemas.profile.parse(
+      (await checkProject(root)).records.get(".voidra/profile/problem.md")
+        ?.document.data,
+    );
+    expect(
+      initialProfile.answers.find((answer) => answer.id === "goal")?.answer,
+    ).toBe("    Track useful work\n\n**Keep** it readable\n");
     await page.getByRole("button", { name: "Profile", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Profile", exact: true }),
@@ -118,6 +125,20 @@ for (const value of ["light", "dark"])
     await page
       .getByLabel(/What should this project make possible/)
       .fill("Track project decisions too");
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("button", {
+        name: /^Edit What should this project make possible/,
+      })
+      .click();
+    await page
+      .getByRole("button", {
+        name: /Restore draft .*Track project decisions too/,
+      })
+      .click();
+    await expect(
+      page.getByLabel(/What should this project make possible/),
+    ).toContainText("Track project decisions too");
     await page
       .getByRole("button", { name: "Save answer", exact: true })
       .click();

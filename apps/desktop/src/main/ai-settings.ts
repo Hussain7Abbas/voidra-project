@@ -61,6 +61,12 @@ export class AiSettings {
             await handle.close();
           }
           await rename(temp, this.file);
+          const directory = await open(dirname(this.file), "r");
+          try {
+            await directory.sync();
+          } finally {
+            await directory.close();
+          }
         } finally {
           await rm(temp, { force: true });
         }

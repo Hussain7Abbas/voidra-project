@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { request } from "./app.tsx";
+import { DraftNavigation, useFormDraft } from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { useWorkspace } from "./project-profile.tsx";
 import { Button } from "./ui/button.tsx";
@@ -18,8 +19,30 @@ export function ProjectReleases({
   const workspace = useWorkspace(),
     query = useQueryClient(),
     toast = useToast();
+  const draft = useFormDraft<{
+    selected: string[];
+    revisions: Record<string, string>;
+  }>("release-prepare", "", () => ({ selected: [], revisions: {} }));
+  const selected = draft.values.selected;
+  const setSelected = (values: string[] | ((previous: string[]) => string[])) =>
+    draft.set((previous) => {
+      const selected =
+        typeof values === "function" ? values(previous.selected) : values;
+      return {
+        selected,
+        revisions: Object.fromEntries(
+          selected.map((id) => [
+            id,
+            previous.revisions[id] ??
+              workspace.data?.releaseCandidates.find(
+                (candidate) => candidate.id === id,
+              )?.revision ??
+              "",
+          ]),
+        ),
+      };
+    });
   const [open, setOpen] = useState(false),
-    [selected, setSelected] = useState<string[]>([]),
     [busy, setBusy] = useState(false);
   if (workspace.isPending) return <Spinner label="Reading releases" />;
   if (workspace.isError)
@@ -35,10 +58,21 @@ export function ProjectReleases({
       data.lock.state !== "none" ||
       !!data.recoveries.length ||
       !!data.planning.pending.length;
+  const close = async () => {
+    try {
+      await draft.flush();
+      setOpen(false);
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : "Draft could not be saved",
+      );
+    }
+  };
   const create = async (): Promise<void> => {
     setBusy(true);
     const existing = new Set(data.actions.map((action) => action.data.id));
     try {
+      await draft.flush();
       const actions = selected.map((id) => {
         const candidate = data.releaseCandidates.find(
           (candidate) => candidate.id === id,
@@ -47,9 +81,10 @@ export function ProjectReleases({
           throw new Error(
             "Selected action changed; refresh the release selection.",
           );
-        return { id, revision: candidate.revision };
+        return { id, revision: draft.values.revisions[id] ?? "" };
       });
       const result = await request({ command: "create-release", actions });
+      await draft.submitted();
       await query.invalidateQueries();
       if (result.kind === "workspace") {
         const created = result.workspace.actions.find(
@@ -59,7 +94,6 @@ export function ProjectReleases({
         if (created) onAction(created.data.id);
       }
       setOpen(false);
-      setSelected([]);
       toast.success("Release action created");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Please try again.");
@@ -78,8 +112,8 @@ export function ProjectReleases({
             variant="primary"
             icon={<Plus size={16} aria-hidden />}
             disabled={disabled || !data.releaseCandidates.length}
-            onClick={() => {
-              setSelected([]);
+            onClick={async () => {
+              await draft.fresh();
               setOpen(true);
             }}
           >
@@ -147,14 +181,16 @@ export function ProjectReleases({
       ))}
       <Dialog
         open={open}
-        onClose={() => {
-          if (!busy) setOpen(false);
-        }}
+        onClose={close}
         title="Choose completed work"
         description="Only done, unreleased actions are available. Work already in another release proposal stays reserved."
         footer={
           <>
-            <Button disabled={busy} onClick={() => setOpen(false)}>
+            <Button
+              data-dialog-close
+              disabled={busy}
+              onClick={() => void close()}
+            >
               Cancel
             </Button>
             <Button
@@ -168,7 +204,8 @@ export function ProjectReleases({
           </>
         }
       >
-        <fieldset className="profile-choice">
+        <DraftNavigation form={draft} disabled={busy} />
+        <fieldset disabled={busy} className="profile-choice">
           <legend>Actions to include</legend>
           <div className="choice-options">
             {data.releaseCandidates.map((candidate) => (

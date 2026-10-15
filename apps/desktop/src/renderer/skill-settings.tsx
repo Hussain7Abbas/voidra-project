@@ -159,6 +159,7 @@ export function SkillSettingsPanel() {
         footer={
           <>
             <Button
+              data-dialog-close
               disabled={busy}
               onClick={() => {
                 setPreview(null);

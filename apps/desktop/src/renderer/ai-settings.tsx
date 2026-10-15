@@ -2,13 +2,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { request } from "./app.tsx";
+import { SecretDraftNavigation, useSecretDraft } from "./secret-drafts.tsx";
 import { Button } from "./ui/button.tsx";
 import { Field } from "./ui/field.tsx";
 
 export function AiSettingsPanel() {
+  const draft = useSecretDraft();
+  const key = draft.value,
+    setKey = draft.change;
   const query = useQueryClient(),
     [active, setActive] = useState(false),
-    [key, setKey] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
@@ -39,8 +42,8 @@ export function AiSettingsPanel() {
     setError("");
     setMessage("");
     try {
-      await request(command);
-      if (command.command === "ai-set-key") setKey("");
+      if (command.command === "ai-set-key") await draft.apply();
+      else await request(command);
       setMessage(success);
       await query.invalidateQueries();
     } catch (error) {
@@ -65,6 +68,7 @@ export function AiSettingsPanel() {
             Mac.
           </p>
           <p>{preferences.data?.configured ? "Key saved" : "No key saved"}</p>
+          <SecretDraftNavigation draft={draft} disabled={busy} />
           <Field
             label="OpenRouter API key"
             hint="Saved keys are never shown here."
@@ -82,7 +86,7 @@ export function AiSettingsPanel() {
           <div className="flex flex-wrap gap-2">
             <Button
               disabled={
-                busy || !key.trim() || preferences.data?.available === false
+                busy || !draft.canApply || preferences.data?.available === false
               }
               onClick={() =>
                 void perform(

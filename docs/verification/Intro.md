@@ -10,6 +10,8 @@ Each implemented phase records actual checks, results, remaining limitations and
 
 - [V11-P03 — Team, client and skill bundles](v1.1.0-p03.md): local roster/project subsets/Me, selected-client guidance, full catalog installs, exact hand-edit review and recovery; 440 quality tests.
 
+- [V11-P04 — Capture and private drafts](v1.1.0-p04.md): in progress; capture foundation passes 448 quality tests, remaining form adoption is under verification.
+
 - [P00 — Repository foundation](p00.md): tooling, scanner, documentation and macOS CI.
 
 - [P01 — Format package](p01.md): library, CLI, fixtures, recovery checks and publication status.

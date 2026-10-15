@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
@@ -28,9 +29,11 @@ import {
   responseSchema,
   type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
+import { draftRecoveryText } from "../shared/form-drafts.ts";
 import { isTeamRequest } from "../shared/team.ts";
 import { AiService } from "./ai-service.ts";
 import { AiSettings } from "./ai-settings.ts";
+import { DraftStore } from "./form-drafts.ts";
 import { OpenRouterClient } from "./openrouter.ts";
 import {
   APP_ORIGIN,
@@ -66,6 +69,39 @@ const initialFolder = process.argv
 const single = app.requestSingleInstanceLock({ folder: initialFolder ?? null });
 if (!single) app.quit();
 const registry = new WindowRegistry();
+const draftReady = new Set<number>();
+const draftClosing = new Map<number, Promise<void>>();
+const draftAcknowledgements = new Map<
+  string,
+  { window: number; resolve: () => void; reject: (error: Error) => void }
+>();
+function flushWindowDrafts(window: BrowserWindow): Promise<void> {
+  if (!draftReady.has(window.id) || window.isDestroyed())
+    return Promise.resolve();
+  const pending = draftClosing.get(window.id);
+  if (pending) return pending;
+  const id = randomUUID();
+  const promise = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      draftAcknowledgements.delete(id);
+      reject(Error("Draft save did not finish. This window remains open."));
+    }, 30000);
+    draftAcknowledgements.set(id, {
+      window: window.id,
+      resolve: () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    });
+    notify(window.id, { type: "draft-flush", id });
+  }).finally(() => draftClosing.delete(window.id));
+  draftClosing.set(window.id, promise);
+  return promise;
+}
 const services = new Map<number, ProjectService>();
 const projects = new Map<number, ProjectInfo>();
 const editing = new Map<number, WorkspaceSnapshot["editing"]>();
@@ -125,13 +161,18 @@ const skills = new SkillInstaller(
     ? process.env.VOIDRA_TEST_SKILLS_HOME
     : homedir(),
 );
+const encryption = {
+  available: () => safeStorage.isAsyncEncryptionAvailable(),
+  encrypt: (value: string) => safeStorage.encryptStringAsync(value),
+  decrypt: (value: Buffer) => safeStorage.decryptStringAsync(value),
+};
+const drafts = new DraftStore(
+  join(app.getPath("userData"), "form-drafts"),
+  encryption,
+);
 const aiSettings = new AiSettings(
   join(app.getPath("userData"), "ai-settings.json"),
-  {
-    available: () => safeStorage.isAsyncEncryptionAvailable(),
-    encrypt: (value) => safeStorage.encryptStringAsync(value),
-    decrypt: (value) => safeStorage.decryptStringAsync(value),
-  },
+  encryption,
 );
 const aiEndpoint = !app.isPackaged
   ? process.env.VOIDRA_TEST_OPENROUTER_URL
@@ -143,7 +184,11 @@ if (
   throw new Error("The test OpenRouter endpoint must be local");
 const ai = new AiService(aiSettings, new OpenRouterClient(aiEndpoint));
 async function aiContext(window: number, intent: AiIntent): Promise<AiContext> {
-  if (intent.feature === "rewrite")
+  if (
+    intent.feature === "rewrite" ||
+    intent.feature === "task-title" ||
+    intent.feature === "task-capture"
+  )
     return {
       feature: intent.feature,
       notes: intent.notes,
@@ -205,6 +250,19 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
       preload: join(app.getAppPath(), "dist/preload.cjs"),
     },
   });
+  let closeAuthorized = false;
+  window.on("close", (event) => {
+    if (closeAuthorized || !draftReady.has(window.id)) return;
+    event.preventDefault();
+    void flushWindowDrafts(window)
+      .then(() => {
+        closeAuthorized = true;
+        window.close();
+      })
+      .catch((error) =>
+        dialog.showErrorBox("Draft could not be saved", error.message),
+      );
+  });
   registry.register(window.id, root);
   customTitlebars.set(window.id, customTitlebar);
   const windowChanged = (): void => notify(window.id, { type: "changed" });
@@ -219,6 +277,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     event.preventDefault(),
   );
   window.on("closed", () => {
+    draftReady.delete(window.id);
     ai.close(window.id);
     customTitlebars.delete(window.id);
     registry.remove(window.id);
@@ -337,7 +396,84 @@ async function start(): Promise<void> {
       const request = parsed.data;
       try {
         let response: BridgeResponse;
-        if (request.command === "text-edit-focus") {
+        if (request.command === "draft-ready") {
+          draftReady.add(window.id);
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "draft-flushed") {
+          const pending = draftAcknowledgements.get(request.id);
+          if (!pending || pending.window !== window.id)
+            throw Error("Draft flush request expired");
+          draftAcknowledgements.delete(request.id);
+          if (request.error) pending.reject(Error(request.error));
+          else pending.resolve();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "draft-list") {
+          response = {
+            ok: true,
+            data: {
+              kind: "drafts",
+              ...(await drafts.list(registry.project(window.id), request)),
+            },
+          };
+        } else if (request.command === "draft-read") {
+          response = {
+            ok: true,
+            data: {
+              kind: "draft",
+              draft: await drafts.read(registry.project(window.id), request.id),
+            },
+          };
+        } else if (request.command === "draft-put") {
+          response = {
+            ok: true,
+            data: {
+              kind: "draft",
+              draft: await drafts.put(
+                registry.project(window.id),
+                request.draft,
+              ),
+            },
+          };
+        } else if (request.command === "copy-draft") {
+          const draft = await drafts.read(
+            registry.project(window.id),
+            request.id,
+          );
+          if (draft.revision !== request.revision)
+            throw Error("This draft changed. Reopen it before copying.");
+          clipboard.writeText(draftRecoveryText(draft.values));
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "draft-delete") {
+          await drafts.delete(
+            registry.project(window.id),
+            request.id,
+            request.revision,
+          );
+          notify(window.id, { type: "draft-deleted", id: request.id });
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "secret-draft-list") {
+          response = {
+            ok: true,
+            data: { kind: "secret-drafts", ...(await drafts.listSecrets()) },
+          };
+        } else if (request.command === "secret-draft-put") {
+          response = {
+            ok: true,
+            data: {
+              kind: "secret-draft",
+              draft: await drafts.putSecret(request),
+            },
+          };
+        } else if (request.command === "secret-draft-delete") {
+          await drafts.delete(null, request.id, request.revision, true);
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "secret-draft-apply") {
+          await drafts.applySecret(request.id, request.revision, (key) =>
+            ai.setKey(key),
+          );
+          broadcast();
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "text-edit-focus") {
           if (request.editing) textEditing.add(window.id);
           else textEditing.delete(window.id);
           updateEditMenu(window.id);
@@ -749,14 +885,21 @@ async function start(): Promise<void> {
   );
   let quitting = false;
   app.on("before-quit", (event) => {
-    updates.close();
     if (quitting) return;
     event.preventDefault();
-    quitting = true;
-    void Promise.allSettled([
-      ...closing,
-      ...Array.from(services.values(), (service) => service.dispose()),
-    ]).then(() => app.quit());
+    void Promise.all(BrowserWindow.getAllWindows().map(flushWindowDrafts))
+      .then(async () => {
+        quitting = true;
+        updates.close();
+        await Promise.allSettled([
+          ...closing,
+          ...Array.from(services.values(), (service) => service.dispose()),
+        ]);
+        app.quit();
+      })
+      .catch((error) =>
+        dialog.showErrorBox("Draft could not be saved", error.message),
+      );
   });
   nativeTheme.on("updated", broadcast);
   app.dock?.setIcon(

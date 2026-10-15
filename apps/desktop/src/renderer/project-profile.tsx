@@ -4,7 +4,9 @@ import { useId, useState } from "react";
 import type { TemplateView } from "../shared/bridge.ts";
 import { request } from "./app.tsx";
 import { useCodingClient } from "./coding-client.tsx";
+import { DraftNavigation, draftField, useFormDraft } from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
+import { MarkdownEditor } from "./markdown-editor.tsx";
 import { ProfileAiControls } from "./profile-ai.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -44,7 +46,13 @@ function AnswerControl({
   value,
   onChange,
   name,
+  draftId,
+  other: explicitOther,
+  onOtherChange,
 }: {
+  draftId: string;
+  other?: boolean;
+  onOtherChange?: (other: boolean) => void;
   question: Question;
   value: Value;
   onChange: (value: Value) => void;
@@ -53,9 +61,11 @@ function AnswerControl({
   const id = useId(),
     choices = question.options ?? [],
     listed = choices.map((o) => o.value);
-  const [other, setOther] = useState(
+  const [localOther, setLocalOther] = useState(
     typeof value === "string" && !listed.includes(value) && !!value,
   );
+  const other = explicitOther ?? localOther,
+    setOther = onOtherChange ?? setLocalOther;
   if (
     question.type === "single-choice" ||
     question.type === "multiple-choice"
@@ -83,7 +93,7 @@ function AnswerControl({
                     ? selected.includes(option.value)
                     : !other && value === option.value
                 }
-                required={!multiple && question.required}
+                required={!multiple && !!question.required}
                 onChange={(e) => {
                   setOther(false);
                   if (multiple) {
@@ -118,10 +128,9 @@ function AnswerControl({
               multiple ? "Other choices, one per line" : "Your other answer"
             }
           >
-            <textarea
-              className="input"
+            <MarkdownEditor
+              documentKey={`${draftId}:${name}:other`}
               rows={multiple ? 2 : 1}
-              name={`${name}-other`}
               value={
                 multiple
                   ? selected.filter((v) => !listed.includes(v)).join("\n")
@@ -129,18 +138,16 @@ function AnswerControl({
                     ? value
                     : ""
               }
-              required={!multiple && question.required}
-              onBlur={(e) => syncValidity(e.currentTarget)}
-              onChange={(e) => {
-                e.currentTarget.setAttribute("aria-invalid", "false");
-                const custom = e.target.value
+              required={!multiple && !!question.required}
+              onChange={(text) => {
+                const custom = text
                   .split("\n")
                   .map((v) => v.trim())
                   .filter(Boolean);
                 onChange(
                   multiple
                     ? [...selected.filter((v) => listed.includes(v)), ...custom]
-                    : e.target.value || null,
+                    : text || null,
                 );
               }}
             />
@@ -176,8 +183,13 @@ function AnswerControl({
       {question.type === "short-text" ? (
         <input {...shared} maxLength={2000} />
       ) : (
-        <textarea
-          {...shared}
+        <MarkdownEditor
+          documentKey={`${draftId}:${name}`}
+          required={!!question.required}
+          value={display}
+          onChange={(text) =>
+            onChange(question.type === "list" ? text.split("\n") : text)
+          }
           rows={question.type === "list" ? 4 : 5}
           maxLength={20000}
         />
@@ -190,17 +202,32 @@ function cleanValue(value: Value): Value {
     const list = [...new Set(value.map((v) => v.trim()).filter(Boolean))];
     return list.length ? list : null;
   }
-  return value?.trim() || null;
+  return value?.trim() ? value : null;
 }
 export function ProjectOnboarding({ name }: { name: string }) {
   const client = useCodingClient();
   const workspace = useWorkspace(),
     query = useQueryClient(),
     toast = useToast();
-  const [manual, setManual] = useState(false),
-    [chosen, setChosen] = useState<string | null>(null),
-    [answers, setAnswers] = useState<Record<string, Value>>({}),
-    [busy, setBusy] = useState(false),
+  const draft = useFormDraft<{
+    manual: boolean;
+    chosen: string | null;
+    answers: Record<string, Value>;
+    templateVersion: string;
+    other: Record<string, boolean>;
+    projectName: string;
+  }>("profile-setup", "", () => ({
+    manual: false,
+    chosen: null,
+    answers: {},
+    templateVersion: "",
+    other: {},
+    projectName: name,
+  }));
+  const [manual, setManual] = draftField(draft, "manual"),
+    [chosen, setChosen] = draftField(draft, "chosen"),
+    [answers, setAnswers] = draftField(draft, "answers");
+  const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   if (workspace.isPending) return <Spinner label="Reading project setup" />;
   if (workspace.isError)
@@ -266,6 +293,7 @@ export function ProjectOnboarding({ name }: { name: string }) {
             : "Choose a starting profile for your project."
         }
       />
+      <DraftNavigation form={draft} disabled={busy} />
       {data.templateProblems.map((problem) => (
         <p key={problem} role="alert" className="service-notice">
           {problem}
@@ -281,7 +309,11 @@ export function ProjectOnboarding({ name }: { name: string }) {
                 className="mt-6"
                 variant="primary"
                 onClick={() => {
-                  setChosen(t.id);
+                  draft.set((previous) => ({
+                    ...previous,
+                    chosen: t.id,
+                    templateVersion: t.version,
+                  }));
                   setError("");
                 }}
               >
@@ -295,12 +327,20 @@ export function ProjectOnboarding({ name }: { name: string }) {
         </section>
       ) : (
         <form
+          inert={busy}
           className="profile-form space-y-6"
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
             setError("");
             try {
+              if (
+                draft.values.templateVersion &&
+                draft.values.templateVersion !== template.version
+              )
+                throw Error(
+                  "This template changed. Start a new draft with the current template before submitting.",
+                );
               const values = Object.fromEntries(
                 template.blocks.flatMap((b) =>
                   b.questions.map((q) => [
@@ -320,12 +360,14 @@ export function ProjectOnboarding({ name }: { name: string }) {
                 );
               if (missing)
                 throw new Error(`Please answer: ${missing.question}`);
+              await draft.flush();
               await request({
                 command: "initialize-profile",
                 template: template.id,
-                name,
+                name: draft.values.projectName,
                 answers: values,
               });
+              await draft.submitted();
               await query.invalidateQueries();
               toast.success("Project profile created");
             } catch (e) {
@@ -346,6 +388,20 @@ export function ProjectOnboarding({ name }: { name: string }) {
                       key={question.id}
                       name={`${block.id}.${question.id}`}
                       question={question}
+                      draftId={draft.id}
+                      other={
+                        draft.values.other[`${block.id}.${question.id}`] ??
+                        false
+                      }
+                      onOtherChange={(other) =>
+                        draft.set((previous) => ({
+                          ...previous,
+                          other: {
+                            ...previous.other,
+                            [`${block.id}.${question.id}`]: other,
+                          },
+                        }))
+                      }
                       value={answers[`${block.id}.${question.id}`] ?? null}
                       onChange={(value) =>
                         setAnswers((a) => ({
@@ -395,9 +451,21 @@ export function ProjectProfile() {
   const workspace = useWorkspace(),
     query = useQueryClient(),
     toast = useToast();
-  const [edit, setEdit] = useState<{ block: string; id: string } | null>(null),
-    [value, setValue] = useState<Value>(null),
-    [busy, setBusy] = useState(false),
+  const draft = useFormDraft<{
+    edit: { block: string; id: string } | null;
+    value: Value;
+    revision: string;
+    other: boolean;
+  }>("profile-answer", "", () => ({
+    edit: null,
+    value: null,
+    revision: "",
+    other: false,
+  }));
+  const [edit] = draftField(draft, "edit"),
+    [value, setValue] = draftField(draft, "value");
+  const [editOpen, setEditOpen] = useState(false);
+  const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   if (workspace.isPending) return <Spinner label="Reading profile" />;
   if (workspace.isError)
@@ -484,9 +552,14 @@ export function ProjectProfile() {
               <Button
                 className="mt-3"
                 disabled={disabled || !knowsAnswer(profile.data.block, a.id)}
-                onClick={() => {
-                  setEdit({ block: profile.data.block, id: a.id });
-                  setValue(editableValue(a.answer));
+                onClick={async () => {
+                  await draft.fresh({
+                    edit: { block: profile.data.block, id: a.id },
+                    value: editableValue(a.answer),
+                    revision: profile.revision,
+                    other: false,
+                  });
+                  setEditOpen(true);
                   setError("");
                 }}
               >
@@ -506,9 +579,11 @@ export function ProjectProfile() {
         </section>
       )}
       <Dialog
-        open={!!edit}
-        onClose={() => {
-          if (!busy) setEdit(null);
+        open={editOpen}
+        closeDisabled={busy}
+        onClose={async () => {
+          await draft.flush();
+          setEditOpen(false);
         }}
         title="Edit profile answer"
         description={
@@ -518,7 +593,16 @@ export function ProjectProfile() {
         }
         footer={
           <>
-            <Button disabled={busy} onClick={() => setEdit(null)}>
+            <Button
+              data-dialog-close
+              disabled={busy}
+              onClick={() =>
+                void draft
+                  .flush()
+                  .then(() => setEditOpen(false))
+                  .catch((cause) => setError(String(cause)))
+              }
+            >
               Cancel
             </Button>
             <Button
@@ -532,8 +616,21 @@ export function ProjectProfile() {
           </>
         }
       >
+        <DraftNavigation form={draft} disabled={busy} />
+        {!(current && answer && question) && (
+          <>
+            <p>
+              The original answer is unavailable. Your draft remains
+              recoverable.
+            </p>
+            <SafeMarkdown
+              body={Array.isArray(value) ? value.join("\n") : (value ?? "")}
+            />
+          </>
+        )}
         {current && answer && question && (
           <form
+            inert={busy}
             id="edit-profile"
             className="space-y-4"
             onSubmit={async (e) => {
@@ -541,15 +638,17 @@ export function ProjectProfile() {
               setBusy(true);
               setError("");
               try {
+                await draft.flush();
                 await request({
                   command: "edit-profile-answer",
                   block: current.data.block,
                   id: answer.id,
                   value: cleanValue(value),
-                  revision: current.revision,
+                  revision: draft.values.revision,
                 });
+                await draft.submitted();
                 await query.invalidateQueries();
-                setEdit(null);
+                setEditOpen(false);
                 toast.success("Profile answer saved");
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Please try again.");
@@ -562,10 +661,16 @@ export function ProjectProfile() {
               key={`${current.path}.${answer.id}`}
               name={answer.id}
               question={question}
+              draftId={draft.id}
+              other={draft.values.other}
+              onOtherChange={(other) =>
+                draft.set((previous) => ({ ...previous, other }))
+              }
               value={value}
               onChange={setValue}
             />
             <ProfileAiControls
+              key={`${current.path}.${answer.id}`}
               template={template?.id ?? "general"}
               templateVersion={template?.version ?? "1.0.0"}
               block={current.data.block}

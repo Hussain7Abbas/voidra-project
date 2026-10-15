@@ -1,5 +1,5 @@
 import { existsSync, unlinkSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   commitPlanning,
@@ -68,6 +68,7 @@ import {
   workspaceSchema,
 } from "../shared/bridge.ts";
 import { collectAiContext } from "./ai-context.ts";
+import { FormSubmissions } from "./form-submissions.ts";
 import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
@@ -87,6 +88,7 @@ export class ProjectWorkspace {
   private publishQueue: Promise<void> = Promise.resolve();
   private readonly notify: () => void;
 
+  private submissions: FormSubmissions;
   readonly root: string;
   readonly databasePath: string;
   readonly templatesDirectory: string;
@@ -97,10 +99,12 @@ export class ProjectWorkspace {
     templatesDirectory = typeof __voidraTemplatesRoot !== "undefined"
       ? __voidraTemplatesRoot
       : fileURLToPath(new URL("../../../../templates/", import.meta.url)),
+    submissionsDirectory = join(dirname(databasePath), "form-submissions"),
   ) {
     this.notify = notify;
     this.templatesDirectory = templatesDirectory;
     this.root = root;
+    this.submissions = new FormSubmissions(root, submissionsDirectory);
     this.databasePath = databasePath;
     this.database = this.open();
     this.history = new UndoHistory(this.root, this.database);
@@ -189,6 +193,24 @@ export class ProjectWorkspace {
       return this.snapshot();
     }
     const label = workspaceEdits[request.command];
+    if (
+      (request.command === "create-action" ||
+        request.command === "create-idea") &&
+      request.submission
+    ) {
+      const { submission, ...payload } = request;
+      return this.submissions.perform(
+        submission,
+        payload,
+        (observer) =>
+          this.history.perform(
+            label ?? "Create task",
+            () => this.applyRequest(payload),
+            observer,
+          ),
+        () => this.snapshot(),
+      );
+    }
     return label
       ? this.history.perform(label, () => this.applyRequest(request))
       : this.applyRequest(request);
@@ -408,6 +430,8 @@ export class ProjectWorkspace {
         throw new Error("Finish or recover pending work before editing ideas");
       if (request.command === "create-idea")
         await createIdea(this.root, {
+          type: request.type,
+          assignee: request.assignee,
           title: request.title,
           description: request.description,
           status: request.status,
@@ -417,6 +441,7 @@ export class ProjectWorkspace {
         });
       else if (request.command === "promote-idea")
         await promoteIdea(this.root, {
+          assignee: request.assignee,
           id: request.id,
           revision: request.revision,
           type: request.type,
@@ -426,6 +451,8 @@ export class ProjectWorkspace {
         });
       else
         await editIdea(this.root, {
+          type: request.type,
+          assignee: request.assignee,
           id: request.id,
           revision: request.revision,
           title: request.title,

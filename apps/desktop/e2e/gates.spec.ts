@@ -61,6 +61,17 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("radio", { name: "a · Recommended Only the owner" })
         .check();
+      await page.getByRole("button", { name: "Actions", exact: true }).click();
+      await nav.click();
+      await page
+        .getByRole("button", { name: "Who can read the notes?", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: /Restore draft .*Unfinished answer/ })
+        .click();
+      await expect(
+        page.getByRole("radio", { name: "a · Recommended Only the owner" }),
+      ).toBeChecked();
       const questionPath = join(root, `.voidra/actions/${id}/questions.md`);
       await writeFile(
         questionPath,
@@ -75,6 +86,9 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Reload question", exact: true })
         .click();
+      await expect(
+        page.getByRole("button", { name: "Reload question", exact: true }),
+      ).toBeHidden({ timeout: 30000 });
       await expect(
         page.getByRole("radio", { name: "a · Recommended Only the owner" }),
       ).toBeEnabled();
@@ -110,6 +124,18 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByLabel("Feedback", { exact: true })
         .fill("Make the output deterministic.");
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("button", { name: "Request changes", exact: true })
+        .click();
+      await page
+        .getByRole("button", {
+          name: /Restore draft .*Make the output deterministic/,
+        })
+        .click();
+      await expect(page.getByLabel("Feedback", { exact: true })).toContainText(
+        "Make the output deterministic.",
+      );
       await page
         .getByRole("button", { name: "Send back to Plan", exact: true })
         .click();

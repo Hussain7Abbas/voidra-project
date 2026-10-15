@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
-import { checkProject, lifecycles } from "voidra";
+import { checkProject, createAction, lifecycles } from "voidra";
 
 for (const theme of ["light", "dark"] as const)
   test(`creates every action type and a human checklist in ${theme}`, async () => {
@@ -35,6 +35,7 @@ for (const theme of ["light", "dark"] as const)
         await page
           .getByRole("button", { name: "New action", exact: true })
           .click();
+        await page.getByRole("radio", { name: "Normal", exact: true }).check();
         await page
           .getByLabel("Action type", { exact: true })
           .selectOption(type);
@@ -50,32 +51,23 @@ for (const theme of ["light", "dark"] as const)
           page.getByRole("button", { name: `Test ${type}`, exact: true }),
         ).toBeVisible();
       }
-      await page
-        .getByRole("button", { name: "New action", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "You", exact: true }).check();
-      await page
-        .getByLabel("Title", { exact: true })
-        .fill("Create provider account");
-      await page
-        .getByLabel("Description", { exact: true })
-        .fill("Use your own provider account.");
-      await page
-        .getByLabel("Steps", { exact: true })
-        .fill("Create account\nConfirm access");
-      await page.waitForFunction(() =>
-        Array.from(document.querySelectorAll("button")).every((b) =>
-          b.getAnimations().every((a) => a.playState !== "running"),
-        ),
-      );
+      await createAction(root, {
+        type: "docs",
+        title: "Create provider account",
+        description: "Use your own provider account.",
+        doneBy: "you",
+        steps: ["Create account", "Confirm access"],
+        by: "Fixture",
+      });
+      await expect(
+        page.getByRole("button", {
+          name: "Create provider account",
+          exact: true,
+        }),
+      ).toBeVisible();
       expect(
-        (await new AxeBuilder({ page }).setLegacyMode(true).analyze())
-          .violations,
+        (await new AxeBuilder({ page }).setLegacyMode().analyze()).violations,
       ).toEqual([]);
-      await page
-        .getByRole("button", { name: "Create action", exact: true })
-        .click();
-      await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const result = await checkProject(root);
       expect(result.diagnostics).toEqual([]);
       const human = [...result.records.values()].find(

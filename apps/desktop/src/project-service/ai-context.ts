@@ -20,7 +20,11 @@ export function collectAiContext(
     if (!record) throw new Error("Selected planning record is unavailable");
     sources.push({ path, label, text, revision: hash(record.document.raw) });
   };
-  if (intent.feature === "rewrite")
+  if (
+    intent.feature === "rewrite" ||
+    intent.feature === "task-title" ||
+    intent.feature === "task-capture"
+  )
     return aiContextSchema.parse({
       feature: intent.feature,
       notes: intent.notes,

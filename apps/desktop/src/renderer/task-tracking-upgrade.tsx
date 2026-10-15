@@ -76,7 +76,11 @@ export function TaskTrackingUpgrade({ data }: { data: WorkspaceSnapshot }) {
         title="Enable release-aware tasks"
         footer={
           <>
-            <Button disabled={busy} onClick={() => setPreview(null)}>
+            <Button
+              data-dialog-close
+              disabled={busy}
+              onClick={() => setPreview(null)}
+            >
               Cancel
             </Button>
             <Button

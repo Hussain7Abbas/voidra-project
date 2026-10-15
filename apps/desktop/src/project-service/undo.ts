@@ -5,6 +5,7 @@ import {
   checkProject,
   createId,
   hash,
+  type OperationObserver,
   type ProjectInspection,
   parseRecord,
   safePath,
@@ -165,7 +166,11 @@ export class UndoHistory {
       collect();
     }
   }
-  async perform<T>(label: string, edit: () => Promise<T>): Promise<T> {
+  async perform<T>(
+    label: string,
+    edit: () => Promise<T>,
+    observer?: OperationObserver,
+  ): Promise<T> {
     await this.reconcile();
     return withOperationObserver(
       this.root,
@@ -220,8 +225,9 @@ export class UndoHistory {
                 JSON.stringify(stored),
               );
           })();
+          await observer?.prepared(operation);
         },
-        committed: (id) => {
+        committed: async (id) => {
           this.db.transaction(() => {
             const row = this.db
               .prepare("select * from undo_operations where id=?")
@@ -237,6 +243,7 @@ export class UndoHistory {
               .run(id);
             this.prune();
           })();
+          await observer?.committed(id);
         },
       },
       edit,

@@ -177,6 +177,8 @@ export const schemas = {
   }),
   idea: object({
     id: id("idea"),
+    assignee: text.optional(),
+    type: actionSchema.shape.type.optional(),
     title: text,
     targetRelease: version.nullable().optional(),
     status: z.enum(["new", "needs-info", "ready", "promoted", "rejected"]),

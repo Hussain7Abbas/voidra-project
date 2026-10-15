@@ -459,6 +459,17 @@ export function inspectFiles(
       add("identity", file, "id", "Idea ID must match its filename");
     if (
       kind === "idea" &&
+      !taskAware &&
+      (d.type !== undefined || d.assignee !== undefined)
+    )
+      add(
+        "minimum-reader",
+        file,
+        d.type !== undefined ? "type" : "assignee",
+        "Backlog type and assignment require voidra ≥ 1.1.0",
+      );
+    if (
+      kind === "idea" &&
       metadata.taskTracking === 1 &&
       !["promoted", "rejected"].includes(String(d.status)) &&
       d.targetRelease === undefined

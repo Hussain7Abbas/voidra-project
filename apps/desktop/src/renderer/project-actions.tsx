@@ -1,21 +1,21 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { type ActionType, actionTypeSchema } from "../shared/bridge.ts";
-import { defaultAssignee } from "../shared/team.ts";
+import { ActionEditor, ReviewRejection } from "./action-editor.tsx";
 import { filterActionViews, groupActionViews } from "./action-filters.ts";
 import { ActionQuestions, PlanGate } from "./action-gates.tsx";
 import { actionLabels } from "./action-labels.ts";
 import { AiSuggestionButton } from "./ai-suggestion.tsx";
-import { request, useSnapshot } from "./app.tsx";
+import { request } from "./app.tsx";
 import { useCodingClient } from "./coding-client.tsx";
+import { flushFormDrafts } from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
-import { MarkdownEditor } from "./markdown-editor.tsx";
 import { PlanningCommit } from "./planning-commit.tsx";
 import { ProjectInbox } from "./project-inbox.tsx";
 import { RunQueue } from "./run-queue.tsx";
-import { AssigneeSelect } from "./team-settings.tsx";
+import { TaskCapture } from "./task-capture.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -29,8 +29,7 @@ export function ProjectActions({
   view: "actions" | "run" | "inbox";
   initialAction?: string | null;
 }) {
-  const settings = useSnapshot(),
-    client = useCodingClient();
+  const client = useCodingClient();
   const query = useQueryClient(),
     toast = useToast();
   const workspace = useQuery({
@@ -45,9 +44,7 @@ export function ProjectActions({
   const [selected, setSelected] = useState<string | null>(initialAction);
   const [recovery, setRecovery] = useState<"run" | "operation" | null>(null),
     [recoveryId, setRecoveryId] = useState("");
-  const [reject, setReject] = useState(false),
-    [feedback, setFeedback] = useState("");
-  const whoId = useId();
+  const [reject, setReject] = useState(false);
   const [pendingStep, setPendingStep] = useState<{
     action: string;
     step: string;
@@ -62,20 +59,19 @@ export function ProjectActions({
   const [editMode, setEditMode] = useState<
       "description" | "relationships" | null
     >(null),
-    [editRevision, setEditRevision] = useState(""),
     [editBody, setEditBody] = useState(""),
-    [editParent, setEditParent] = useState(""),
-    [editBlocked, setEditBlocked] = useState<string[]>([]),
     [cancelOpen, setCancelOpen] = useState(false);
-  const [createType, setCreateType] = useState<ActionType>("feature"),
-    [doneBy, setDoneBy] = useState<"agent" | "you">("agent"),
-    [steps, setSteps] = useState(""),
-    [assignee, setAssignee] = useState("");
   const [create, setCreate] = useState(false),
-    [title, setTitle] = useState(""),
-    [description, setDescription] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [busy, setBusy] = useState(false);
+  const selectAction = (id: string | null): void => {
+    void flushFormDrafts()
+      .then(() => setSelected(id))
+      .catch((cause) =>
+        toast.error(
+          cause instanceof Error ? cause.message : "Draft could not be saved",
+        ),
+      );
+  };
   const [aiSummaries, setAiSummaries] = useState<Record<string, string>>({});
   if (workspace.isPending) return <Spinner label="Loading planning records" />;
   if (workspace.isError)
@@ -259,7 +255,7 @@ export function ProjectActions({
   if (selected && !current)
     return (
       <>
-        <Button className="mb-6" onClick={() => setSelected(null)}>
+        <Button className="mb-6" onClick={() => selectAction(null)}>
           {view === "inbox" ? "Back to inbox" : "Back to actions"}
         </Button>
         <PageHeader
@@ -276,7 +272,7 @@ export function ProjectActions({
         <Button
           className="mb-6"
           variant="ghost"
-          onClick={() => setSelected(null)}
+          onClick={() => selectAction(null)}
         >
           {view === "inbox" ? "Back to inbox" : "Back to actions"}
         </Button>
@@ -362,7 +358,7 @@ export function ProjectActions({
         {current.data.reviewDecision?.feedback && (
           <section className="card action-detail">
             <h2>Review feedback</h2>
-            <p>{current.data.reviewDecision.feedback}</p>
+            <SafeMarkdown body={current.data.reviewDecision.feedback} />
           </section>
         )}
         <div className="action-meta" data-review-revision={current.revision}>
@@ -381,8 +377,7 @@ export function ProjectActions({
               disabled={!recordEditable}
               onClick={() => {
                 setEditBody(current.body);
-                setEditRevision(current.editRevision);
-                setError("");
+
                 setEditMode("description");
               }}
             >
@@ -481,10 +476,6 @@ export function ProjectActions({
               variant="ghost"
               disabled={!recordEditable}
               onClick={() => {
-                setEditParent(current.data.parent ?? "");
-                setEditBlocked(current.data.blockedBy ?? []);
-                setEditRevision(current.editRevision);
-                setError("");
                 setEditMode("relationships");
               }}
             >
@@ -497,7 +488,7 @@ export function ProjectActions({
               Parent:{" "}
               <Button
                 variant="ghost"
-                onClick={() => setSelected(current.data.parent ?? null)}
+                onClick={() => selectAction(current.data.parent ?? null)}
               >
                 {data.actions.find((a) => a.data.id === current.data.parent)
                   ?.data.title ?? current.data.parent}
@@ -514,7 +505,7 @@ export function ProjectActions({
             <ul>
               {current.data.blockedBy.map((id) => (
                 <li key={id}>
-                  <Button variant="ghost" onClick={() => setSelected(id)}>
+                  <Button variant="ghost" onClick={() => selectAction(id)}>
                     {data.actions.find((a) => a.data.id === id)?.data.title ??
                       id}
                   </Button>
@@ -532,7 +523,7 @@ export function ProjectActions({
                 <li key={child.data.id}>
                   <Button
                     variant="ghost"
-                    onClick={() => setSelected(child.data.id)}
+                    onClick={() => selectAction(child.data.id)}
                   >
                     {child.data.title}
                   </Button>
@@ -560,7 +551,11 @@ export function ProjectActions({
             </>
           )}
         </section>
-        <ActionQuestions action={current} disabled={!gateEditable} />
+        <ActionQuestions
+          key={`questions:${current.data.id}`}
+          action={current}
+          disabled={!gateEditable}
+        />
         {current.data.type === "release" && current.data.releaseActions && (
           <section className="card action-detail">
             <h2>Release proposal</h2>
@@ -578,8 +573,7 @@ export function ProjectActions({
                     setEditBody(
                       `${current.body}\n## Draft release notes\n${suggestion.text}\n`,
                     );
-                    setEditRevision(current.editRevision);
-                    setError("");
+
                     setEditMode("description");
                   }
                 }}
@@ -597,7 +591,7 @@ export function ProjectActions({
             <ul>
               {current.data.releaseActions.map((id) => (
                 <li key={id}>
-                  <Button variant="ghost" onClick={() => setSelected(id)}>
+                  <Button variant="ghost" onClick={() => selectAction(id)}>
                     {data.actions.find((action) => action.data.id === id)?.data
                       .title ?? id}
                   </Button>
@@ -618,11 +612,15 @@ export function ProjectActions({
               ))}
           </section>
         )}
-        <PlanGate action={current} disabled={!gateEditable} />
+        <PlanGate
+          key={`plan:${current.data.id}`}
+          action={current}
+          disabled={!gateEditable}
+        />
         {current.data.planFeedback && (
           <section className="card action-detail">
             <h2>Plan feedback</h2>
-            <p>{current.data.planFeedback.feedback}</p>
+            <SafeMarkdown body={current.data.planFeedback.feedback} />
           </section>
         )}
         {current.plans.length > 0 && (
@@ -683,162 +681,18 @@ export function ProjectActions({
             </>
           }
         />
-        <Dialog
-          closeDisabled={busy}
-          open={editMode !== null}
-          title={
-            editMode === "description"
-              ? "Edit description"
-              : "Edit dependencies"
-          }
-          onClose={() => {
-            if (!busy) setEditMode(null);
-          }}
-          footer={
-            <>
-              <Button disabled={busy} onClick={() => setEditMode(null)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="action-editor"
-                variant="primary"
-                loading={busy}
-              >
-                Save changes
-              </Button>
-            </>
-          }
-        >
-          <form
-            id="action-editor"
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              void request(
-                editMode === "description"
-                  ? {
-                      command: "edit-action",
-                      id: current.data.id,
-                      revision: editRevision,
-                      description: editBody,
-                    }
-                  : {
-                      command: "edit-action",
-                      id: current.data.id,
-                      revision: editRevision,
-                      parent: editParent || null,
-                      blockedBy: editBlocked,
-                    },
-              )
-                .then(() => query.invalidateQueries())
-                .then(() => setEditMode(null))
-                .catch((e) => setError(e.message))
-                .finally(() => setBusy(false));
-            }}
-          >
-            {editMode === "description" ? (
-              <Field label="Description">
-                <MarkdownEditor
-                  documentKey={`action:${current.data.id}:description`}
-                  required
-                  disabled={busy}
-                  rows={7}
-                  maxLength={20000}
-                  value={editBody}
-                  onChange={setEditBody}
-                />
-              </Field>
-            ) : (
-              <>
-                <Field label="Parent action">
-                  <select
-                    className="input"
-                    value={editParent}
-                    onChange={(e) => setEditParent(e.target.value)}
-                  >
-                    <option value="">No parent</option>
-                    {data.actions
-                      .filter((a) => a.data.id !== current.data.id)
-                      .map((a) => (
-                        <option value={a.data.id} key={a.data.id}>
-                          {a.data.title}
-                        </option>
-                      ))}
-                  </select>
-                </Field>
-                <fieldset>
-                  <legend className="field-label">Blocked by</legend>
-                  <ul className="space-y-2">
-                    {data.actions
-                      .filter((a) => a.data.id !== current.data.id)
-                      .map((a) => (
-                        <li key={a.data.id}>
-                          <label htmlFor={`block-${a.data.id}`}>
-                            <input
-                              id={`block-${a.data.id}`}
-                              type="checkbox"
-                              checked={editBlocked.includes(a.data.id)}
-                              onChange={(e) =>
-                                setEditBlocked((ids) =>
-                                  e.target.checked
-                                    ? [...ids, a.data.id]
-                                    : ids.filter((id) => id !== a.data.id),
-                                )
-                              }
-                            />{" "}
-                            {a.data.title}
-                          </label>
-                        </li>
-                      ))}
-                  </ul>
-                </fieldset>
-              </>
-            )}
-            {error && (
-              <p role="alert" className="text-danger">
-                {error}
-              </p>
-            )}
-            {current.editRevision !== editRevision && (
-              <div className="service-notice">
-                <p>This action changed on disk. Reload before saving.</p>
-                <Button
-                  onClick={() => {
-                    setEditRevision(current.editRevision);
-                    setEditBody(current.body);
-                    setEditParent(current.data.parent ?? "");
-                    setEditBlocked(current.data.blockedBy ?? []);
-                    setError("");
-                  }}
-                >
-                  Reload action
-                </Button>
-                {editMode === "description" && (
-                  <Button
-                    onClick={() => {
-                      setBusy(true);
-                      void request({
-                        command: "edit-action",
-                        id: current.data.id,
-                        revision: current.editRevision,
-                        description: editBody,
-                      })
-                        .then(() => query.invalidateQueries())
-                        .then(() => setEditMode(null))
-                        .catch((e) => setError(e.message))
-                        .finally(() => setBusy(false));
-                    }}
-                  >
-                    Overwrite current description
-                  </Button>
-                )}
-              </div>
-            )}
-          </form>
-        </Dialog>
+        {editMode && (
+          <ActionEditor
+            key={`${current.data.id}:${editMode}`}
+            action={current}
+            actions={data.actions}
+            mode={editMode}
+            initialBody={editBody}
+            disabled={!recordEditable}
+            onClose={() => setEditMode(null)}
+          />
+        )}
+
         {current.effectiveStage === "review" &&
           (current.data.status === "waiting" ||
             data.diagnostics.some(
@@ -889,7 +743,6 @@ export function ProjectActions({
                   disabled={!gateEditable || busy}
                   onClick={() => {
                     setReject(true);
-                    setEditRevision(current.revision);
                   }}
                 >
                   Reject
@@ -897,76 +750,15 @@ export function ProjectActions({
               </div>
             </section>
           )}
-        <Dialog
-          closeDisabled={busy}
-          open={reject}
-          onClose={() => {
-            if (!busy) setReject(false);
-          }}
-          title="Send back for changes"
-          description="Your agent will read this feedback before reworking the action."
-          footer={
-            <>
-              <Button disabled={busy} onClick={() => setReject(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="reject-review"
-                variant="primary"
-                loading={busy}
-              >
-                Send back to{" "}
-                {current.data.type === "research"
-                  ? "Discovery"
-                  : current.data.type === "release"
-                    ? "Plan"
-                    : "Implement"}
-              </Button>
-            </>
-          }
-        >
-          <form
-            id="reject-review"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              try {
-                await request({
-                  command: "review-action",
-                  id: current.data.id,
-                  revision: editRevision,
-                  decision: "rejected",
-                  feedback,
-                });
-                await query.invalidateQueries();
-                setReject(false);
-                setFeedback("");
-                toast.success("Sent back for changes");
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Please try again.");
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <Field label="Feedback">
-              <textarea
-                className="input"
-                required
-                rows={5}
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-              />
-            </Field>
-            {error && (
-              <p role="alert" className="text-danger">
-                {error}
-              </p>
-            )}
-          </form>
-        </Dialog>
+        {reject && (
+          <ReviewRejection
+            key={current.data.id}
+            action={current}
+            disabled={!gateEditable}
+            onClose={() => setReject(false)}
+          />
+        )}
+
         <section className="card action-detail" aria-label="Run results">
           <h2>Run results</h2>
           {!!current.runs.length && (
@@ -1027,7 +819,7 @@ export function ProjectActions({
       </>
     );
   if (view === "inbox")
-    return <ProjectInbox workspace={data} onSelect={setSelected} />;
+    return <ProjectInbox workspace={data} onSelect={selectAction} />;
   return (
     <>
       <PageHeader
@@ -1039,9 +831,6 @@ export function ProjectActions({
             icon={<Plus size={16} aria-hidden />}
             disabled={!editable || !data.hasVoidra}
             onClick={() => {
-              setAssignee(
-                settings.data ? defaultAssignee(settings.data.team) : "",
-              );
               setCreate(true);
             }}
           >
@@ -1212,7 +1001,7 @@ export function ProjectActions({
                               <Button
                                 variant="ghost"
                                 onClick={() =>
-                                  setSelected(group.parent?.data.id ?? null)
+                                  selectAction(group.parent?.data.id ?? null)
                                 }
                               >
                                 Slices of {group.parent.data.title}
@@ -1224,7 +1013,7 @@ export function ProjectActions({
                             <li className="card p-4" key={action.data.id}>
                               <Button
                                 variant="ghost"
-                                onClick={() => setSelected(action.data.id)}
+                                onClick={() => selectAction(action.data.id)}
                               >
                                 {action.data.title}
                               </Button>
@@ -1275,171 +1064,18 @@ export function ProjectActions({
             key={`${d.file}:${d.code}:${d.field}`}
             className="mt-4"
             variant="ghost"
-            onClick={() => setSelected(d.file.split("/")[2] ?? null)}
+            onClick={() => selectAction(d.file.split("/")[2] ?? null)}
           >
             Inspect invalid action {d.file.split("/")[2]}
           </Button>
         ))}
-      <Dialog
-        closeDisabled={busy}
-        open={create}
-        onClose={() => {
-          if (!busy) setCreate(false);
-        }}
-        title="Create action"
-        description="Describe one outcome and choose who will do the work."
-        footer={
-          <>
-            <Button disabled={busy} onClick={() => setCreate(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="create-action"
-              variant="primary"
-              loading={busy}
-            >
-              Create action
-            </Button>
-          </>
-        }
-      >
-        <form
-          id="create-action"
-          className="space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setError("");
-            try {
-              await request({
-                command: "create-action",
-                title,
-                description,
-                type: createType,
-                doneBy,
-                assignee: assignee.trim() || undefined,
-                steps:
-                  doneBy === "you"
-                    ? steps
-                        .split("\n")
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                    : undefined,
-              });
-              await query.invalidateQueries();
-              setCreate(false);
-              setTitle("");
-              setDescription("");
-              toast.success("Action created");
-            } catch (e) {
-              setError(e instanceof Error ? e.message : "Please try again.");
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Field label="Action type">
-            <select
-              className="input"
-              name="type"
-              value={createType}
-              onChange={(e) => setCreateType(e.target.value as ActionType)}
-            >
-              {actionTypeSchema.options.map((t) => (
-                <option key={t} value={t}>
-                  {actionLabels[t]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <fieldset>
-            <legend className="field-label">Who does the work?</legend>
-            <div className="flex gap-4">
-              {(["agent", "you"] as const).map((who) => (
-                <label htmlFor={`${whoId}-${who}`} key={who}>
-                  <input
-                    id={`${whoId}-${who}`}
-                    type="radio"
-                    name="done-by"
-                    checked={doneBy === who}
-                    onChange={() => setDoneBy(who)}
-                  />{" "}
-                  {who === "agent" ? "Agent" : "You"}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          {doneBy === "you" && (
-            <Field
-              label="Steps"
-              hint="One step per line. You will tick these off in the action."
-            >
-              <textarea
-                className="input"
-                name="steps"
-                required
-                rows={4}
-                value={steps}
-                onChange={(e) => setSteps(e.target.value)}
-              />
-            </Field>
-          )}
-          <Field
-            label="Assignee"
-            hint="Choose from Settings → Team. Me is preselected when you belong to this project."
-          >
-            <AssigneeSelect
-              value={assignee}
-              onChange={setAssignee}
-              disabled={busy}
-            />
-          </Field>
-          <AiSuggestionButton
-            label="Improve with AI"
-            intent={{
-              feature: "rewrite",
-              notes: [title, description].filter(Boolean).join("\n"),
-              target: "action",
-            }}
-            disabled={busy}
-            onApply={(suggestion) => {
-              if (suggestion.feature === "rewrite") {
-                setTitle(suggestion.title);
-                setDescription(suggestion.description);
-              }
-            }}
-          />
-          <Field label="Title">
-            <input
-              className="input"
-              required
-              maxLength={160}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Description"
-            hint="Include the change and how to check it."
-          >
-            <MarkdownEditor
-              documentKey="action:new"
-              required
-              disabled={busy}
-              rows={6}
-              maxLength={20000}
-              value={description}
-              onChange={setDescription}
-            />
-          </Field>
-          {error && (
-            <p role="alert" className="text-danger">
-              {error}
-            </p>
-          )}
-        </form>
-      </Dialog>
+      {create && (
+        <TaskCapture
+          kind="action"
+          data={data}
+          onClose={() => setCreate(false)}
+        />
+      )}
     </>
   );
 }

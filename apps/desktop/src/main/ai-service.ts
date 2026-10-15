@@ -1,3 +1,4 @@
+import { hash } from "voidra";
 import type { AiContext, AiSuggestion } from "../shared/ai.ts";
 import { buildAiPrompt, parseAiSuggestion } from "./ai-prompts.ts";
 import type { AiPreferences, AiSettings } from "./ai-settings.ts";
@@ -71,7 +72,9 @@ export class AiService {
     const prompt = buildAiPrompt(context);
     return {
       version: prompt.version,
-      revision: prompt.revision,
+      revision: hash(
+        JSON.stringify({ prompt: prompt.revision, model: preferences.model }),
+      ),
       model: preferences.model,
       text: prompt.preview,
     };
@@ -86,10 +89,6 @@ export class AiService {
     if ([...this.active.values()].some((request) => request.window === window))
       throw new Error("An AI request is already running in this window");
     const prompt = buildAiPrompt(context);
-    if (prompt.revision !== revision)
-      throw new Error(
-        "Selected text changed; review the current privacy preview",
-      );
     const controller = new AbortController(),
       identity = `${window}:${id}`,
       epoch = this.epoch;
@@ -100,6 +99,14 @@ export class AiService {
       if (!key) throw new Error("Add an OpenRouter key in Settings first");
       if (!preferences.model)
         throw new Error("Choose an AI model in Settings first");
+      if (
+        hash(
+          JSON.stringify({ prompt: prompt.revision, model: preferences.model }),
+        ) !== revision
+      )
+        throw Error(
+          "Selected text or model changed; review the current privacy preview",
+        );
       if (epoch !== this.epoch || controller.signal.aborted)
         throw new Error("AI request cancelled");
       let characters = 0;

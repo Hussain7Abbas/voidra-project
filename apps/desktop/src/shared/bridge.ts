@@ -5,6 +5,7 @@ import {
   aiReplySchemas,
   aiRequestSchemas,
 } from "./ai.ts";
+import { draftReplySchemas, draftRequestSchemas } from "./form-drafts.ts";
 import { skillReplySchemas, skillRequestSchemas } from "./skills.ts";
 import {
   codingClientSchema,
@@ -290,6 +291,8 @@ export const workspaceSchema = z.strictObject({
         id: z.string(),
         title: z.string(),
         status: z.string(),
+        type: actionTypeSchema.optional(),
+        assignee: z.string().optional(),
         targetRelease: z.string().nullable().optional(),
         reason: z.string().optional(),
         promotedTo: z.string().optional(),
@@ -577,7 +580,11 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
       z.strictObject({ kind: z.literal("choice"), choice: z.string().min(1) }),
       z.strictObject({
         kind: z.literal("text"),
-        text: z.string().trim().min(1).max(20000),
+        text: z
+          .string()
+          .min(1)
+          .max(20000)
+          .refine((value) => !!value.trim()),
       }),
       z.strictObject({ kind: z.literal("agent-decides") }),
     ]),
@@ -591,7 +598,11 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
     command: z.literal("reject-plan"),
     id: z.string().regex(/^act-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
-    feedback: z.string().trim().min(1).max(20000),
+    feedback: z
+      .string()
+      .min(1)
+      .max(20000)
+      .refine((value) => !!value.trim()),
   }),
 
   z.strictObject({ command: z.literal("create-voidra") }),
@@ -622,6 +633,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("promote-idea"),
+    assignee: z.string().min(1).nullable().optional(),
     id: z.string().regex(/^idea-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
     type: actionTypeSchema,
@@ -630,6 +642,9 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("create-idea"),
+    type: actionTypeSchema.optional(),
+    assignee: z.string().min(1).nullable().optional(),
+    submission: z.uuid().optional(),
     targetRelease: z.string().min(1).max(80).nullable().optional(),
     title: z.string().trim().min(1).max(160),
     description: z.string().min(1).max(20000),
@@ -638,6 +653,8 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("edit-idea"),
+    type: actionTypeSchema.optional(),
+    assignee: z.string().min(1).nullable().optional(),
     targetRelease: z.string().min(1).max(80).nullable().optional(),
     id: z.string().regex(/^idea-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
@@ -688,6 +705,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({
     command: z.literal("create-action"),
+    submission: z.uuid().optional(),
     targetRelease: z.string().min(1).max(80).nullable().optional(),
     taskColumn: z.enum(["backlog", "todo"]).optional(),
     title: z.string().trim().min(1).max(160),
@@ -729,6 +747,13 @@ export const workspaceEdits = {
   "create-action": "Create action",
 } satisfies Record<WorkspaceRequest["command"], string | null>;
 export const requestSchema = z.discriminatedUnion("command", [
+  z.strictObject({ command: z.literal("draft-ready") }),
+  z.strictObject({
+    command: z.literal("draft-flushed"),
+    id: z.uuid(),
+    error: z.string().max(2000).nullable(),
+  }),
+  ...draftRequestSchemas,
   ...updateRequestSchemas,
   ...skillRequestSchemas,
   ...teamRequestSchemas,
@@ -846,6 +871,7 @@ export const responseSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion("kind", [
+      ...draftReplySchemas,
       ...aiReplySchemas,
       ...skillReplySchemas,
       ...knowledgeDataSchema.options,
@@ -870,6 +896,8 @@ export type BridgeResponse = z.infer<typeof responseSchema>;
 export type ProjectInfo = z.infer<typeof projectSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export const eventSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("draft-flush"), id: z.uuid() }),
+  z.strictObject({ type: z.literal("draft-deleted"), id: z.uuid() }),
   z.strictObject({
     type: z.literal("ai-progress"),
     id: z.string().uuid(),

@@ -23,6 +23,8 @@ import { applyOperation, type WriteManifest } from "./writer.ts";
 const title = z.string().trim().min(1).max(160);
 const description = z.string().min(1).max(20000);
 const ideaInput = z.strictObject({
+  assignee: z.string().min(1).nullable().optional(),
+  type: schemas.action.shape.type.optional(),
   targetRelease: taskInputFields.targetRelease,
   title,
   description,
@@ -61,7 +63,7 @@ const promotionInput = z.strictObject({
   by: z.string().min(1),
   title: title.optional(),
   description: description.optional(),
-  assignee: z.string().min(1).optional(),
+  assignee: z.string().min(1).nullable().optional(),
 });
 export async function promoteIdea(
   root: string,
@@ -106,7 +108,11 @@ export async function promoteIdea(
     stage: projectLifecycles(project.metadata)[input.type].stages[0],
     status: "ready",
     doneBy: "agent",
-    ...(input.assignee ? { assignee: input.assignee } : {}),
+    ...(input.assignee === null
+      ? {}
+      : (input.assignee ?? idea.assignee)
+        ? { assignee: input.assignee ?? idea.assignee }
+        : {}),
     links: [idea.id],
     createdBy: input.by,
     createdAt: new Date().toISOString(),
@@ -479,6 +485,23 @@ export async function createAction(
   });
   return id;
 }
+function ideaReaderChanges(
+  project: ProjectInspection,
+  needed: boolean,
+): WriteManifest["changes"] {
+  if (!needed || project.metadata?.requiredVoidra === PACKAGE_VERSION)
+    return [];
+  const path = ".voidra/voidra.json",
+    bytes = project.files.get(path);
+  if (!bytes) throw Error("Project metadata missing");
+  return [
+    {
+      path,
+      expectedHash: hash(bytes),
+      content: `${JSON.stringify({ ...project.metadata, requiredVoidra: PACKAGE_VERSION }, null, 2)}\n`,
+    },
+  ];
+}
 export async function createIdea(
   root: string,
   raw: z.input<typeof ideaInput>,
@@ -500,6 +523,8 @@ export async function createIdea(
     })),
     id,
     title: input.title,
+    ...(input.assignee ? { assignee: input.assignee } : {}),
+    ...(input.type ? { type: input.type } : {}),
     status,
     ...(status === "rejected" ? { reason: input.reason?.trim() } : {}),
     createdBy: input.by,
@@ -507,6 +532,7 @@ export async function createIdea(
   });
   await applyOperation(root, {
     changes: [
+      ...ideaReaderChanges(project, !!(input.assignee || input.type)),
       {
         path,
         expectedHash: null,
@@ -539,12 +565,16 @@ export async function editIdea(
     throw new Error("Promotion must use the linked action workflow");
   rejection(input.status, input.reason);
   const data = { ...old, title: input.title, status: input.status };
+  if (input.assignee === null) delete data.assignee;
+  else if (input.assignee !== undefined) data.assignee = input.assignee;
+  if (input.type !== undefined) data.type = input.type;
   if (input.targetRelease !== undefined)
     data.targetRelease = input.targetRelease;
   if (input.status === "rejected") data.reason = input.reason?.trim();
   else delete data.reason;
   await applyOperation(root, {
     changes: [
+      ...ideaReaderChanges(project, !!(input.assignee || input.type)),
       {
         path,
         expectedHash: input.revision,
