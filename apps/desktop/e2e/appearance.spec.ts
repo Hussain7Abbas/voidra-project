@@ -27,6 +27,32 @@ async function launch() {
   });
   page = await application.firstWindow();
   await page.locator('[data-app-ready="true"]').waitFor();
+  // A hosted macOS display can be smaller than the default 1200×800 window.
+  // Establish a real normal window before testing maximize/restore labels.
+  await application.evaluate(({ BrowserWindow, screen }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    if (!window) throw new Error("Expected the app window");
+    const area = screen.getDisplayMatching(window.getBounds()).workArea;
+    window.unmaximize();
+    window.setBounds({
+      x: area.x + 40,
+      y: area.y + 40,
+      width: Math.min(1000, area.width - 80),
+      height: Math.min(700, area.height - 80),
+    });
+    window.focus();
+  });
+  await expect
+    .poll(() =>
+      application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMaximized(),
+      ),
+    )
+    .toBe(false);
+  // Refresh the renderer's initial snapshot after native test setup. No app
+  // preference or production event is changed to force the expected label.
+  await page.reload();
+  await page.locator('[data-app-ready="true"]').waitFor();
 }
 async function audit() {
   expect(
@@ -38,6 +64,21 @@ test.beforeEach(async () => {
   await launch();
 });
 test.afterEach(async () => {
+  const info = test.info();
+  if (info.status !== info.expectedStatus) {
+    const geometry = await application
+      .evaluate(({ BrowserWindow, screen }) =>
+        BrowserWindow.getAllWindows().map((window) => ({
+          bounds: window.getBounds(),
+          workArea: screen.getDisplayMatching(window.getBounds()).workArea,
+          maximized: window.isMaximized(),
+          fullscreen: window.isFullScreen(),
+          minimized: window.isMinimized(),
+        })),
+      )
+      .catch(() => null);
+    console.error("Appearance-test native window state:", geometry);
+  }
   await application?.close().catch(() => {});
   await rm(root, { recursive: true, force: true });
 });

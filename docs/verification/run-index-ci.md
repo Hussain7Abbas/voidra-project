@@ -15,3 +15,11 @@ No production watcher timing, snapshot guard, approval/hash behavior, retry poli
 Pre-push verification: the corrected focused native test passed initially in 5.70 seconds and in five further consecutive independent runs (5.22, 4.68, 4.83, 5.03 and 4.71 seconds). Lint and strict workspace/desktop type checking passed. Each run uses genuine temporary files/Git, the runtime's prepare/commit/finalize operations and real Electron/IPC/SQLite; no wait or service response is mocked.
 
 The required full local quality suite and the fix commit's [GitHub CI check](https://github.com/Hussain7Abbas/voidra-project/actions/workflows/ci.yml) supply complete regression and hosted verification. The focused results above are pre-push evidence and do not by themselves claim a hosted pass. Local logs are retained under `.cache/run-index-*.log`.
+
+## Hosted quality result and appearance follow-up
+
+`33c1620` passes the complete local quality gate: 398/398 tests across 84 files in 395.28 seconds, coverage, lint, types, deprecations and generated references. Its [hosted run 38660318907](https://github.com/Hussain7Abbas/voidra-project/actions/runs/38660318907) also passes quality and build, confirming the original run-index failure is resolved on that runner.
+
+That run reaches the previously skipped desktop suite: 66/68 pass, while both new appearance cases wait for a Maximize button at their initial window state. The titlebar exposes Restore instead when the initial window is maximized; a test cannot assume the default 1200×800 size fits a hosted display normally. The follow-up establishes real normal window bounds relative to the active display's available work area, checks native `isMaximized() === false`, and refreshes the initial renderer snapshot before the existing control tests. No production state, preference or native operation is mocked or changed. Failures now record actual bounds, work area and native maximize/fullscreen/minimize state.
+
+Both corrected appearance cases pass locally in 11.8 seconds; lint and strict types pass. The separate fresh-CI check for this follow-up remains the authority for its hosted result.
