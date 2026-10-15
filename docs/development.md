@@ -47,7 +47,9 @@ Discovery skips `.git`, `node_modules`, `.cache`, `coverage`, `dist`, test direc
 
 ## CI
 
-The macOS workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. CI also builds the package. Electron workflows, accessibility checks and an unsigned arm64 packaging/startup smoke run in CI.
+The macOS CI workflow runs only when a tag with three numeric components prefixed by `v` is pushed, such as `v1.2.3` or `v12.30.4`. Branch pushes, pull requests, manual dispatch and tags such as `v1.2` or `v1.2.3-beta.1` do not start it. The quoted GitHub filter is `v[0-9]+.[0-9]+.[0-9]+`; each component contains one or more digits. See [GitHub's tag filter syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#filter-pattern-cheat-sheet). This starts the checks alongside the existing tag-driven Release workflow, before publication; it does not depend on a later GitHub Release event.
+
+The workflow installs the pinned toolchain with a frozen lockfile and runs the same `make check` as local development. CI does not call Claude Code, Codex, OpenRouter or any real coding agent. It needs no personal token. CI also builds the package. Electron workflows, accessibility checks and an unsigned arm64 packaging/startup smoke run in CI. Run local checks before pushing ordinary source changes, which no longer start hosted CI. The separate Release and npm publication workflows retain their existing publication and recovery triggers.
 
 ## Format package development
 

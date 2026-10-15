@@ -16,7 +16,7 @@ Voidra Project is an open-source desktop app for planning and tracking software 
 - `tools/standards/`: repository checks, coverage policy and their Vitest tests. Follow its [local instructions](tools/standards/AGENTS.md).
 - `docs/`: development, compatibility, architecture, ADRs and verification evidence; `docs/architecture/v2/` holds source-linked future designs governed by its [local instructions](docs/architecture/v2/AGENTS.md). Start at [the index](docs/intro.md).
 - `plan/`: phase requirements and status, governed by [its instructions](plan/AGENTS.md). The vision wins over the plan.
-- `.github/workflows/ci.yml`: the macOS frozen-install and `make check` pipeline. CI never runs authenticated coding agents.
+- `.github/workflows/ci.yml`: the macOS frozen-install and `make check` pipeline, triggered only by pushed `vX.Y.Z` tags with three numeric components. Branch pushes, pull requests and manual dispatch do not start CI. CI never runs authenticated coding agents.
 - Root config: pinned pnpm and Node, strict TypeScript, Biome, Vitest and the Makefile. Native Electron modules still require Electron-specific rebuilding in P02; matching Node major versions alone is insufficient.
 - Future app, executable skill and template directories are created when their phases give them real content. Do not add placeholders or implement later-phase scope early.
 - Use ESM TypeScript with erasable syntax, explicit types at public boundaries, and explicit `.ts` extensions for local source imports. TypeScript rewrites those extensions in generated output. Naming and formatting follow Biome and `tsconfig.base.json`; do not add parallel formatting rules.

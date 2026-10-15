@@ -222,7 +222,7 @@ Each row runs in both Claude Code and Codex using D17 and the root procedure. Ru
 
 ### Continuous integration (GitHub Actions, macOS runner)
 
-On every push and pull request: install, `make check` (lint, typecheck, unit tests with coverage, the deprecation scan and the generated-files check), build, then the end-to-end tests. Tags run the release workflow (P15).
+Per the user's 2026-10-15 request, CI runs only on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`: a `v` prefix and three numeric components, such as `v1.2.3`. Branch pushes, pull requests, manual dispatch and other tag formats do not start CI. For a matching tag: install, `make check` (lint, typecheck, unit tests with coverage, the deprecation scan and the generated-files check), build, end-to-end tests, then unsigned arm64 packaging and packaged startup smoke. Local checks remain required for source work. The separate release workflow (P15) retains its publication and retry triggers.
 
 ## Requirement coverage
 
