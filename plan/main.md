@@ -130,6 +130,8 @@ The 2026-10-15 user request (D30) adds independent window-height sidebar/main sc
 
 ### Repository layout
 
+The 2026-10-15 user-requested CI correction addresses Bug `act-n2ey21`: native run-index polls now use the five-second workspace-read contract, preserve the held unfinished view, and require the real commit plus cleared blockers at Review. This source follow-up changes test synchronization and failure diagnostics, with no release-tag or production-watcher change. See [CI reliability evidence](../docs/verification/run-index-ci.md) and the fix commit's hosted check for actual verification.
+
 ```text
 voidra-project/
 ├── apps/desktop/        Electron app: main process, project service, preload bridge, Next.js renderer

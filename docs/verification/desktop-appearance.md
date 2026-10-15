@@ -16,4 +16,6 @@ Automated desktop coverage checks real mouse-wheel isolation at a 1000×550 wind
 
 ## Limits
 
+Hosted CI on the original appearance commit `9917bfe` failed with 397/398 tests passing: the unchanged run-index finalization poll timed out at its implicit one-second deadline. Later desktop/package steps were skipped. This recurring failure and the subsequent correction are tracked in [run-index CI evidence](run-index-ci.md); the local appearance results above remain the actual passing local results.
+
 No new public release is requested or published. The macOS arm64 runtime is the verified platform; other-platform control order is implemented but not exercised on another OS. Automated keyboard/axe checks do not substitute for a new manual screen-reader session; the prior P17 VoiceOver report covers the released v1 candidate.
