@@ -1,6 +1,6 @@
 # V11-P10 — Compatibility, accessibility and v1.1.0 delivery
 
-> **Needs:** P08, P09 · **Status:** In progress
+> **Needs:** P08, P09 · **Status:** Done — 2026-10-16
 
 ## Outcome
 
@@ -46,3 +46,9 @@ All preceding phases are Done, every open decision in the tracker is resolved or
 ## Hand-off
 
 Complete `docs/verification/v1.1.0-p10.md`, verification/user documentation indexes, changelog and this tracker. Record the final source/version and any accepted limitations; preserve the original v1 plan/evidence as history.
+
+## Executed outcome
+
+Delivered as **1.1.1** from e5b3bfd7f163d8fe0de7f2e52ce836e3b144f4a1. Local quality passed 483 tests and the complete Electron suite passed 102/102; hosted CI and Release passed, as did both actual coding-client matrices. GitHub, npm provenance and six exact tagged skill copies are published. The public DMG was downloaded, checksum-verified, mounted, copied and detached; independent fresh-data startup, SQLite, Xeploy, both full skill installs and Markdown editing/source preservation passed. See [final evidence](../docs/verification/v1.1.0-p10.md).
+
+The original 1.1.0 tag remains unchanged and unpublished. The 1,000-task cold-open mean improved from 2,245.71 to 2,079.11 ms; the proposed 2,000 ms target remains unmet. Automated keyboard/axe checks passed in both themes; no new physical VoiceOver pass is claimed.

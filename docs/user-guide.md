@@ -2,9 +2,9 @@
 
 [Documentation](intro.md) · [Installation](../README.md#install-on-macos) · [Glossary](../GLOSSARY.md)
 
-This guide describes the Voidra 1.1.1 delivery candidate; [P10 evidence](verification/v1.1.0-p10.md) tracks its checks. The published 1.0.0 baseline remains documented in [P17](verification/p17.md).
+This guide describes Voidra 1.1.1. [P10 evidence](verification/v1.1.0-p10.md) records completed verification, publication and remaining limits. The original 1.0.0 delivery remains documented in [P17](verification/p17.md).
 
-The v1.1 workspace replaces the primary Backlog/Actions pages with **Tasks**. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade for an existing legacy project. Fresh projects enable tracking automatically. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The completed workspace changes and remaining delivery checks are tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
+The v1.1 workspace replaces the primary Backlog/Actions pages with **Tasks**. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade for an existing legacy project. Fresh projects enable tracking automatically. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The completed workspace changes and delivery are tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
 
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 

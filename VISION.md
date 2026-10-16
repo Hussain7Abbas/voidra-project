@@ -305,4 +305,4 @@ The user selected option b on 2026-10-15: ignore the incomplete sentence “alwa
 
 The user subsequently authorized **“complete all phases non-stop”** on 2026-10-15. Continue the release tracker through P10 without another phase go-ahead, preserving explicit account/product gates and actual verification requirements.
 
-The v1.1 workspace delivery candidate is 1.1.1. The original 1.1.0 source tag remains immutable and unpublished after hosted shortcut-readiness checks; [P10](plan-v1.1.0/phase-10-verification-release.md) retains publication and downloaded-artifact verification. Product behavior and the 1.1.0 task-contract introduction are unchanged.
+The v1.1 workspace ships as [1.1.1](https://github.com/Hussain7Abbas/voidra-project/releases/tag/v1.1.1). All ten phases, both actual client matrices, GitHub/npm/skills publication and public downloaded-app verification are complete; [P10 evidence](docs/verification/v1.1.0-p10.md) records actual checks and limits. The original 1.1.0 source tag remains immutable and unpublished after hosted shortcut-readiness checks. Product behavior and the 1.1.0 task-contract introduction are unchanged.
