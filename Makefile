@@ -14,7 +14,7 @@ export DRY_RUN SKILLS_REPO VERSION BUMP
         install setup \
         build dev native e2e package-dir package-dmg smoke-packaged \
         lint format typecheck deprecations check clean \
-        test test-watch gen gen-check skills-link skills-sync release-preview release release-finish
+        test test-watch gen gen-check skills-link skills-sync deploy release-preview release release-finish
 
 help: # Show this help
 	@awk 'BEGIN {FS = ": *#+ *"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+( +[a-zA-Z0-9_-]+)*: *#/ { gsub(/ +/, ", ", $$1); printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -88,6 +88,16 @@ skills-sync: # Validate and publish release skill copies (DRY_RUN=1 previews, SK
 	@cd "$(ROOT)" && node tools/skills-distribution/scripts/sync.ts
 
 # ── Deploy ───────────────────────────────────────────────────────────
+deploy: # Run interactive Xeploy (installs with Bun if missing)
+	@cd "$(ROOT)" && \
+		{ command -v bun >/dev/null 2>&1 || { printf 'Bun is required for make deploy.\n' >&2; exit 1; }; } && \
+		xeploy_bin="$$(command -v xeploy || true)" && \
+		if [ -z "$$xeploy_bin" ]; then \
+			bun add --global --exact xeploy@1.4.2 || exit "$$?"; \
+			xeploy_bin="$$(bun pm bin --global)/xeploy" || exit "$$?"; \
+		fi; \
+		bun "$$xeploy_bin"
+
 release-preview: # Preview a Xeploy bump without changes (BUMP=patch|minor|major or VERSION=X.Y.Z)
 	@cd "$(ROOT)" && bun run tools/release-engine/scripts/preview.ts
 

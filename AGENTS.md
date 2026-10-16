@@ -51,6 +51,7 @@ Use Node from `.node-version` or `.nvmrc` and the exact pnpm version in `package
 | `make release-finish VERSION=X.Y.Z` | Resume verification and remaining publication checkpoints for an existing immutable tag |
 | `make package-dir` / `make smoke-packaged` | Package unsigned arm64 app / verify startup and SQLite |
 | `make release-preview BUMP=patch` | Preview a Xeploy patch/minor/major bump without changing files or Git; requires Bun |
+| `make deploy` | Run interactive Xeploy with Bun using `.xeploy.json`; install Xeploy 1.4.2 globally if missing |
 | `make release BUMP=patch` / `make release VERSION=X.Y.Z` | Prepare and publish through the checked release pipeline; use an explicit version for retries |
 | `make clean` | Remove build, package, test and coverage output |
 

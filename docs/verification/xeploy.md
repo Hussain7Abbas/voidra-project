@@ -18,3 +18,9 @@ Date: 2026-10-15. Post-v1 source follow-up; published versions and immutable tag
 - Full `make check` passes: lint, strict typing, 401 tests across 85 files, coverage gates, deprecation scan and generated-reference checks. The coverage test run took 392.67 seconds; the bump adapter has 100% line coverage.
 - Desktop end-to-end/package smoke and live publication were not repeated for this tooling-only change. Hosted CI is intentionally tag-only; this ordinary source push will not start it.
 - No new release was requested or published as part of installing this integration. Publication itself was not repeated; existing publication/recovery tests run in the release-engine suite.
+
+## Interactive deployment target (2026-10-16)
+
+At the user's request, `make deploy` now runs the standalone interactive Xeploy CLI with Bun from the repository root using `.xeploy.json`. It reuses an executable on PATH or installs `xeploy@1.4.2` globally with Bun and resolves Bun's global bin directory. The checked `make release` coordinator remains a separate entry point.
+
+`make help` lists the target and `make -n deploy` parses successfully. Six disposable command probes passed: existing CLI reuse, missing CLI installation with a global directory outside PATH containing spaces, failed installation, failed global-bin lookup, propagated CLI failure, and missing Bun. The installed real CLI also returns `1.4.2` through Bun with `--version`. No actual deployment or publication was started; the full application suite was not repeated for this Makefile/docs change.
