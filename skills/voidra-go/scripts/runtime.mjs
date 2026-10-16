@@ -27427,6 +27427,24 @@ var questionSchema = object2({
     at: date5
   }).optional()
 });
+var qualityChecksSchema = object2({
+  summary: text,
+  checks: external_exports.array(object2({ name: text, passed: external_exports.boolean(), evidence: text })).min(1)
+});
+var qualityReportSchema = object2({
+  summary: text,
+  decision: external_exports.enum(["pass", "rework", "questions"]),
+  qa: qualityChecksSchema,
+  security: qualityChecksSchema,
+  questions: external_exports.array(
+    questionSchema.pick({
+      text: true,
+      why: true,
+      options: true,
+      dependsOn: true
+    })
+  ).optional()
+});
 var actionSchema = object2({
   id: id("act"),
   type: external_exports.enum(types),
@@ -27443,7 +27461,11 @@ var actionSchema = object2({
   doneBy: external_exports.enum(["agent", "you"]),
   assignee: text.optional(),
   targetRelease: version2.nullable().optional(),
-  taskColumn: external_exports.enum(["backlog", "todo"]).optional(),
+  taskColumn: external_exports.enum(["backlog", "planning", "todo", "in-progress", "review"]).optional(),
+  taskWorkflow: external_exports.literal(1).optional(),
+  workflowPlanned: external_exports.boolean().optional(),
+  qualityRun: id("run").optional(),
+  deletedAt: date5.optional(),
   parent: id("act").optional(),
   blockedBy: external_exports.array(id("act")).optional(),
   links: external_exports.array(text).optional(),
@@ -27492,6 +27514,7 @@ var schemas = {
     createdWith: text,
     releasePackage: releasePackageSchema.optional(),
     taskTracking: external_exports.literal(1).optional(),
+    taskWorkflow: external_exports.literal(1).optional(),
     lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
@@ -27560,6 +27583,8 @@ var schemas = {
     checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional(),
     paths: external_exports.array(text).optional(),
     planningOnly: external_exports.boolean().optional(),
+    quality: qualityReportSchema.optional(),
+    sourceCommit: text.optional(),
     reviews: object2({
       standards: object2({ passed: external_exports.boolean(), summary: text }),
       plan: object2({ passed: external_exports.boolean(), summary: text })
@@ -27939,8 +27964,16 @@ var actionSequenceSchema = external_exports.looseObject({
 
 // packages/voidra/src/task-view.ts
 function taskColumn(action, hasRun = false) {
-  if (action.stage === "cancelled") return "backlog";
+  if (action.deletedAt || action.stage === "cancelled") return "backlog";
   if (action.status === "complete" || action.releasedIn) return "done";
+  if (action.taskWorkflow === 1) {
+    if (action.stage === "review") return "review";
+    if (action.taskColumn === "backlog" || action.status === "draft")
+      return "backlog";
+    if (action.taskColumn === "planning") return "planning";
+    if (action.taskColumn === "todo") return "todo";
+    return "in-progress";
+  }
   if (action.stage === "review") return "review";
   if (action.status === "running" || action.status === "failed" || action.stage === "verify" || hasRun || action.doneBy === "you" && action.status === "waiting")
     return "in-progress";
@@ -27978,13 +28011,15 @@ function projectTasks(project) {
     const action = record2.kind === "action" ? schemas.action.parse(data) : null;
     tasks.push({
       id: data.id,
+      ...action?.taskWorkflow === 1 ? { workflow: true } : {},
+      ...data.deletedAt ? { deleted: true } : {},
       kind: record2.kind,
       title: data.title,
       body: record2.document.body,
       path,
       revision: hash2(record2.document.raw),
       column: action ? taskColumn(action, ran.has(data.id)) : "backlog",
-      archived: action?.stage === "cancelled" || data.status === "rejected",
+      archived: !!action?.deletedAt || action?.stage === "cancelled" || data.status === "rejected",
       stage: action?.stage ?? null,
       status: data.status,
       type: data.type ?? null,
@@ -28001,7 +28036,7 @@ function projectTasks(project) {
 
 // packages/voidra/src/versions.ts
 var FORMAT_VERSION = 1;
-var PACKAGE_VERSION = "1.1.1";
+var PACKAGE_VERSION = "1.2.0";
 function upgradePrototype(files) {
   const upgraded = new Map(files);
   const raw = files.get(".voidra/voidra.json");
@@ -28305,8 +28340,27 @@ function inspectFiles(files, options = {}) {
       "requiredVoidra",
       "Task tracking requires voidra \u2265 1.1.0"
     );
+  if ((metadata.taskWorkflow === 1 || [...records.values()].some(
+    (record2) => record2.document.data.taskWorkflow === 1 || record2.document.data.deletedAt
+  )) && !((minimumParts[0] ?? 0) > 1 || (minimumParts[0] ?? 0) === 1 && (minimumParts[1] ?? 0) >= 2))
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Task workflow requires voidra \u2265 1.2.0"
+    );
+  if (metadata.taskWorkflow === 1 && metadata.taskTracking !== 1)
+    add(
+      "task-workflow",
+      metaPath,
+      "taskWorkflow",
+      "Task workflow requires taskTracking: 1"
+    );
   const ranActions = new Set(
     [...records.values()].filter((r2) => r2.kind === "run").map((r2) => r2.document.data.action)
+  );
+  const qualityRuns = new Map(
+    [...records.values()].filter((record2) => record2.kind === "run").map((record2) => [record2.document.data.id, record2])
   );
   const actions = /* @__PURE__ */ new Map();
   const ids = /* @__PURE__ */ new Set([metadata.project.id]);
@@ -28324,6 +28378,36 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "action") {
       const action = schemas.action.parse(d);
+      if (action.taskWorkflow === 1 && metadata.taskTracking !== 1)
+        add(
+          "task-workflow",
+          file2,
+          "taskWorkflow",
+          "Task workflow requires taskTracking: 1"
+        );
+      if (["planning", "in-progress", "review"].includes(
+        action.taskColumn ?? ""
+      ) && action.taskWorkflow !== 1)
+        add(
+          "task-workflow",
+          file2,
+          "taskWorkflow",
+          "New workflow columns require taskWorkflow: 1"
+        );
+      if (action.taskWorkflow === 1 && action.stage === "done" && !action.completedBySlices) {
+        const review = action.qualityRun ? qualityRuns.get(action.qualityRun) : void 0;
+        const proof = review?.kind === "run" ? schemas.run.safeParse(review.document.data) : null;
+        if (!proof?.success || proof.data.action !== action.id || proof.data.outcome !== "advanced" || proof.data.toStage !== "done" || !proof.data.endedAt || !proof.data.sourceCommit || proof.data.quality?.decision !== "pass" || proof.data.quality.questions?.length || [
+          ...proof.data.quality.qa.checks,
+          ...proof.data.quality.security.checks
+        ].some((check2) => !check2.passed))
+          add(
+            "task-quality",
+            file2,
+            "qualityRun",
+            "Done workflow tasks require their matching passing QA/security run"
+          );
+      }
       if (action.taskColumn !== void 0 && metadata.taskTracking !== 1)
         add(
           "task-tracking",
@@ -29374,7 +29458,7 @@ function queueIds(project) {
     ...project.records.get(ACTION_QUEUE_PATH)?.document.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []
   ].map((match) => match[0]);
 }
-var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column);
+var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column) && (!task.workflow || task.column !== "todo");
 function state(project) {
   const bytes = project.files.get(ACTION_SEQUENCE_PATH);
   if (!bytes) return null;
@@ -29461,6 +29545,9 @@ function withActionSequence(project, manifest, by = "You") {
     else files.set(change.path, Buffer.from(change.content));
   }
   const after = inspectFiles(files), tasks = projectTasks(after), byId = new Map(tasks.map((task) => [task.id, task]));
+  const beforeTasks = new Map(
+    projectTasks(project).map((task) => [task.id, task])
+  );
   const beforeActive = new Set(
     projectTasks(project).filter(active).map((task) => task.id)
   );
@@ -29476,7 +29563,7 @@ function withActionSequence(project, manifest, by = "You") {
     (id2) => !byId.has(id2) || active(byId.get(id2))
   );
   for (const task of tasks)
-    if (active(task) && task.column === "todo" && task.status === "ready" && !beforeActive.has(task.id) && after.records.get(task.path)?.document.data.doneBy === "agent" && !pending.includes(task.id))
+    if (active(task) && (task.workflow ? ["planning", "in-progress", "review"].includes(task.column) && ["ready", "waiting"].includes(task.status) && (beforeTasks.get(task.id)?.column !== task.column || task.status === "ready" && beforeTasks.get(task.id)?.status === "waiting") : task.column === "todo" && task.status === "ready" && !beforeActive.has(task.id)) && after.records.get(task.path)?.document.data.doneBy === "agent" && !pending.includes(task.id))
       pending.push(task.id);
   const positions = new Map(order.map((id2, index) => [id2, index]));
   pending.sort(
@@ -29654,17 +29741,41 @@ var answerInput = external_exports.strictObject({
     external_exports.strictObject({ kind: external_exports.literal("agent-decides") })
   ])
 });
+function reviewFiles(project, id2) {
+  const action = project.records.get(`.voidra/actions/${id2}/action.md`)?.document.data;
+  const extra = /* @__PURE__ */ new Set();
+  if (action?.type === "release" && Array.isArray(action.releaseActions)) {
+    if (typeof action.releaseVersion === "string")
+      extra.add(`.voidra/releases/${action.releaseVersion}.md`);
+    for (const member of action.releaseActions)
+      if (typeof member === "string")
+        extra.add(`.voidra/actions/${member}/action.md`);
+  }
+  return [...project.files].filter(
+    ([path]) => path.startsWith(`.voidra/actions/${id2}/`) || extra.has(path)
+  );
+}
+function reviewRevision(project, id2) {
+  return hash2(
+    JSON.stringify(
+      reviewFiles(project, id2).sort(([a2], [b]) => a2.localeCompare(b)).map(([path, bytes]) => [path, hash2(bytes)])
+    )
+  );
+}
 
 // packages/voidra/src/task-metadata.ts
 var taskInputFields = {
   targetRelease: version2.nullable().optional(),
-  taskColumn: external_exports.enum(["backlog", "todo"]).optional()
+  taskColumn: external_exports.enum(["backlog", "planning", "todo", "in-progress", "review"]).optional(),
+  taskWorkflow: external_exports.literal(1).optional()
 };
 var inputSchema = external_exports.strictObject(taskInputFields);
-async function newTaskFields(root, project, kind, requested = {}) {
+async function newTaskFields(root, project, kind, requested = {}, inheritWorkflow = true) {
   const input2 = inputSchema.parse(requested);
+  if (inheritWorkflow && input2.taskWorkflow === void 0 && project.metadata?.taskWorkflow === 1)
+    input2.taskWorkflow = 1;
   if (project.metadata?.taskTracking !== 1) {
-    if (input2.targetRelease !== void 0 || input2.taskColumn !== void 0)
+    if (input2.targetRelease !== void 0 || input2.taskColumn !== void 0 || input2.taskWorkflow !== void 0)
       throw Error("Enable task tracking before using task release fields");
     return {};
   }
@@ -29673,12 +29784,16 @@ async function newTaskFields(root, project, kind, requested = {}) {
     project.metadata.releasePackage ?? "package.json"
   )).version : input2.targetRelease;
   if (kind === "idea") return { targetRelease: release };
-  const column = input2.taskColumn ?? (release ? "todo" : "backlog");
+  const column = input2.taskColumn ?? (input2.taskWorkflow === 1 ? release ? "planning" : "backlog" : release ? "todo" : "backlog");
   if (column !== "backlog" && !release)
     throw Error(
       "Tasks outside Backlog require a release; choose a valid project package"
     );
-  return { targetRelease: release, taskColumn: column };
+  return {
+    targetRelease: release,
+    taskColumn: column,
+    ...input2.taskWorkflow === 1 ? { taskWorkflow: 1 } : {}
+  };
 }
 
 // packages/voidra/src/knowledge.ts
@@ -29707,6 +29822,7 @@ var ideaEdit = ideaInput.omit({ by: true }).extend({
   status: schemas.idea.shape.status
 });
 var promotionInput = external_exports.strictObject({
+  ...taskInputFields,
   id: schemas.idea.shape.id,
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
   type: schemas.action.shape.type,
@@ -29743,6 +29859,31 @@ var stepInput = external_exports.strictObject({
   done: external_exports.boolean()
 });
 
+// packages/voidra/src/task-workflow.ts
+function taskRunKind(action) {
+  if (action.taskWorkflow !== 1 || action.type === "release" || action.doneBy !== "agent" || action.deletedAt || action.status === "complete" || action.stage === "cancelled")
+    return null;
+  if (action.stage === "review") return "quality";
+  return action.taskColumn === "planning" ? "planning" : action.taskColumn === "in-progress" ? "implementation" : null;
+}
+function taskFullyPlanned(project, action) {
+  const questions = project.records.get(
+    `.voidra/actions/${action.id}/questions.md`
+  );
+  if (action.taskWorkflow === 1 && (!questions || schemas.questions.parse(questions.document.data).rounds.every((round) => round.questions.length === 0)))
+    return false;
+  if (questions && schemas.questions.parse(questions.document.data).rounds.some(
+    (round) => round.questions.some(
+      (q) => !q.answer || q.answer.kind === "agent-decides" && !q.agentChoice
+    )
+  ))
+    return false;
+  return projectLifecycles(project.metadata)[action.type].planGate ? approvalCurrent(
+    action.planApproval,
+    readPlan(project.files, action.id, project.records)
+  ) : action.workflowPlanned === true && !!readPlan(project.files, action.id, project.records);
+}
+
 // packages/voidra/src/queue.ts
 function queueDecision(project, id2, options = {}) {
   const refused = (reason) => ({ allowed: false, reason });
@@ -29755,13 +29896,27 @@ function queueDecision(project, id2, options = {}) {
   if (!parsed.success)
     return refused("Repair this action\u2019s fields before queueing");
   const action = parsed.data;
+  const kind = taskRunKind(action);
+  if (action.deletedAt) return refused("This task is deleted");
+  if (action.taskWorkflow === 1 && action.type !== "release" && action.doneBy === "agent") {
+    if (!kind)
+      return refused(
+        action.taskColumn === "todo" ? "Move planned work to In progress to queue implementation" : "Move this task to Planning to begin discovery"
+      );
+    if (kind === "implementation" && !taskFullyPlanned(project, action) && !(options.stopAtStalePlan && project.diagnostics.some(
+      (d) => d.code === "stale-approval" && d.file.startsWith(`.voidra/actions/${id2}/`)
+    )))
+      return refused(
+        "Finish questions and approve the exact plan before implementation"
+      );
+  }
   if ((action.taskColumn === "backlog" || project.metadata?.taskTracking === 1 && action.status === "draft") && !(options.activatingProfileDraft && action.type === "profile-change" && action.status === "draft"))
     return refused("Move this task to TODO with a release before queueing it");
   const questionData = project.records.get(`.voidra/actions/${id2}/questions.md`)?.document.data;
   const questions = questionData ? schemas.questions.safeParse(questionData) : null;
   if (questions?.success && questions.data.rounds.some((r2) => r2.questions.some((q) => !q.answer)))
     return refused("Answer the open questions before queueing");
-  if (action.stage === "review" && action.type !== "release" && !questionData)
+  if (action.stage === "review" && action.type !== "release" && kind !== "quality" && !questionData)
     return refused("Review gate needs a human decision");
   if (project.diagnostics.some(
     (d) => d.file.startsWith(`.voidra/actions/${id2}/`) && !(options.stopAtStalePlan && d.code === "stale-approval")
@@ -29771,16 +29926,16 @@ function queueDecision(project, id2, options = {}) {
     );
   if (action.type === "profile-change" && action.status === "draft" && !options.activatingProfileDraft)
     return refused("Review and activate the Profile change draft first");
-  if (action.doneBy !== "agent" || !["ready", "draft", "failed"].includes(action.status) || ["done", "released", "cancelled"].includes(action.stage ?? ""))
+  if (action.doneBy !== "agent" || !(kind === "quality" ? ["ready", "waiting", "failed"] : ["ready", "draft", "failed"]).includes(action.status) || ["done", "released", "cancelled"].includes(action.stage ?? ""))
     return refused("This action cannot be queued at its current gate");
-  for (const id3 of action.blockedBy ?? []) {
+  for (const id3 of kind === "planning" ? [] : action.blockedBy ?? []) {
     const dep = project.records.get(`.voidra/actions/${id3}/action.md`), parsed2 = schemas.action.safeParse(dep?.document.data);
     if (!parsed2.success || !actionComplete(parsed2.data))
       return refused(
         "This action is blocked; finish the blocking actions before queueing"
       );
   }
-  if ([...project.records.values()].some(
+  if (kind !== "planning" && [...project.records.values()].some(
     (r2) => r2.kind === "action" && r2.document.data.parent === id2 && (!schemas.action.safeParse(r2.document.data).success || !actionComplete(schemas.action.parse(r2.document.data)))
   ))
     return refused("Complete the child slices before queueing their parent");
@@ -29822,7 +29977,7 @@ function releaseCandidates(project, ignoreAction) {
     ))
       return [];
     const action = schemas.action.parse(record2.document.data);
-    return action.type !== "release" && actionComplete(action) && action.stage !== "released" && !action.releasedIn && !reserved.has(action.id) ? [
+    return !action.deletedAt && action.type !== "release" && actionComplete(action) && action.stage !== "released" && !action.releasedIn && !reserved.has(action.id) ? [
       {
         id: action.id,
         title: action.title,
@@ -30017,7 +30172,14 @@ var syncReportSchema = external_exports.strictObject({
 var moveInput = external_exports.strictObject({
   id: external_exports.union([schemas.action.shape.id, schemas.idea.shape.id]),
   revision: hashSchema,
-  column: external_exports.enum(["backlog", "todo", "in-progress", "review", "done"]),
+  column: external_exports.enum([
+    "backlog",
+    "planning",
+    "todo",
+    "in-progress",
+    "review",
+    "done"
+  ]),
   type: schemas.action.shape.type.optional(),
   by: external_exports.string().min(1).default("You")
 });
@@ -32240,7 +32402,7 @@ async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
       "Recover unfinished operations or runs before architecture proposals"
     );
   const bytes = await readFile4(await safePath(root, path)), record2 = parseRecord(path, bytes), action = schemas.action.parse(record2.data);
-  if (action.doneBy !== "agent" || !owner && !["discovery", "plan"].includes(action.stage ?? ""))
+  if (action.doneBy !== "agent" || !owner && action.taskWorkflow !== 1 && !["discovery", "plan"].includes(action.stage ?? ""))
     throw new Error(
       "Architecture proposals require an agent action in Discovery or Plan"
     );
@@ -32291,6 +32453,10 @@ async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
     throw new Error(
       "Answer open questions and resolve delegated choices before continuing"
     );
+  if (action.taskWorkflow === 1 && input2.kind !== "questions" && previous.length === 0)
+    throw Error(
+      "Ask the task's edge-case questions before publishing its plan or subtasks"
+    );
   if (input2.kind === "questions") {
     const answered = new Set(previous.map((q) => q.id));
     for (const q of input2.questions) {
@@ -32330,12 +32496,16 @@ async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
         input2[file2]
       );
     const rule = projectLifecycles(check2.metadata)[action.type];
-    if (!rule.planGate)
+    if (!rule.planGate && action.taskWorkflow !== 1)
       throw new Error(
         "This action uses its result gate rather than a plan approval"
       );
-    action.stage = "plan";
-    action.status = "waiting";
+    action.stage = rule.planGate ? "plan" : rule.stages[0];
+    action.status = rule.planGate ? "waiting" : "ready";
+    if (action.taskWorkflow === 1 && !rule.planGate) {
+      action.workflowPlanned = true;
+      action.taskColumn = "todo";
+    }
     if (action.planApproval)
       action.approvalHistory = [
         ...action.approvalHistory ?? [],
@@ -32358,7 +32528,16 @@ async function proposeArchitecture(root, raw, ownerToken, prepareOnly = false) {
           id: children[index],
           type: action.type,
           title: slice.title,
-          ...await newTaskFields(root, check2, "action"),
+          ...await newTaskFields(
+            root,
+            check2,
+            "action",
+            action.taskWorkflow === 1 ? {
+              taskWorkflow: 1,
+              taskColumn: action.targetRelease ? "planning" : "backlog",
+              targetRelease: action.targetRelease
+            } : {}
+          ),
           stage: projectLifecycles(check2.metadata)[action.type].stages[0],
           status: "ready",
           doneBy: "agent",
@@ -32688,6 +32867,7 @@ var checkpointSchema = external_exports.looseObject({
   ]),
   baseCommit: external_exports.string().nullable(),
   mode: external_exports.enum(["go", "plan"]).optional(),
+  taskRunKind: external_exports.enum(["planning", "implementation", "quality"]).optional(),
   sourceSnapshot: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
@@ -33197,6 +33377,7 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
   const actionPath = `.voidra/actions/${actionId}/action.md`, doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
+  const workflowKind = taskRunKind(action);
   const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
   if (!decision.allowed)
     throw new Error(decision.reason ?? "Queued action cannot run");
@@ -33210,12 +33391,26 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
   const identity = await processIdentity(ownerPid2);
   if (!identity) throw new Error("Run owner process is missing");
   const repository = await repositoryRoot(root);
+  if (repository && ["implementation", "quality"].includes(workflowKind ?? "")) {
+    let committedReader = "";
+    try {
+      committedReader = schemas.project.parse(
+        JSON.parse(await git2(root, ["show", "HEAD:.voidra/voidra.json"]))
+      ).requiredVoidra;
+    } catch {
+    }
+    const [major = 0, minor = 0] = committedReader.split(".").map(Number);
+    if (!(major > 1 || major === 1 && minor >= 2))
+      throw Error(
+        "Commit the task-workflow metadata upgrade before implementation or QA. Open Actions \u2192 Execution options \u2192 Commit planning changes and include .voidra/voidra.json."
+      );
+  }
   const rules = projectLifecycles(checked.metadata), plan = readPlan(checked.files, action.id, checked.records);
   const stale = rules[action.type].planGate && ["implement", "verify", "review"].includes(action.stage ?? "") && (!action.planApproval || !plan || Object.entries(plan.hashes).some(
     ([name, value]) => action.planApproval?.hashes[name] !== value
   ));
-  const boundary = mode === "plan" && !["discovery", "plan"].includes(action.stage ?? "");
-  const planning = mode === "plan" || stale || ["discovery", "plan"].includes(action.stage ?? ""), bootstrapGit = !repository && !planning && action.type === "feature" && action.title === "Bootstrap" && ["implement", "verify"].includes(action.stage ?? "") && !!action.planApproval && !!plan && Object.entries(plan.hashes).every(
+  const boundary = mode === "plan" && workflowKind !== "planning" && !["discovery", "plan"].includes(action.stage ?? "");
+  const planning = mode === "plan" || workflowKind === "planning" || stale || ["discovery", "plan"].includes(action.stage ?? ""), bootstrapGit = !repository && !planning && action.type === "feature" && action.title === "Bootstrap" && ["implement", "verify"].includes(action.stage ?? "") && !!action.planApproval && !!plan && Object.entries(plan.hashes).every(
     ([name, value]) => action.planApproval?.hashes[name] === value
   );
   if (!repository && !planning && !bootstrapGit)
@@ -33230,12 +33425,18 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
       );
     if (runner.value) action.assignee = runner.value;
   }
-  if (action.stage === "review" && action.type !== "release" && !checked.records.get(`.voidra/actions/${action.id}/questions.md`))
+  if (action.stage === "review" && action.type !== "release" && workflowKind !== "quality" && !checked.records.get(`.voidra/actions/${action.id}/questions.md`))
     throw new Error("Review needs a human decision");
   let startedAction = { ...action, status: "running" };
-  if (stale) startedAction = { ...action, stage: "plan", status: "waiting" };
+  if (stale)
+    startedAction = {
+      ...action,
+      stage: "plan",
+      status: "waiting",
+      ...action.taskWorkflow === 1 ? { taskColumn: "planning", workflowPlanned: false } : {}
+    };
   else if (boundary) startedAction = action;
-  else if (action.stage === "review" && action.type !== "release")
+  else if (action.stage === "review" && action.type !== "release" && workflowKind !== "quality")
     startedAction = {
       ...action,
       stage: rules[action.type].rejectTo,
@@ -33317,6 +33518,7 @@ async function startRun(root, agent, ownerPid2 = process.pid, mode = "go") {
   ).toString();
   const ctx = {
     schema: 1,
+    ...workflowKind ? { taskRunKind: workflowKind } : {},
     run: run2,
     action: actionId,
     agent,
@@ -33467,7 +33669,7 @@ async function prepareResult(root, token, input2) {
   await guardRun(root, token, report.paths);
   const { action, actionRaw, runRaw } = await current(root, ctx);
   const project = await checkProject(root), plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan" || action.type === "research")
+  if (ctx.mode === "plan" || ctx.taskRunKind === "planning" || ctx.taskRunKind === "quality" || action.type === "research")
     throw new Error("This run cannot prepare an implementation commit");
   if (action.type !== "docs" && !report.reviews)
     throw new Error("Both standards and plan review are required");
@@ -33887,11 +34089,13 @@ async function publishPlanning(root, token, raw) {
   const input2 = architectureProposalSchema.parse(raw), { ctx, lockRaw } = await inspectOwnedRun(root, token);
   if (ctx.phase !== "started" || input2.action !== ctx.action)
     throw new Error("Planning report does not match the active action");
+  if (ctx.taskRunKind && ctx.taskRunKind !== "planning")
+    throw Error("Return this task to Planning before publishing a new plan");
   await unchangedPlanningGit(root, ctx);
   const source = await snapshotSources(root), changesOutside = sourceChanges(ctx.sourceSnapshot ?? {}, source).filter(
     (path) => path !== "GLOSSARY.md"
   );
-  if ((ctx.mode === "plan" || ["discovery", "plan"].includes(
+  if ((ctx.mode === "plan" || ctx.taskRunKind === "planning" || ["discovery", "plan"].includes(
     schemas.action.parse(
       parseRecord(
         ctx.actionPath,
@@ -33982,8 +34186,10 @@ function sourceChanges(before, after) {
 }
 async function guardRun(root, token, paths = [], initializingBootstrap = false) {
   const { ctx } = await owned(root, token), { action } = await current(root, ctx), project = await checkProject(root), rules = projectLifecycles(project.metadata), plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan")
-    throw new Error("Planning-only runs cannot edit implementation files");
+  if (ctx.mode === "plan" || ctx.taskRunKind === "planning" || ctx.taskRunKind === "quality")
+    throw new Error(
+      "Planning-only and QA runs cannot edit implementation files"
+    );
   const repository = await repositoryRoot(root);
   if (repository !== (ctx.gitRoot === void 0 ? await realpath4(root) : ctx.gitRoot) && !(initializingBootstrap && ctx.bootstrapGit && repository === null))
     throw new Error("Git repository changed outside this run");
@@ -34102,6 +34308,10 @@ async function finishAtGate(root, token, action, summary, extra = []) {
 }
 async function publishResearch(root, token, raw) {
   const input2 = researchReportSchema.parse(raw), { ctx } = await inspectOwnedRun(root, token), { action } = await current(root, ctx);
+  if (ctx.taskRunKind === "planning" || ctx.taskRunKind === "quality")
+    throw Error(
+      "Plan Research in Planning, then move TODO to In progress for findings"
+    );
   if (action.type !== "research" || action.stage !== "discovery")
     throw new Error("Findings require Research Discovery");
   await assertPlanningEffects(root, ctx);
@@ -34175,7 +34385,7 @@ async function publishHumanBlocker(root, token, raw) {
   if (ctx.mode === "plan" || ["discovery", "plan"].includes(action.stage ?? ""))
     await assertPlanningEffects(root, ctx);
   const human = schemas.action.parse({
-    ...await newTaskFields(root, project, "action"),
+    ...await newTaskFields(root, project, "action", {}, false),
     id: id2,
     type: "docs",
     title: input2.title,
@@ -34245,6 +34455,163 @@ async function resolveDelegatedChoices(root, token, raw) {
     [{ path, expectedHash: hash2(doc.raw), content: bytes }]
   );
 }
+async function publishQuality(root, token, raw) {
+  const report = qualityReportSchema.parse(raw), { ctx, lockRaw } = await owned(root, token);
+  if (ctx.phase !== "started" || ctx.taskRunKind !== "quality" || ctx.mode === "plan")
+    throw Error("An owned QA/security run is required");
+  const { action, actionRaw, runRaw } = await current(root, ctx);
+  if (action.taskWorkflow !== 1 || action.stage !== "review" || action.type === "release")
+    throw Error("This task is not awaiting QA/security");
+  await unchangedPlanningGit(root, ctx);
+  if (sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length)
+    throw Error("Source changed during QA; preserve it and stop");
+  const project = await checkProject(root);
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (hash2(project.files.get(path) ?? Buffer.alloc(0)) !== expected)
+      throw Error("QA context changed; run it again against current inputs");
+  const prior = [...project.records.values()].find(
+    (record2) => record2.kind === "run" && record2.document.data.action === ctx.action && record2.document.data.toStage === "review" && (record2.document.data.commit || action.type === "research" && record2.document.data.planningOnly === true) && record2.document.data.endedAt
+  );
+  if (!prior)
+    throw Error("QA requires a completed implementation or Research result");
+  if (prior.document.data.commit)
+    await git2(root, [
+      "cat-file",
+      "-e",
+      `${String(prior.document.data.commit)}^{commit}`
+    ]);
+  const checks = [...report.qa.checks, ...report.security.checks];
+  if (report.questions?.length && report.decision !== "questions")
+    throw Error(
+      "Unresolved requirements must return to Planning through a questions result"
+    );
+  if (report.decision === "pass" && checks.some((check2) => !check2.passed))
+    throw Error("Failed QA/security checks cannot complete a task");
+  if (report.decision === "rework" && checks.every((check2) => check2.passed))
+    throw Error("Record the failed check before returning work to TODO");
+  if (report.decision === "questions" && !report.questions?.length)
+    throw Error("Record the missing requirements as questions");
+  const at = (/* @__PURE__ */ new Date()).toISOString(), by = ctx.agent, revision = reviewRevision(project, action.id);
+  const plan = readPlan(project.files, action.id, project.records);
+  const next = transition(
+    action,
+    report.decision === "pass" ? "accept-review" : "reject-review",
+    {
+      revision,
+      reviewRevision: revision,
+      by,
+      at,
+      ...plan ? { plan } : {}
+    },
+    projectLifecycles(project.metadata)
+  ).action;
+  if (report.decision === "pass") next.qualityRun = ctx.run;
+  else delete next.qualityRun;
+  next.reviewHistory = [
+    ...Array.isArray(action.reviewHistory) ? action.reviewHistory : [],
+    ...action.reviewDecision ? [action.reviewDecision] : [],
+    { ...report, run: ctx.run, revision, sourceCommit: ctx.baseCommit, by, at }
+  ];
+  if (next.reviewDecision && report.decision !== "pass")
+    next.reviewDecision.feedback = report.summary;
+  next.taskColumn = report.decision === "questions" ? "planning" : report.decision === "rework" ? "todo" : "review";
+  const changes = [];
+  if (report.decision === "questions") {
+    const path = `.voidra/actions/${ctx.action}/questions.md`, old = project.records.get(path)?.document;
+    const questions = old ? schemas.questions.parse(old.data) : { action: ctx.action, rounds: [] };
+    if (questions.rounds.some(
+      (round2) => round2.questions.some(
+        (q) => !q.answer || q.answer.kind === "agent-decides" && !q.agentChoice
+      )
+    ))
+      throw Error("Resolve the current question round before adding another");
+    const round = {
+      round: Math.max(0, ...questions.rounds.map((r2) => r2.round)) + 1,
+      askedAt: at,
+      questions: report.questions?.map((q) => {
+        if (q.options.filter((option) => option.recommended).length !== 1)
+          throw Error("Each question needs one recommended option");
+        return { ...q, id: createId("q"), allowFreeText: true };
+      }) ?? []
+    };
+    questions.rounds.push(round);
+    changes.push({
+      path,
+      expectedHash: old ? hash2(old.raw) : null,
+      content: serializeRecord(
+        old ?? parseRecord(path, "---\n{}\n---\n"),
+        questions
+      ).toString()
+    });
+    next.stage = projectLifecycles(project.metadata)[next.type].stages.includes(
+      "discovery"
+    ) ? "discovery" : projectLifecycles(project.metadata)[next.type].planGate ? "plan" : "implement";
+    next.status = "waiting";
+    if (next.planApproval)
+      next.approvalHistory = [
+        ...next.approvalHistory ?? [],
+        next.planApproval
+      ];
+    delete next.planApproval;
+    next.workflowPlanned = false;
+  }
+  const finalAction = serializeRecord(
+    parseRecord(ctx.actionPath, actionRaw),
+    next
+  ).toString();
+  const finalRun = serializeRecord(
+    parseRecord(ctx.runPath, runRaw),
+    {
+      ...parseRecord(ctx.runPath, runRaw).data,
+      outcome: report.decision === "pass" ? "advanced" : "waiting",
+      endedAt: at,
+      toStage: next.stage,
+      checks: checks.map(({ name, passed }) => ({ name, passed })),
+      quality: report,
+      sourceCommit: ctx.baseCommit ?? void 0,
+      planningOnly: true
+    },
+    `## QA and security review
+${report.summary}
+
+## QA
+${report.qa.summary}
+${report.qa.checks.map((check2) => `- ${check2.passed ? "Pass" : "Fail"}: ${check2.name} \u2014 ${check2.evidence}`).join("\n")}
+
+## Security
+${report.security.summary}
+${report.security.checks.map((check2) => `- ${check2.passed ? "Pass" : "Fail"}: ${check2.name} \u2014 ${check2.evidence}`).join("\n")}`
+  ).toString();
+  await save(
+    root,
+    {
+      ...ctx,
+      phase: "finalized",
+      indexReconciled: true,
+      actionHash: hash2(finalAction),
+      runHash: hash2(finalRun),
+      paths: [],
+      fileHashes: {
+        [ctx.actionPath]: hash2(finalAction),
+        [ctx.runPath]: hash2(finalRun)
+      }
+    },
+    [
+      ...changes,
+      {
+        path: ctx.actionPath,
+        expectedHash: hash2(actionRaw),
+        content: finalAction
+      },
+      { path: ctx.runPath, expectedHash: hash2(runRaw), content: finalRun },
+      {
+        path: ".voidra/local/run.lock",
+        expectedHash: hash2(lockRaw),
+        content: null
+      }
+    ]
+  );
+}
 
 // tools/run-engine/src/runtime.ts
 async function ownerPid() {
@@ -34289,7 +34656,7 @@ async function runRuntime(args, cwd = process.cwd()) {
     if (command === "help" || command === "--help")
       return {
         code: 0,
-        value: "voidra-go runtime: release-options; start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
+        value: "voidra-go runtime: release-options; start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan|quality --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER."
       };
     if (command === "release-options")
       return { code: 0, value: await projectReleaseOptions(root) };
@@ -34359,6 +34726,14 @@ async function runRuntime(args, cwd = process.cwd()) {
         };
       return { code: 0, value: { ok: true } };
     }
+    if (command === "quality") {
+      await publishQuality(
+        root,
+        need("--token"),
+        JSON.parse(await readFile7(resolve4(root, need("--report")), "utf8"))
+      );
+      return { code: 0, value: { quality: true } };
+    }
     if (command === "prepare") {
       const report = reportSchema.parse(
         JSON.parse(await readFile7(resolve4(root, need("--report")), "utf8"))
@@ -34406,8 +34781,28 @@ async function runRuntime(args, cwd = process.cwd()) {
 }
 function publicContext(ctx) {
   if (!ctx) return null;
-  const { run: run2, action, agent, phase, ownerToken, actionPath, runPath, mode } = ctx;
-  return { run: run2, action, agent, phase, ownerToken, actionPath, runPath, mode };
+  const {
+    run: run2,
+    action,
+    agent,
+    phase,
+    ownerToken,
+    actionPath,
+    runPath,
+    mode,
+    taskRunKind: taskRunKind2
+  } = ctx;
+  return {
+    run: run2,
+    action,
+    agent,
+    phase,
+    ownerToken,
+    actionPath,
+    runPath,
+    mode,
+    taskRunKind: taskRunKind2
+  };
 }
 
 // tools/run-engine/src/cli-entry.ts

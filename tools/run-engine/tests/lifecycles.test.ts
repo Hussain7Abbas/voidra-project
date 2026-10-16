@@ -315,7 +315,7 @@ it("refuses source and tag changes in planning-only runs and refuses implementat
         paths: [],
         checks: [],
       }),
-    ).rejects.toThrow("Planning-only");
+    ).rejects.toThrow(/Planning.*cannot/);
     await expect(commitResult(root, ctx.ownerToken, "Unsafe")).rejects.toThrow(
       "Planning-only",
     );

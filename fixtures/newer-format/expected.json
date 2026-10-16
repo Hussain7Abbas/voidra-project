@@ -6,7 +6,7 @@
       "file": ".voidra/voidra.json",
       "field": "format",
       "line": 1,
-      "message": "Project needs voidra ≥ 9.0.0; this package is 1.1.1"
+      "message": "Project needs voidra ≥ 9.0.0; this package is 1.2.0"
     }
   ]
 }

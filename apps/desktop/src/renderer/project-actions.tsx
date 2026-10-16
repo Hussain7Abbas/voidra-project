@@ -16,6 +16,7 @@ import { PlanningCommit } from "./planning-commit.tsx";
 import { ProjectInbox } from "./project-inbox.tsx";
 import { RunQueue } from "./run-queue.tsx";
 import { TaskCapture } from "./task-capture.tsx";
+import { TaskDelete } from "./task-delete.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
@@ -199,6 +200,7 @@ export function ProjectActions({
                 if (recovery)
                   void request({
                     command: "copy-recovery-command",
+                    open: true,
                     agent,
                     kind: recovery,
                     id: recoveryId,
@@ -254,7 +256,11 @@ export function ProjectActions({
               </div>
               <Button
                 onClick={() =>
-                  void request({ command: "copy-agent-command", agent })
+                  void request({
+                    command: "copy-agent-command",
+                    open: true,
+                    agent,
+                  })
                     .then(() => toast.success("Command copied"))
                     .catch((e) => toast.error(e.message))
                 }
@@ -388,6 +394,15 @@ export function ProjectActions({
             <SafeMarkdown body={current.data.reviewDecision.feedback} />
           </section>
         )}
+        <TaskDelete
+          id={current.data.id}
+          revision={current.editRevision}
+          disabled={!recordEditable}
+          onDeleted={() => {
+            setSelected(null);
+            onBack?.();
+          }}
+        />
         <div className="action-meta" data-review-revision={current.revision}>
           <span className="badge badge-accent">
             {stageLabels[current.effectiveStage ?? "human"] ??
@@ -748,6 +763,22 @@ export function ProjectActions({
         )}
 
         {current.effectiveStage === "review" &&
+          current.data.taskWorkflow === 1 &&
+          current.data.type !== "release" && (
+            <section
+              className="card action-detail"
+              aria-label="QA and security review"
+            >
+              <h2>QA and security review</h2>
+              <p>
+                The Actions queue runs QA and security checks. Passing work
+                moves to Done automatically; failed checks return to TODO and
+                missing requirements return to Planning.
+              </p>
+            </section>
+          )}
+        {(current.data.taskWorkflow !== 1 || current.data.type === "release") &&
+          current.effectiveStage === "review" &&
           (current.data.status === "waiting" ||
             data.diagnostics.some(
               (d) => d.file === current.path && d.code === "stale-review",

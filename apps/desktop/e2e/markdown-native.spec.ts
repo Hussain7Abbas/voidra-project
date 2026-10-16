@@ -25,9 +25,7 @@ test("Markdown clipboard, native-menu history, IME and Unicode retain source ind
     const page = await app.firstWindow();
     await page.locator('[data-app-ready="true"]').waitFor();
     await page.getByRole("button", { name: "Tasks", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Add to Backlog", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Add task", exact: true }).click();
     await page.getByRole("radio", { name: "Normal", exact: true }).check();
     await page.getByLabel("Title", { exact: true }).fill("Native editing");
     const editor = page.getByLabel("Description", { exact: true });
@@ -109,11 +107,13 @@ test("Markdown clipboard, native-menu history, IME and Unicode retain source ind
     await page.keyboard.press("ControlOrMeta+s");
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
     const checked = await checkProject(root),
-      idea = [...checked.records.values()].find(
-        (record) => record.kind === "idea",
+      action = [...checked.records.values()].find(
+        (record) =>
+          record.kind === "action" &&
+          record.document.data.title === "Native editing",
       );
     expect(checked.diagnostics).toEqual([]);
-    expect(idea?.document.body.trimEnd()).toBe(`${pasted}日本語`);
+    expect(action?.document.body.trimEnd()).toBe(`${pasted}日本語`);
   } finally {
     await app.close();
     await rm(temp, { recursive: true, force: true, maxRetries: 3 });

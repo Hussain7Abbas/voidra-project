@@ -22,3 +22,7 @@ The 1.1.0 candidate adds optional `releasePackage`, a contained project-relative
   "createdWith": "voidra/0.1.0"
 }
 ```
+
+## Agentic workflow follow-up
+
+Reader 1.2.0 `taskWorkflow: 1` opts future task producers into Planning rather than runnable TODO. Individual workflow markers, deletion fields and QA proof require this reader minimum even when project defaults are absent.

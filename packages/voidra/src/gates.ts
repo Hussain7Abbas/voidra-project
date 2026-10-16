@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withActionSequence } from "./action-sequence.ts";
 import {
   approvalCurrent,
   hash,
@@ -76,21 +77,28 @@ export async function answerQuestion(
   // Finishing a round resumes the agent even when a previous plan exists.
   action.status = open ? "waiting" : "ready";
   action.updatedAt = new Date().toISOString();
-  await applyOperation(root, {
-    changes: [
+  await applyOperation(
+    root,
+    withActionSequence(
+      project,
       {
-        path,
-        expectedHash: input.revision,
-        content: serializeRecord(record, questions).toString(),
+        changes: [
+          {
+            path,
+            expectedHash: input.revision,
+            content: serializeRecord(record, questions).toString(),
+          },
+          {
+            path: actionPath,
+            expectedHash: hash(actionDoc.raw),
+            content: serializeRecord(actionDoc, action).toString(),
+          },
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        ],
       },
-      {
-        path: actionPath,
-        expectedHash: hash(actionDoc.raw),
-        content: serializeRecord(actionDoc, action).toString(),
-      },
-      { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-    ],
-  });
+      input.by,
+    ),
+  );
 }
 
 function decisionProject(project: ProjectInspection): void {
@@ -185,6 +193,9 @@ export async function requestPlanChanges(
   ).action;
   const next = {
     ...action,
+    ...(action.taskWorkflow === 1
+      ? { taskColumn: "planning" as const, workflowPlanned: false }
+      : {}),
     planFeedback: {
       feedback,
       by,
@@ -194,26 +205,30 @@ export async function requestPlanChanges(
   };
   await applyOperation(
     root,
-    {
-      changes: [
-        {
-          path,
-          expectedHash: hash(doc.raw),
-          content: serializeRecord(doc, next).toString(),
-        },
-        ...planFiles.map((file) => {
-          const path = `.voidra/actions/${id}/${file}`,
-            raw = project.files.get(path) as Buffer;
-          return { path, expectedHash: hash(raw), content: raw.toString() };
-        }),
-        {
-          path: questionPath,
-          expectedHash: questions ? hash(questions.raw) : null,
-          content: questions ? questions.raw.toString() : null,
-        },
-        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      ],
-    },
+    withActionSequence(
+      project,
+      {
+        changes: [
+          {
+            path,
+            expectedHash: hash(doc.raw),
+            content: serializeRecord(doc, next).toString(),
+          },
+          ...planFiles.map((file) => {
+            const path = `.voidra/actions/${id}/${file}`,
+              raw = project.files.get(path) as Buffer;
+            return { path, expectedHash: hash(raw), content: raw.toString() };
+          }),
+          {
+            path: questionPath,
+            expectedHash: questions ? hash(questions.raw) : null,
+            content: questions ? questions.raw.toString() : null,
+          },
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        ],
+      },
+      by,
+    ),
     options,
   );
 }
@@ -238,6 +253,12 @@ export async function decideReview(
   if (!doc) throw new Error("Action not found");
   let action = schemas.action.parse(doc.data);
   const plan = readPlan(project.files, id, project.records);
+  if (
+    action.taskWorkflow === 1 &&
+    action.type !== "release" &&
+    decision === "accepted"
+  )
+    throw Error("This task completes through its owned QA/security run");
   if (action.stage !== "review")
     throw new Error("No review gate at this stage");
   const runs = [...project.records.values()].filter(
@@ -303,27 +324,33 @@ export async function decideReview(
     },
     options.lifecycles ?? projectLifecycles(project.metadata),
   ).action;
+  if (action.taskWorkflow === 1 && decision === "rejected")
+    next.taskColumn = questionsOpen ? "planning" : "todo";
   if (next.reviewDecision && decision === "rejected")
     next.reviewDecision.feedback = feedback;
   await applyOperation(
     root,
-    {
-      changes: [
-        {
-          path,
-          expectedHash: hash(doc.raw),
-          content: serializeRecord(doc, next).toString(),
-        },
-        ...reviewFiles(project, id)
-          .filter(([file]) => file !== path)
-          .map(([path, raw]) => ({
+    withActionSequence(
+      project,
+      {
+        changes: [
+          {
             path,
-            expectedHash: hash(raw),
-            content: raw.toString(),
-          })),
-        { path: ".voidra/local/run.lock", expectedHash: null, content: null },
-      ],
-    },
+            expectedHash: hash(doc.raw),
+            content: serializeRecord(doc, next).toString(),
+          },
+          ...reviewFiles(project, id)
+            .filter(([file]) => file !== path)
+            .map(([path, raw]) => ({
+              path,
+              expectedHash: hash(raw),
+              content: raw.toString(),
+            })),
+          { path: ".voidra/local/run.lock", expectedHash: null, content: null },
+        ],
+      },
+      by,
+    ),
     options,
   );
 }

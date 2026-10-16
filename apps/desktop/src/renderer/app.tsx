@@ -6,7 +6,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  Activity,
   ArrowRight,
   BookOpen,
   ChevronDown,
@@ -26,16 +25,13 @@ import type {
 import { ActionsSidebar } from "./actions-sidebar.tsx";
 import { AiSettingsPanel } from "./ai-settings.tsx";
 import { CodingClientSetting } from "./coding-client.tsx";
-import {
-  DocumentationPage,
-  DocumentViewerProvider,
-} from "./document-viewer.tsx";
+import { DocumentViewerProvider } from "./document-viewer.tsx";
 import { DraftRecovery } from "./draft-recovery.tsx";
 import { EditHistory } from "./edit-history.tsx";
 import { flushFormDrafts } from "./form-drafts.tsx";
 import { inboxItems } from "./inbox.ts";
+import { KnowledgeWorkspace } from "./knowledge-workspace.tsx";
 import { ProjectActions } from "./project-actions.tsx";
-import { ProjectDecisions, ProjectGlossary } from "./project-knowledge.tsx";
 import {
   ProjectOnboarding,
   ProjectProfile,
@@ -275,10 +271,7 @@ function Shell() {
   const navigation = [
     { label: "Tasks", icon: ListChecks },
     { label: "Profile", icon: BookOpen },
-    { label: "Decisions", icon: BookOpen },
-    { label: "Glossary", icon: BookOpen },
     { label: "Documentation", icon: BookOpen },
-    { label: "Run", icon: Activity },
     { label: "Releases", icon: Package },
   ];
   const hideWaiting = useCallback(() => {
@@ -317,7 +310,7 @@ function Shell() {
       800,
       panels.bounds.width -
         (panels.value.actionsOpen && hasPlanning
-          ? panels.fitted.actionsWidth + 6
+          ? panels.fitted.actionsWidth + 1
           : 0) -
         326,
     ),
@@ -327,7 +320,7 @@ function Shell() {
     Math.min(
       800,
       panels.bounds.width -
-        (panels.value.navigationOpen ? panels.fitted.navigationWidth + 6 : 0) -
+        (panels.value.navigationOpen ? panels.fitted.navigationWidth + 1 : 0) -
         326,
     ),
   );
@@ -364,6 +357,7 @@ function Shell() {
           </div>
         </section>
       )}
+      <SyncSuggestion data={workspace.data} />
       <div className="desktop-shell" ref={panels.host}>
         <aside
           id="project-navigation"
@@ -465,7 +459,7 @@ function Shell() {
                   <button
                     type="button"
                     aria-label={item.label}
-                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Decisions" : navigationTarget === "releases" ? "Releases" : navigationTarget === "documentation" ? "Documentation" : navigationTarget === "glossary" ? "Glossary" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Documentation" : navigationTarget === "releases" ? "Releases" : navigationTarget === "documentation" ? "Documentation" : navigationTarget === "glossary" ? "Documentation" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
                     disabled={
                       hasPlanning
                         ? ![
@@ -531,13 +525,13 @@ function Shell() {
                                 : navigationTarget === "run"
                                   ? "Run"
                                   : navigationTarget === "decisions"
-                                    ? "Decisions"
+                                    ? "Documentation"
                                     : navigationTarget === "documentation"
                                       ? "Documentation"
                                       : navigationTarget === "releases"
                                         ? "Releases"
                                         : navigationTarget === "glossary"
-                                          ? "Glossary"
+                                          ? "Documentation"
                                           : navigationTarget === "profile"
                                             ? "Profile"
                                             : navigationTarget === "backlog"
@@ -638,7 +632,6 @@ function Shell() {
               </div>
             )}
 
-            <SyncSuggestion data={workspace.data} />
             {snapshot.isPending ? (
               <div className="loading-state">
                 <Spinner label="Loading workspace" />
@@ -873,16 +866,21 @@ const Content = memo(function Content({
       />
     ) : navigationTarget === "releases" ? (
       <ProjectReleases key={navigationEpoch} onAction={onAction} />
-    ) : navigationTarget === "decisions" ? (
-      <ProjectDecisions
-        key={navigationEpoch}
+    ) : ["documentation", "glossary", "decisions"].includes(
+        navigationTarget,
+      ) ? (
+      <KnowledgeWorkspace
+        key={project.path}
+        initialTab={
+          navigationTarget === "glossary"
+            ? "Glossary"
+            : navigationTarget === "decisions"
+              ? "Decisions"
+              : "Explore"
+        }
         onAction={onAction}
         onProfile={onProfile}
       />
-    ) : navigationTarget === "documentation" ? (
-      <DocumentationPage key={project.path} />
-    ) : navigationTarget === "glossary" ? (
-      <ProjectGlossary key={navigationEpoch} />
     ) : navigationTarget === "profile" ? (
       <ProjectProfile key={navigationEpoch} />
     ) : (

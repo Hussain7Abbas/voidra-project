@@ -95,9 +95,9 @@ for (const theme of ["light", "dark"] as const)
       await page
         .getByRole("button", { name: "Edit description", exact: true })
         .click();
-      await page
-        .getByLabel("Description", { exact: true })
-        .fill("Recover **removed** task description");
+      await page.getByLabel("Description", { exact: true }).focus();
+      await page.keyboard.press("ControlOrMeta+a");
+      await page.keyboard.insertText("Recover **removed** task description");
       await page.keyboard.press("Escape");
       await rm(
         join(root, ".voidra/actions", String(bootstrap.document.data.id)),

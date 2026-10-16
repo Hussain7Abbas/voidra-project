@@ -21,5 +21,10 @@ export * from "./task-metadata.ts";
 export * from "./task-move.ts";
 export * from "./task-tracking.ts";
 export * from "./task-view.ts";
+export {
+  type TaskRunKind,
+  taskFullyPlanned,
+  taskRunKind,
+} from "./task-workflow.ts";
 export * from "./templates.ts";
 export * from "./writer.ts";

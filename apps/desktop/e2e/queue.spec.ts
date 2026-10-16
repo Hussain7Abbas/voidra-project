@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
 import { checkProject, createAction } from "voidra";
+import { openExecutionOptions } from "./helpers/execution.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`orders and runs several actions with a keyboard in ${theme}`, async () => {
@@ -68,7 +69,7 @@ for (const theme of ["light", "dark"] as const)
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Run", exact: true }).click();
+      await openExecutionOptions(page);
       const available = page.getByRole("region", {
         name: "Available actions",
         exact: true,
@@ -115,7 +116,7 @@ for (const theme of ["light", "dark"] as const)
         .toContain(`1. [ ] ${second}\n2. [ ] ${first}`);
       await page.reload();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page.getByRole("button", { name: "Run", exact: true }).click();
+      await openExecutionOptions(page);
       await expect(
         page
           .getByRole("region", { name: "Run queue", exact: true })

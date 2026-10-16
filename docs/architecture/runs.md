@@ -31,3 +31,11 @@ New-project Discovery/Plan can run while Git is absent. Checkpoints bind reposit
 ### v1.1.0 Actions sequence
 
 The [versioned private intent/queue contract](../format/queue.md#versioned-actions-intent-reader-110) separates visible work from consumable execution requests. TODO creation/moves and domain/runtime producers group enrollment with their source write; returning to Backlog or reaching a terminal projection removes membership. Reorder preserves pending-token membership and compares the complete global order, both private hashes and source revisions. The service caches the complete sequence with tasks in index version 8, retaining the prior snapshot during unfinished writes. Run receipts persist ordering consumption without making clone validity depend on private local files. Both standalone clients use the same first-eligible selection; existing gate/ownership/assignment checks remain authoritative.
+
+## Workflow runs (reader 1.2.0)
+
+Explicit workflow tasks use the shared run-kind contract: Planning is source-read-only even for Docs/Research, TODO is idle, In progress implements and Review checks QA/security separately. Planning-only mode may plan ungated workflow tasks but cannot publish quality or implement them. Questions and exact plan approvals retain their existing human gates. Implementation finalization queues Review automatically.
+
+`publishQuality(root, token, report)` requires a live owned quality run, unchanged source/HEAD/tags and all consumed inputs, plus a completed implementation or Research finding. Nonempty QA and security checks carry concrete evidence. Passing checks atomically link the quality run and complete the task; failures return idle TODO; missing requirements append questions and return Planning. Reports and original approval/review/run history remain available. Quality never repairs source or commits. Release actions and legacy tasks keep their human acceptance semantics.
+
+An existing repository must commit its reader 1.2.0 metadata upgrade explicitly before implementation/quality. This prevents committing new-format action data over an unsupported cloned metadata baseline without staging unrelated edits.

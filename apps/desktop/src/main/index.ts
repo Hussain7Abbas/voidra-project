@@ -33,6 +33,7 @@ import { draftRecoveryText } from "../shared/form-drafts.ts";
 import { isTeamRequest } from "../shared/team.ts";
 import { AiService } from "./ai-service.ts";
 import { AiSettings } from "./ai-settings.ts";
+import { openCodingClient } from "./coding-client-launcher.ts";
 import { DraftStore } from "./form-drafts.ts";
 import { OpenRouterClient } from "./openrouter.ts";
 import {
@@ -695,6 +696,17 @@ async function start(): Promise<void> {
           await clipboard.writeText(
             `${request.agent === "claude-code" ? "/voidra-go" : "$voidra-go"} recover ${request.kind} ${request.id}`,
           );
+          if (request.open)
+            await openCodingClient(
+              request.agent,
+              projects.get(window.id)?.path,
+              app.getPath("userData"),
+              {
+                test:
+                  !app.isPackaged &&
+                  process.env.VOIDRA_TEST_AGENT_LAUNCH === "1",
+              },
+            );
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "copy-agent-command") {
           if (request.agent !== (await store.read()).defaultClient)
@@ -704,6 +716,17 @@ async function start(): Promise<void> {
           await clipboard.writeText(
             `${request.agent === "claude-code" ? "/" : "$"}${request.skill ?? "voidra-go"}`,
           );
+          if (request.open)
+            await openCodingClient(
+              request.agent,
+              projects.get(window.id)?.path,
+              app.getPath("userData"),
+              {
+                test:
+                  !app.isPackaged &&
+                  process.env.VOIDRA_TEST_AGENT_LAUNCH === "1",
+              },
+            );
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-theme") {
           await store.setTheme(request.theme);

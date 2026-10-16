@@ -107,7 +107,9 @@ export async function proposeArchitecture(
     action = schemas.action.parse(record.data);
   if (
     action.doneBy !== "agent" ||
-    (!owner && !["discovery", "plan"].includes(action.stage ?? ""))
+    (!owner &&
+      action.taskWorkflow !== 1 &&
+      !["discovery", "plan"].includes(action.stage ?? ""))
   )
     throw new Error(
       "Architecture proposals require an agent action in Discovery or Plan",
@@ -169,6 +171,14 @@ export async function proposeArchitecture(
     throw new Error(
       "Answer open questions and resolve delegated choices before continuing",
     );
+  if (
+    action.taskWorkflow === 1 &&
+    input.kind !== "questions" &&
+    previous.length === 0
+  )
+    throw Error(
+      "Ask the task's edge-case questions before publishing its plan or subtasks",
+    );
   if (input.kind === "questions") {
     const answered = new Set(previous.map((q) => q.id));
     for (const q of input.questions) {
@@ -208,12 +218,16 @@ export async function proposeArchitecture(
         input[file],
       );
     const rule = projectLifecycles(check.metadata)[action.type];
-    if (!rule.planGate)
+    if (!rule.planGate && action.taskWorkflow !== 1)
       throw new Error(
         "This action uses its result gate rather than a plan approval",
       );
-    action.stage = "plan";
-    action.status = "waiting";
+    action.stage = rule.planGate ? "plan" : rule.stages[0];
+    action.status = rule.planGate ? "waiting" : "ready";
+    if (action.taskWorkflow === 1 && !rule.planGate) {
+      action.workflowPlanned = true;
+      action.taskColumn = "todo";
+    }
     if (action.planApproval)
       action.approvalHistory = [
         ...(action.approvalHistory ?? []),
@@ -236,7 +250,18 @@ export async function proposeArchitecture(
           id: children[index],
           type: action.type,
           title: slice.title,
-          ...(await newTaskFields(root, check, "action")),
+          ...(await newTaskFields(
+            root,
+            check,
+            "action",
+            action.taskWorkflow === 1
+              ? {
+                  taskWorkflow: 1,
+                  taskColumn: action.targetRelease ? "planning" : "backlog",
+                  targetRelease: action.targetRelease,
+                }
+              : {},
+          )),
           stage: projectLifecycles(check.metadata)[action.type].stages[0],
           status: "ready",
           doneBy: "agent",

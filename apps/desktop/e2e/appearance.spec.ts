@@ -228,6 +228,11 @@ for (const theme of ["light", "dark"] as const) {
       window?.setBounds({ width: 1000, height: 550 });
       window?.focus();
     });
+    // The reduced navigation fits at normal size; real magnification exercises
+    // independent overflow without adding obsolete navigation entries.
+    await application.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(1.5);
+    });
     const metrics = () =>
       page.evaluate(() => {
         const sidebar = document.querySelector<HTMLElement>(".sidebar");
@@ -262,6 +267,9 @@ for (const theme of ["light", "dark"] as const) {
     await audit();
     await page.screenshot({
       path: resolve(`../../.cache/screenshots/titlebar-${theme}.png`),
+    });
+    await application.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(1);
     });
 
     await application.close();

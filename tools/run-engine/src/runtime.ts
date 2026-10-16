@@ -16,6 +16,7 @@ import {
   prepareResult,
   publishHumanBlocker,
   publishPlanning,
+  publishQuality,
   publishReleasePlan,
   publishResearch,
   type RunContext,
@@ -74,7 +75,7 @@ export async function runRuntime(
       return {
         code: 0,
         value:
-          "voidra-go runtime: release-options; start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
+          "voidra-go runtime: release-options; start --agent claude-code|codex [--owner-pid PID] [--mode go|plan]; guard --token TOKEN --report FILE; choices|research|human --token TOKEN --report FILE; heartbeat --token TOKEN; planning|release-plan|quality --token TOKEN --report FILE; prepare --token TOKEN --report FILE; commit --token TOKEN --message TEXT; finalize --token TOKEN; fail --token TOKEN --summary TEXT; recover --run RUN; inspect --run RUN. Every command accepts --project FOLDER.",
       };
     if (command === "release-options")
       return { code: 0, value: await projectReleaseOptions(root) };
@@ -158,6 +159,14 @@ export async function runRuntime(
         };
       return { code: 0, value: { ok: true } };
     }
+    if (command === "quality") {
+      await publishQuality(
+        root,
+        need("--token"),
+        JSON.parse(await readFile(resolve(root, need("--report")), "utf8")),
+      );
+      return { code: 0, value: { quality: true } };
+    }
     if (command === "prepare") {
       const report = reportSchema.parse(
         JSON.parse(await readFile(resolve(root, need("--report")), "utf8")),
@@ -206,7 +215,26 @@ export async function runRuntime(
 
 function publicContext(ctx: RunContext | null): unknown {
   if (!ctx) return null;
-  const { run, action, agent, phase, ownerToken, actionPath, runPath, mode } =
-    ctx;
-  return { run, action, agent, phase, ownerToken, actionPath, runPath, mode };
+  const {
+    run,
+    action,
+    agent,
+    phase,
+    ownerToken,
+    actionPath,
+    runPath,
+    mode,
+    taskRunKind,
+  } = ctx;
+  return {
+    run,
+    action,
+    agent,
+    phase,
+    ownerToken,
+    actionPath,
+    runPath,
+    mode,
+    taskRunKind,
+  };
 }

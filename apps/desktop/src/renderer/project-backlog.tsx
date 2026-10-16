@@ -14,6 +14,7 @@ import { DraftNavigation, draftField, useFormDraft } from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { MarkdownEditor } from "./markdown-editor.tsx";
 import { TaskCapture } from "./task-capture.tsx";
+import { TaskDelete } from "./task-delete.tsx";
 import { AssigneeSelect } from "./team-settings.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
@@ -302,6 +303,14 @@ export function ProjectBacklog({
                   <h3 className="font-semibold">Reason for rejection</h3>
                   <SafeMarkdown body={idea.data.reason} />
                 </div>
+              )}
+              {selectedId && (
+                <TaskDelete
+                  id={idea.data.id}
+                  revision={idea.revision}
+                  disabled={busy}
+                  onDeleted={() => onBack?.()}
+                />
               )}
               {idea.data.promotedTo && (
                 <p className="text-muted mt-4">

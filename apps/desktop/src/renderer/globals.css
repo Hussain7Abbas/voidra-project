@@ -23,6 +23,8 @@
 }
 
 :root {
+  --notice-yellow: #fff7d6;
+  --notice-ink: #422b00;
   --paper: #f7f7fb;
   --surface: #ffffff;
   --ink: #202132;
@@ -1079,9 +1081,9 @@
   cursor: default;
 }
 
-/* Five stable columns; offscreen columns and card drags stay local to the board. */
+/* Six stable columns; offscreen columns and card drags stay local to the board. */
 .tasks-board {
-  grid-template-columns: repeat(5, minmax(14rem, 1fr));
+  grid-template-columns: repeat(6, minmax(14rem, 1fr));
   overflow-x: auto;
   align-items: stretch;
   overscroll-behavior-x: contain;
@@ -1258,12 +1260,25 @@
   border: 0;
   padding: 0;
   margin: 0;
-  background: var(--paper);
-  position: relative;
+  background: var(--border);
+  position: absolute;
+  z-index: 2;
   flex: none;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+}
+.pane-resizer {
+  background: transparent;
+}
+.pane-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 2.5px 0;
+  background: var(--border);
+}
+.pane-resizer-vertical::before {
+  inset: 0 2.5px;
 }
 .pane-resizer::after {
   content: "";
@@ -1277,14 +1292,18 @@
   opacity: 1;
 }
 .pane-resizer-vertical {
-  height: auto;
+  inset-block: 0;
+  left: -2.5px;
+  height: 100%;
   width: 6px;
   align-self: stretch;
   cursor: col-resize;
 }
 .pane-resizer-horizontal {
+  inset-inline: 0;
+  top: -2.5px;
   height: 6px;
-  width: auto;
+  width: 100%;
   align-self: stretch;
   cursor: row-resize;
 }
@@ -1295,6 +1314,7 @@
   display: flex;
 }
 .actions-pane .actions-sidebar {
+  border-inline-start: 0;
   width: 100%;
   height: 100%;
   flex: 1 1 auto;
@@ -1347,6 +1367,7 @@
   min-height: 0;
 }
 .waiting-pane .waiting-panel {
+  border-block-start: 0;
   height: 100%;
   flex: 1 1 auto;
   min-width: 0;
@@ -1356,15 +1377,18 @@
 }
 
 .pane-resize-control {
+  position: relative;
   flex: none;
   display: flex;
+  margin: 0;
+  padding: 0;
 }
 .pane-resize-control-vertical {
-  width: 6px;
+  width: 1px;
   align-self: stretch;
 }
 .pane-resize-control-horizontal {
-  height: 6px;
+  height: 1px;
   align-self: stretch;
 }
 .pane-resize-control > .pane-resizer {
@@ -1492,4 +1516,23 @@
   background: #f9b64a;
   color: #241707;
   text-decoration: underline;
+}
+
+.sync-notification {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--notice-yellow);
+  color: var(--ink);
+  border-bottom: 1px solid var(--warning);
+}
+.sync-notification p {
+  color: var(--notice-ink);
+}
+.sync-notification > div {
+  margin: 0;
+  margin-left: auto;
 }

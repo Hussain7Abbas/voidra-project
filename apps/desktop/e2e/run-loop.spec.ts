@@ -17,7 +17,8 @@ import {
   type Page,
   test,
 } from "@playwright/test";
-import { checkProject } from "voidra";
+import { checkProject, createAction, readActionSequence } from "voidra";
+import { openExecutionOptions } from "./helpers/execution.ts";
 
 const execute = promisify(execFile),
   repository = resolve("../.."),
@@ -40,7 +41,14 @@ async function queue() {
   await page
     .getByRole("button", { name: "Queue for agent", exact: true })
     .click();
-  await expect(page.getByText("Action queued", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Queue for agent", exact: true }),
+  ).toBeEnabled();
+  await expect
+    .poll(
+      async () => readActionSequence(await checkProject(root)).pending.length,
+    )
+    .toBeGreaterThan(0);
 }
 async function scenario(name: string) {
   const result = await execute(process.execPath, [fake, root, name], {
@@ -49,19 +57,15 @@ async function scenario(name: string) {
   return JSON.parse(result.stdout) as { run: string };
 }
 async function recover(run: string) {
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await page.getByRole("button", { name: "Recover run", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    `$voidra-go recover run ${run}`,
-  );
+  await openExecutionOptions(page);
   await page
-    .getByRole("button", { name: "Copy Codex recovery", exact: true })
+    .getByRole("complementary", { name: "Actions", exact: true })
+    .getByRole("button", { name: "Recover run", exact: true })
     .click();
   await expect
     .poll(() => app.evaluate(async ({ clipboard }) => clipboard.readText()))
     .toBe(`$voidra-go recover run ${run}`);
   await axe();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
   // The coding agent performs recovery; the app only copies its narrow command.
   await execute(process.execPath, [
     runtime,
@@ -72,7 +76,9 @@ async function recover(run: string) {
     run,
   ]);
   await expect(
-    page.getByRole("button", { name: "Recover run", exact: true }),
+    page
+      .getByRole("complementary", { name: "Actions", exact: true })
+      .getByRole("button", { name: "Recover run", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Tasks", exact: true }).click();
   await page
@@ -132,24 +138,14 @@ test.beforeEach(async () => {
   await expect(
     page.getByRole("option", { name: "Current · 1.2.3", exact: true }),
   ).toHaveCount(1);
-  await page.getByRole("button", { name: "Add task", exact: true }).click();
-  await page.getByRole("radio", { name: "Normal", exact: true }).check();
-  await page.getByLabel("Action type", { exact: true }).selectOption("docs");
-  await page.getByLabel("Title", { exact: true }).fill("Document installation");
-  await page
-    .getByLabel("Description", { exact: true })
-    .fill("Document installation in README.md and check the wording.");
-  await axe();
-  await page
-    .getByRole("button", { name: "Create action", exact: true })
-    .click();
-  await expect(page.getByText("Action created", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", {
-      name: "Move Document installation to TODO",
-      exact: true,
-    })
-    .click();
+  // Retained legacy runtime/recovery contract; the new capture/Planning/QA journey has its own real-window matrix.
+  await createAction(root, {
+    type: "docs",
+    title: "Document installation",
+    description: "Document installation in README.md and check the wording.",
+    taskColumn: "todo",
+    by: "Fixture",
+  });
   await expect(
     page
       .getByRole("region", { name: "TODO tasks", exact: true })
@@ -179,7 +175,7 @@ for (const theme of ["light", "dark"])
     await page.keyboard.press("Escape");
     await axe();
     await queue();
-    await page.getByRole("button", { name: "Run", exact: true }).click();
+    await openExecutionOptions(page);
     for (const [name, command] of [
       ["Claude Code", "/voidra-go"],
       ["Codex", "$voidra-go"],
@@ -188,7 +184,7 @@ for (const theme of ["light", "dark"])
       await page.getByRole("radio", { name: name, exact: true }).check();
       await page.keyboard.press("Escape");
       await page
-        .getByRole("button", { name: `Copy ${name} command`, exact: true })
+        .getByRole("button", { name: `Voidra Go · ${name}`, exact: true })
         .click();
       await expect
         .poll(() => app.evaluate(async ({ clipboard }) => clipboard.readText()))
@@ -234,9 +230,7 @@ for (const theme of ["light", "dark"])
     ).toBeVisible();
     await axe();
     await page.getByRole("button", { name: "Accept", exact: true }).click();
-    await expect(
-      page.getByText("Action accepted", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".action-meta")).toContainText("Done");
     await expect(page.locator(".action-meta")).toContainText("Done");
     await axe();
     expect((await checkProject(root)).diagnostics).toEqual([]);
@@ -290,9 +284,7 @@ for (const failure of ["crash-mid-run", "crash-after-commit", "stale-lock"])
         page.getByRole("button", { name: "Accept", exact: true }),
       ).toBeEnabled();
       await page.getByRole("button", { name: "Accept", exact: true }).click();
-      await expect(
-        page.getByText("Action accepted", { exact: true }),
-      ).toBeVisible();
+      await expect(page.locator(".action-meta")).toContainText("Done");
     } else
       await expect(
         page.getByRole("button", { name: "Queue for agent", exact: true }),
@@ -327,13 +319,15 @@ test("a live owner with an old heartbeat blocks recovery and competing starts", 
     child.once("error", reject);
   });
   const { run } = JSON.parse(output) as { run: string };
-  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await openExecutionOptions(page);
   await expect(
     page.getByRole("region", { name: "Agent status" }),
   ).toContainText("owner is still alive");
   await expect(
-    page.getByRole("button", { name: "Recover run", exact: true }),
-  ).toHaveCount(0);
+    page
+      .getByRole("complementary", { name: "Actions", exact: true })
+      .getByRole("button", { name: "Recover run", exact: true }),
+  ).toBeDisabled();
   const lock = await readFile(join(root, ".voidra/local/run.lock"), "utf8");
   await expect(scenario("success")).rejects.toThrow();
   await expect(
@@ -374,15 +368,15 @@ test("an interrupted grouped write holds the last complete action until explicit
     (o) => o.kind === "operation" && o.document.data.state === "prepared",
   );
   if (!pending) throw new Error("Expected unfinished operation");
-  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await openExecutionOptions(page);
   await page
+    .getByRole("complementary", { name: "Actions", exact: true })
     .getByRole("button", { name: "Recover write", exact: true })
     .click();
-  await expect(page.getByRole("dialog")).toContainText(
-    `$voidra-go recover operation ${String(pending.document.data.id)}`,
-  );
+  await expect
+    .poll(() => app.evaluate(async ({ clipboard }) => clipboard.readText()))
+    .toBe(`$voidra-go recover operation ${String(pending.document.data.id)}`);
   await axe();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
   await execute(process.execPath, [
     join(repository, "packages/voidra/dist/cli-entry.js"),
     "recover",

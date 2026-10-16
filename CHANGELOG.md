@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 (unreleased)
+
+Adds Planning and idle TODO before queued In progress, with separate owned QA/security and automatic Done/rework/question routing. Consolidates Documentation tabs and Actions execution tools, opens the selected coding client from Go/Sync, makes Sync a yellow notification, removes panel spacing and adds reversible task deletion. New workflow data requires reader 1.2.0; legacy projects and exact release acceptance remain supported.
+
 ## 1.1.1
 
 Completes the Tasks workspace described below with an explicit readiness/focus check in hosted shortcut verification and current CLI documentation. Fixes concurrent history reads treating a live edit/replay as interrupted before its writer receipt exists, preserving Undo and outside-edit protection. App, library and all six skills share 1.1.1.

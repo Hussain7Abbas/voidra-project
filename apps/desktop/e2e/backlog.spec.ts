@@ -4,9 +4,10 @@ import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 
 for (const theme of ["light", "dark"] as const)
-  test(`backlog creation, edits and rejected reasons in ${theme}`, async () => {
+  test(`historical backlog edits, rejected reasons and promotion in ${theme}`, async () => {
     const temp = await mkdtemp(join(tmpdir(), "voidra-backlog-")),
       root = join(temp, "project");
     await cp(resolve("../../fixtures/new-project/project"), root, {
@@ -40,10 +41,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("heading", { name: "Tasks", level: 1, exact: true }),
       ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "Normal", exact: true }).check();
+      await openLegacyIdeaEditor(page, root);
       await page.getByLabel("Title", { exact: true }).fill("Export notes");
       await page
         .getByLabel("Description", { exact: true })
@@ -57,9 +55,7 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
-      await page
-        .getByRole("button", { name: "Export notes", exact: true })
-        .click();
+
       await page
         .getByRole("button", { name: "Edit idea: Export notes", exact: true })
         .click();

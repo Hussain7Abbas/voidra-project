@@ -58,6 +58,7 @@ async function planningProject(root: string): Promise<ProjectInspection> {
   return project;
 }
 const promotionInput = z.strictObject({
+  ...taskInputFields,
   id: schemas.idea.shape.id,
   revision: z.string().regex(/^[a-f0-9]{64}$/),
   type: schemas.action.shape.type,
@@ -96,7 +97,8 @@ export async function promoteIdea(
       "action",
       project.metadata?.taskTracking === 1
         ? {
-            taskColumn: "todo",
+            taskColumn: input.taskColumn ?? "todo",
+            taskWorkflow: input.taskWorkflow,
             ...(idea.targetRelease
               ? { targetRelease: idea.targetRelease }
               : {}),
@@ -124,6 +126,7 @@ export async function promoteIdea(
       project,
       {
         changes: [
+          ...ideaReaderChanges(project, input.taskWorkflow === 1, true),
           {
             path,
             expectedHash: input.revision,
@@ -295,10 +298,16 @@ async function applyActionChange(
       const next: Action = {
         ...parent,
         ...(project.metadata?.taskTracking === 1
-          ? await newTaskFields(root, project, "action", {
-              taskColumn: "todo",
-              targetRelease: parent.targetRelease ?? undefined,
-            })
+          ? await newTaskFields(
+              root,
+              project,
+              "action",
+              {
+                taskColumn: "todo",
+                targetRelease: parent.targetRelease ?? undefined,
+              },
+              false,
+            )
           : {}),
         status: "complete",
         completedBySlices: true,
@@ -435,10 +444,16 @@ export async function setHumanStep(
   )
     Object.assign(
       action,
-      await newTaskFields(root, project, "action", {
-        taskColumn: "todo",
-        targetRelease: action.targetRelease ?? undefined,
-      }),
+      await newTaskFields(
+        root,
+        project,
+        "action",
+        {
+          taskColumn: "todo",
+          targetRelease: action.targetRelease ?? undefined,
+        },
+        false,
+      ),
     );
   action.updatedAt = new Date().toISOString();
   await applyActionChange(root, project, action, record.document.body);
@@ -461,10 +476,17 @@ export async function createAction(
     ),
     path = `.voidra/actions/${id}/action.md`;
   const data = schemas.action.parse({
-    ...(await newTaskFields(root, project, "action", {
-      taskColumn: input.taskColumn,
-      targetRelease: input.targetRelease,
-    })),
+    ...(await newTaskFields(
+      root,
+      project,
+      "action",
+      {
+        taskColumn: input.taskColumn,
+        taskWorkflow: input.taskWorkflow,
+        targetRelease: input.targetRelease,
+      },
+      input.type !== "release" && input.doneBy === "agent",
+    )),
     id,
     type: input.type,
     title: input.title,
@@ -489,6 +511,7 @@ export async function createAction(
       project,
       {
         changes: [
+          ...ideaReaderChanges(project, input.taskWorkflow === 1, true),
           {
             path,
             expectedHash: null,
@@ -509,8 +532,13 @@ export async function createAction(
 function ideaReaderChanges(
   project: ProjectInspection,
   needed: boolean,
+  enableWorkflow = false,
 ): WriteManifest["changes"] {
-  if (!needed || project.metadata?.requiredVoidra === PACKAGE_VERSION)
+  if (
+    !needed ||
+    (project.metadata?.requiredVoidra === PACKAGE_VERSION &&
+      (!enableWorkflow || project.metadata.taskWorkflow === 1))
+  )
     return [];
   const path = ".voidra/voidra.json",
     bytes = project.files.get(path);
@@ -519,7 +547,7 @@ function ideaReaderChanges(
     {
       path,
       expectedHash: hash(bytes),
-      content: `${JSON.stringify({ ...project.metadata, requiredVoidra: PACKAGE_VERSION }, null, 2)}\n`,
+      content: `${JSON.stringify({ ...project.metadata, requiredVoidra: PACKAGE_VERSION, ...(enableWorkflow ? { taskWorkflow: 1 } : {}) }, null, 2)}\n`,
     },
   ];
 }

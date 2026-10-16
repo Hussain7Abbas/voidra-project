@@ -2,9 +2,9 @@
 
 [Documentation](intro.md) · [Installation](../README.md#install-on-macos) · [Glossary](../GLOSSARY.md)
 
-This guide describes Voidra 1.1.1. [P10 evidence](verification/v1.1.0-p10.md) records completed verification, publication and remaining limits. The original 1.0.0 delivery remains documented in [P17](verification/p17.md).
+This guide describes the current 1.2.0 development workspace. Published 1.1.1 remains available; [P10 evidence](verification/v1.1.0-p10.md) records completed verification, publication and remaining limits. The original 1.0.0 delivery remains documented in [P17](verification/p17.md).
 
-The v1.1 workspace replaces the primary Backlog/Actions pages with **Tasks**. It shows Backlog, TODO, In progress, Review and Done, retaining idea provenance and child tasks. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade for an existing legacy project. Fresh projects enable tracking automatically. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Move buttons preserve assigned releases and fill missing ones when moving to TODO. Runs, answers and reviews still control lifecycle progress. The completed workspace changes and delivery are tracked in the [v1.1.0 plan](../plan-v1.1.0/main.md).
+The workspace uses **Tasks** with Backlog, Planning, TODO, In progress, Review and Done. Choose a project **Release package** to use an alternate `package.json`, then review the explicit task-tracking upgrade for an existing legacy project. Fresh projects enable tracking automatically. Opening a project makes no bulk changes. New tickets use the current version; Backlog can remain unversioned. Leaving Backlog fills a missing release and preserves an assigned version. Planning owns questions/plans, TODO is idle, In progress queues implementation and Review queues QA/security. The [workflow tracker](../plan-v1.2.0/main.md) records this follow-up; the completed [v1.1.0 plan](../plan-v1.1.0/main.md) remains historical delivery evidence.
 
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 
@@ -12,7 +12,7 @@ Voidra keeps your project’s plans in readable files under `.voidra/`. The desk
 
 Open the project folder in the app. For an existing Git project, choose the worktree root rather than one of its subfolders. Linked worktrees are supported.
 
-For an empty folder, choose **General software**, answer the profile questions, then select **Create planning folder**. Voidra creates the profile and a **Bootstrap** action. You can leave unresolved answers open. Bootstrap discovers the remaining questions and proposes a plan before any project setup. Git can remain absent during planning; after you approve the exact Bootstrap plan, Go initializes the local repository before implementation. Configure your Git name and email before running unassigned implementation work. New projects use release-aware Tasks automatically. If the folder has no usable package version yet, Bootstrap stays in Backlog; add a real package version, choose its source in Release settings, then move Bootstrap to TODO.
+For an empty folder, choose **General software**, answer the profile questions, then select **Create planning folder**. Voidra creates the profile and a **Bootstrap** action. You can leave unresolved answers open. Bootstrap discovers the remaining questions and proposes a plan before any project setup. Git can remain absent during planning; after you approve the exact Bootstrap plan, Go initializes the local repository before implementation. Configure your Git name and email before running unassigned implementation work. New projects use release-aware Tasks automatically. If the folder has no usable package version yet, Bootstrap stays in Backlog; add a real package version, choose its source in Release settings, then move Bootstrap to Planning.
 
 For a folder with code, follow the app’s `voidra-init` instructions in your coding agent, or enter the profile manually. Init reads the existing project, creates planning files, marks observed answers **inferred**, and adds instruction pointers. For an existing-code folder without Git, have your coding agent set up the local repository before implementation. Review inferred answers in the inbox. Inferred, assumed and open values are distinguishable from values you confirmed.
 
@@ -25,7 +25,7 @@ The public skills are:
 | Skill | Purpose |
 | --- | --- |
 | `voidra-init` | Bring an existing codebase into Voidra. |
-| `voidra-go` | Run queued planning, implementation, Research and local Release work. |
+| `voidra-go` | Run queued planning, implementation, QA/security, Research and local Release work. |
 | `voidra-plan` | Run queued planning without implementing or committing. |
 | `voidra-release` | Collect completed work into a local Release action. |
 | `voidra-sync` | Reconcile outside Git changes into planning suggestions. |
@@ -34,7 +34,9 @@ The general template also includes `voidra-architect-general`, which Go and Plan
 
 ## Turn an idea into work
 
-Open **Tasks** to work in Backlog, TODO, In progress, Review and Done. **Add task** (Cmd/Ctrl+N) captures executable work in Backlog; **Add to Backlog** captures an idea. Move captured work to TODO to enroll it in Actions. Open a card to clarify, edit or promote it, review its plans/results, or use a human checklist. **Back to Tasks** returns to the board.
+Open **Tasks** to work in Backlog, Planning, TODO, In progress, Review and Done. **Add task** (Cmd/Ctrl+N) captures work in Backlog. Move it to Planning to queue discovery, edge-case questions and needed subtasks. After answers and any required exact plan approval, TODO holds fully planned tasks without running them. Move a TODO card to In progress to queue implementation. Open a card to edit, inspect its full history or delete it; deletion preserves records and can be undone. **Back to Tasks** returns to the board.
+
+Existing tasks retain their saved lifecycle and execution requests until you explicitly adopt this workflow by moving them to Planning. Newly captured tasks use it by default.
 
 Choose an action type that matches the work:
 
@@ -48,7 +50,7 @@ Choose an action type that matches the work:
 | Research | Record findings and recommendations without changing code. |
 | Release | Propose a version and notes, then commit and tag after acceptance. |
 
-New ordinary work uses your coding agent. Existing human tasks and human blockers still have usable checklists. Dependencies block an action until the required work is complete. The board filters tasks by release, type, status and assignee; it does not override their lifecycle or approval gates. Drag a card by its grip or focus the grip and use Left/Right. Visible Backlog/TODO buttons provide another way to move unstarted work. Escape cancels a drag. Run, Review and Done remain controlled by their existing gates; a refused move offers the relevant task steps. Existing release assignments survive moves; a missing release is filled from the current package when leaving Backlog. Open **Release settings** to choose the package or enable release-aware movement. Closing it preserves unfinished setup values. The Release filter offers Current, previous versions, All releases and Unassigned Backlog; it never changes the run queue. Large work can be split into demonstrable child slices, each with its own planning loop.
+New ordinary work uses your coding agent. Existing human tasks and human blockers still have usable checklists. Dependencies block an action until the required work is complete. The board filters tasks by release, type, status and assignee; it does not override their lifecycle or approval gates. Drag a card by its grip or focus the grip and use Left/Right. Visible movement buttons provide another way to advance or replan work. Escape cancels a drag. Review and Done require owned results; a refused move offers the relevant task steps. Existing release assignments survive moves; a missing release is filled from the current package when leaving Backlog. Open **Release settings** to choose the package or enable release-aware movement. Closing it preserves unfinished setup values. The Release filter offers Current, previous versions, All releases and Unassigned Backlog; it never changes the run queue. Large work can be split into demonstrable child slices, each with its own planning loop.
 
 Fresh action and Backlog capture opens in **Agentic**: describe one outcome in a Markdown input, review the OpenRouter request and generated title/type/description, then save. **Normal** shows Title and Description with the relevant metadata. Title is optional; leaving it empty requests a reviewed AI title. A manual title is preserved. Switching modes retains each mode’s text and reviewed result; generated fields seed untouched Normal inputs for editing. No key or generation failure leaves the draft available for retry or manual completion. Assignee comes from Team; Backlog assignment and proposed type survive promotion.
 
@@ -70,9 +72,11 @@ Add members in **Settings → Team** using their Git name and email, then select
 
 ## Run the queue
 
-For release-aware projects, TODO work joins the right **Actions** sequence automatically. Drag its grip, use Up/Down arrows or its buttons to order the full sequence, independently of board filters. Dependency warnings offer optional **Rearrange**; keeping the order still cannot run blocked work. Running/waiting tasks remain until they finish, are cancelled or return to Backlog. Legacy tracked projects show a source-bound **Enable Actions sequence** preview; new task-tracking upgrades include it.
+For workflow tasks, Planning, In progress and Review join the right **Actions** sequence. TODO is idle planned inventory. Drag the sequence grip, use Up/Down arrows or its buttons to order work independently of board filters. Dependency warnings offer **Rearrange**; ignoring the warning cannot run blocked work. Planning can clarify a parent while its subtasks remain incomplete; implementation waits for dependencies and children.
 
-The sequence and execution requests are separate: starting consumes a request once. An eligible later request may run while an earlier one waits for a prerequisite. After answering/approving or deciding to retry, explicitly queue that action again in **Run**; reordering never silently retries it. In legacy projects, add eligible actions to **Run** and arrange their strict queue order. The queue is personal, while actions and results are shared planning records. Start your chosen coding agent in the project and invoke Go or Plan. The agent processes the queue, records ownership and consumed inputs before work, and stops each action when it needs a decision.
+Use **Voidra Go** in Actions to copy the selected client's command and open that coding app in the project. Paste the command to start it. Moving a card never starts a hidden agent. **Execution options** contains queue controls, planning commits and recovery. Legacy tasks retain their existing queue/gate behavior. Each request is consumed once; retries are explicit. Answering the last question requeues Planning, approving a workflow plan parks it in TODO, and completing implementation queues Review.
+
+Review runs QA and security as a separate read-only pass against current source and task context. Passing evidence moves the task to Done automatically; a failed check returns it to TODO with feedback, while missing requirements return it to Planning with another question round. Original answers, plans, reviews and runs remain available. Release actions retain their exact human acceptance and publication safeguards.
 
 Go can implement approved work. Plan preserves source files, instructions, Git presence, commits and tags; it may write planning records and settled glossary additions through its helper. Plan stops before implementation even when an action already has an approved plan.
 
@@ -102,7 +106,7 @@ Standalone agents use their bundled `release-options` command for the same read-
 
 Git history links action commits using their recorded trailers. **Commit planning changes** shows a preview of selected shared planning files before creating a separate planning commit. It excludes private local state and preserves unrelated staging. No commit operation automatically pushes your project.
 
-When you make code changes outside Voidra, run Sync to inspect the relevant Git history and propose planning updates. Confirmed answers are protected: a conflicting observation becomes a draft Profile change instead of replacing your answer. Repeating Sync at the same revision does not duplicate proposals.
+When you make code changes outside Voidra, a light-yellow notification appears above the workspace. Its **Sync** button copies the selected client’s command and opens that app. Paste it to run Sync to inspect the relevant Git history and propose planning updates. Confirmed answers are protected: a conflicting observation becomes a draft Profile change instead of replacing your answer. Repeating Sync at the same revision does not duplicate proposals.
 
 Undo and redo cover app planning edits and survive restart. A record already consumed by a run cannot be undone across that consumption boundary. If outside edits changed bytes, review the overwrite confirmation rather than assuming history can restore them safely. Undo does not rewrite implementation Git history.
 
@@ -110,13 +114,13 @@ Undo and redo cover app planning edits and survive restart. A record already con
 
 The decisions view gathers answered questions, plan/review decisions and assumptions so you can search them. Revisit an assumption from its current source to create follow-up work; the original decision remains history.
 
-Decisions and Glossary render complete Markdown, including tables, lists and code. Glossary search highlights matches without hiding parts of a definition.
+Documentation has **Explore**, **Glossary** and **Decisions** tabs. Decisions and Glossary render complete Markdown, including tables, lists and code. Glossary search highlights matches without hiding parts of a definition.
 
 Open **Documentation** to browse `docs/` and the root `GLOSSARY.md` as pages. Search documentation (Cmd/Ctrl+F) filters the directory by visible text and shows each file's match count. Select a result, then use Next/Previous match; document back/forward preserves your search. Matching is literal and case-insensitive, including text across bold or italic formatting. Filenames and hidden link destinations do not count. Added, changed and removed files refresh automatically. Toggle **Directory**, drag its divider or use arrow keys to resize it. A narrow workspace shows the directory over the article and closes it after you choose a file. Invalid or unsupported documents show a useful error while search stays available. These views are read-only. Use **Open in editor** to edit a source file. ADRs are reserved for decisions that are hard to reverse, surprising without context and involve a real tradeoff; smaller decisions stay with their action.
 
 ## Settings and optional AI
 
-Settings has **General**, **Appearance** and **Team** tabs. General contains the **Default coding AI client** switch, optional AI, coding-agent skills, update checks and the app version. Choose Claude Code or Codex; setup, Run, recovery and Sync show that client’s command. Existing runs keep their recorded client. Appearance contains the light, dark or system theme and **Custom titlebar**, enabled by default. Its styled window controls close, minimize and maximize/restore the window; the Settings icon is at the opposite end. Turn the switch off to use the operating system's titlebar. The preference is saved immediately and applies when you reopen the window; existing windows and unfinished edits stay open.
+Settings has **General**, **Appearance** and **Team** tabs. General contains the **Default coding AI client** switch, optional AI, coding-agent skills, update checks and the app version. Choose Claude Code or Codex; setup, Actions, recovery and Sync show that client’s command. Existing runs keep their recorded client. Appearance contains the light, dark or system theme and **Custom titlebar**, enabled by default. Its styled window controls close, minimize and maximize/restore the window; the Settings icon is at the opposite end. Turn the switch off to use the operating system's titlebar. The preference is saved immediately and applies when you reopen the window; existing windows and unfinished edits stay open.
 
 Navigation, Actions, main content and Waiting for you scroll independently. Toggle the three panes from the titlebar or View menu with Cmd/Ctrl+Alt+1/2/3. Drag their dividers or use arrow keys and Home/End on a focused divider; Enter hides its pane and Escape cancels a drag. Sizes and visibility restore per project. Undo/Redo stay in the titlebar, including the accessory in native-titlebar mode. New attention opens the bottom panel without taking typing focus; dismissing it remains respected until something new needs attention. Hiding first saves unfinished answers/feedback; a save failure leaves it open. The app supports keyboard operation; use Left/Right or Home/End to move between settings tabs, Space to change the switch, and Escape to close dialogs where appropriate.
 

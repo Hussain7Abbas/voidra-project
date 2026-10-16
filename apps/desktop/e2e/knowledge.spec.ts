@@ -104,8 +104,9 @@ for (const theme of ["light", "dark"] as const)
       ).toContainText("document is missing");
       await page.keyboard.press("Escape");
       await page
-        .getByRole("button", { name: "Decisions", exact: true })
+        .getByRole("button", { name: "Documentation", exact: true })
         .click();
+      await page.getByRole("tab", { name: "Decisions", exact: true }).click();
       await page
         .getByLabel("Search decisions", { exact: true })
         .fill("storage");
@@ -137,17 +138,22 @@ for (const theme of ["light", "dark"] as const)
           .violations,
       ).toEqual([]);
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Glossary", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Documentation", exact: true })
+        .click();
+      await page.getByRole("tab", { name: "Glossary", exact: true }).click();
       await page.getByLabel("Search glossary", { exact: true }).fill("Gate");
       await expect(
         page.getByText("A human decision.", { exact: false }),
       ).toBeVisible();
       await page
-        .getByRole("button", { name: "Decisions", exact: true })
+        .getByRole("button", { name: "Documentation", exact: true })
         .click();
+      await page.getByRole("tab", { name: "Decisions", exact: true }).click();
       await page
         .getByLabel("Decision kind", { exact: true })
         .selectOption("assumption");
+      await page.getByLabel("Search decisions", { exact: true }).fill("");
       const revisit = page.getByRole("button", {
         name: "Revisit assumption: What is the goal?",
         exact: true,
@@ -180,7 +186,10 @@ for (const theme of ["light", "dark"] as const)
           .violations,
       ).toEqual([]);
       await rm(join(root, "GLOSSARY.md"));
-      await page.getByRole("button", { name: "Glossary", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Documentation", exact: true })
+        .click();
+      await page.getByRole("tab", { name: "Glossary", exact: true }).click();
       await page
         .getByRole("button", { name: "Reload glossary", exact: true })
         .click();

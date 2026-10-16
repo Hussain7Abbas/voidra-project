@@ -5,6 +5,7 @@
   title: Search saved notes,
   targetRelease,
   taskColumn: backlog,
+  taskWorkflow: 1,
   stage: discovery,
   status: ready,
   doneBy: agent,

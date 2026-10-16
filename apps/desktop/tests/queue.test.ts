@@ -5,6 +5,7 @@ import { _electron } from "@playwright/test";
 import { expect, it } from "vitest";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
 import { processIdentity } from "../../../tools/run-engine/src/lock.ts";
+import { openExecutionOptions } from "../e2e/helpers/execution.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
 
 it("queues an action, copies each selected agent command and shows live/stale locks without permitting a live-owner recovery", async () => {
@@ -23,6 +24,7 @@ it("queues an action, copies each selected agent command and shows live/stale lo
     env: {
       ...env,
       VOIDRA_DATA_DIR: join(temp, "data"),
+      VOIDRA_TEST_AGENT_LAUNCH: "1",
       ...(nativeCoverageDirectory
         ? { NODE_V8_COVERAGE: nativeCoverageDirectory }
         : {}),
@@ -30,6 +32,7 @@ it("queues an action, copies each selected agent command and shows live/stale lo
   });
   try {
     const page = await app.firstWindow();
+    page.setDefaultTimeout(5000);
     await page.locator('[data-app-ready="true"]').waitFor();
     await page
       .getByRole("button", { name: "docs implement", exact: true })
@@ -45,8 +48,7 @@ it("queues an action, copies each selected agent command and shows live/stale lo
     await page
       .getByText("Action queued", { exact: true })
       .waitFor({ timeout: 5000 });
-    await page.getByRole("button", { name: "Run", exact: true }).click();
-    await page.getByRole("heading", { name: "Run", exact: true }).waitFor();
+    await openExecutionOptions(page);
     expect((await checkProject(root)).diagnostics).toEqual([]);
     expect(
       await readFile(join(root, ".voidra/local/pending-actions.md"), "utf8"),
@@ -105,7 +107,7 @@ it("queues an action, copies each selected agent command and shows live/stale lo
       await page.getByRole("radio", { name: agent, exact: true }).check();
       await page.keyboard.press("Escape");
       await page
-        .getByRole("button", { name: `Copy ${agent} command`, exact: true })
+        .getByRole("button", { name: `Voidra Go · ${agent}`, exact: true })
         .click();
       await expect
         .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()))
@@ -146,6 +148,7 @@ it("queues an action, copies each selected agent command and shows live/stale lo
     };
     await writeFile(join(root, ".voidra/local/run.lock"), JSON.stringify(lock));
     await page
+      .getByRole("region", { name: "Agent status", exact: true })
       .getByText("Agent running", { exact: true })
       .waitFor({ timeout: 5000 });
     await writeFile(
@@ -153,10 +156,12 @@ it("queues an action, copies each selected agent command and shows live/stale lo
       JSON.stringify({ ...lock, heartbeatAt: "2026-10-12T00:00:00Z" }),
     );
     await page
+      .getByRole("region", { name: "Agent status", exact: true })
       .getByText(/The agent may have stopped/)
       .waitFor({ timeout: 5000 });
     expect(
       await page
+        .getByRole("complementary", { name: "Actions", exact: true })
         .getByRole("button", { name: "Recover run", exact: true })
         .count(),
     ).toBe(0);

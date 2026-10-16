@@ -17,13 +17,13 @@ Write the report to `.voidra/local/report-<run-id>.json` (private, never committ
 {
   "summary": "What changed and any remaining issues.",
   "paths": ["README.md"],
-  "checks": [{"name": "Documentation reviewed", "passed": true}, {"name": "npx voidra@1.1.1 check", "passed": true}]
+  "checks": [{"name": "Documentation reviewed", "passed": true}, {"name": "npx voidra@1.2.0 check", "passed": true}]
 }
 ```
 
 Paths are exact project-relative changed files. Include additions/deletions; exclude `.git`, `.voidra/local` and other actions. Do not stage unrelated changes yourself. The helper adds the current action/run and, for Release, its proposal record. `finalize` owns the local tag and Released updates; human members retain their checklist stage semantics. Git hooks still run. A failed check cannot prepare Review. During preparation/finalization the app holds its last complete view until checkpoints finish.
 
-Validate with `npx --yes voidra@1.1.1 check .` after each completed helper operation. If it reports an unfinished operation, inspect the journal and use `npx --yes voidra@1.1.1 recover <op-id>` (or explicitly roll back) before run recovery. Never overwrite a conflicting outside edit automatically. Consumed records remain evidence after interruption and prevent undo.
+Validate with `npx --yes voidra@1.2.0 check .` after each completed helper operation. If it reports an unfinished operation, inspect the journal and use `npx --yes voidra@1.2.0 recover <op-id>` (or explicitly roll back) before run recovery. Never overwrite a conflicting outside edit automatically. Consumed records remain evidence after interruption and prevent undo.
 
 A heartbeat older than two minutes displays a warning; the owner identity still controls recovery. Keep heartbeat current while working. After Review rejection, queue/run again: read the saved feedback and create a follow-up commit with the same action trailer and a new run trailer.
 
@@ -40,3 +40,9 @@ Use `.voidra/local/` for reports, never a source path. Planning-only runs may us
 Projects explicitly upgraded to release-aware tasks require Voidra 1.1.0. Their Backlog actions cannot run until moved to TODO with a target release. Runtime-created Research ideas, human blockers and architecture slices receive release metadata through the shared helper. Preserve existing target releases and historical `releasedIn` values; changing board organization never grants plan/review approval. Profile-change drafts still require explicit human activation, which fills a missing target release from the project's selected package. Do not enable tracking, clear gates or retag existing work as an incidental planning edit.
 
 - `release-options`: read-only selected package metadata and Xeploy stable bump choices, also usable without an active owner.
+
+## Six-column workflow tasks (reader 1.2.0)
+
+Actions with `taskWorkflow: 1` return `taskRunKind` from `start`: `planning`, `implementation` or `quality`. Backlog and fully planned TODO are idle. Moving to Planning queues discovery; answering the last open question requeues planning. Questions must cover requirements, edge cases, failure paths and testing/security boundaries before a plan or slices can be proposed. Gated plans still require exact human approval before TODO. In progress queues implementation; its normal commit/finalize queues a separate Review pass. A card move is not proof of tests or approval. Retain questions and prior runs across all phases.
+
+`quality --token TOKEN --report FILE` accepts an owned read-only QA/security report for a workflow Review run. Both `qa` and `security` contain a nonempty summary and nonempty `checks` of `{name, passed, evidence}`. `decision` is `pass`, `rework` or `questions`, with a top-level summary. Pass requires all actual checks passing and automatically completes. Rework requires a failed check and returns to idle TODO with feedback. Questions requires a nonempty `questions` frontier in the same shape as a planning proposal and returns to Planning. Preserve source, HEAD/tags, input hashes, prior reviews and the implementation commit. Never hand-edit completion/approval fields or claim a test passed without running it. A source/input change refuses the result. No new commit/tag is made by QA. Release actions retain their separate exact acceptance/finalization contract.

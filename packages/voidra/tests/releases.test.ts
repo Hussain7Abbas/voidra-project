@@ -8,6 +8,8 @@ import { hash } from "../src/lifecycle.ts";
 import { checkProject } from "../src/project.ts";
 import { parseRecord, serializeRecord } from "../src/records.ts";
 import { createReleaseAction, releaseCandidates } from "../src/releases.ts";
+import { deleteTask } from "../src/task-move.ts";
+import { projectTasks } from "../src/task-view.ts";
 import { applyOperation } from "../src/writer.ts";
 import { materialize } from "./helpers.ts";
 
@@ -65,6 +67,24 @@ it("picks only done, unreleased actions and creates a source-guarded Release at 
     await readFile(join(root, ".voidra/actions/act-000000/action.md")),
   ).toEqual(member);
   expect(releaseCandidates(after)).toEqual([]);
+  const task = projectTasks(after).find((task) => task.id === id);
+  if (!task) throw Error("Missing release task");
+  await deleteTask(root, { id, revision: task.revision });
+  const deleted = await checkProject(root);
+  expect(deleted.diagnostics).toEqual([]);
+  expect(
+    deleted.records.get(`.voidra/actions/${id}/action.md`)?.document.data,
+  ).toMatchObject({
+    stage: "cancelled",
+    deletedState: { stage: "plan", status: "ready" },
+  });
+  expect(releaseCandidates(deleted).map((candidate) => candidate.id)).toEqual([
+    "act-000000",
+  ]);
+  expect(
+    deleted.records.get(".voidra/local/pending-actions.md")?.document.body ??
+      "",
+  ).not.toContain(id);
 });
 it("refuses stale, duplicate, unfinished or actively consumed selections", async () => {
   const root = await fixture(),

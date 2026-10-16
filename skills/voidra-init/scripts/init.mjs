@@ -27371,6 +27371,24 @@ var questionSchema = object2({
     at: date5
   }).optional()
 });
+var qualityChecksSchema = object2({
+  summary: text,
+  checks: external_exports.array(object2({ name: text, passed: external_exports.boolean(), evidence: text })).min(1)
+});
+var qualityReportSchema = object2({
+  summary: text,
+  decision: external_exports.enum(["pass", "rework", "questions"]),
+  qa: qualityChecksSchema,
+  security: qualityChecksSchema,
+  questions: external_exports.array(
+    questionSchema.pick({
+      text: true,
+      why: true,
+      options: true,
+      dependsOn: true
+    })
+  ).optional()
+});
 var actionSchema = object2({
   id: id("act"),
   type: external_exports.enum(types),
@@ -27387,7 +27405,11 @@ var actionSchema = object2({
   doneBy: external_exports.enum(["agent", "you"]),
   assignee: text.optional(),
   targetRelease: version2.nullable().optional(),
-  taskColumn: external_exports.enum(["backlog", "todo"]).optional(),
+  taskColumn: external_exports.enum(["backlog", "planning", "todo", "in-progress", "review"]).optional(),
+  taskWorkflow: external_exports.literal(1).optional(),
+  workflowPlanned: external_exports.boolean().optional(),
+  qualityRun: id("run").optional(),
+  deletedAt: date5.optional(),
   parent: id("act").optional(),
   blockedBy: external_exports.array(id("act")).optional(),
   links: external_exports.array(text).optional(),
@@ -27436,6 +27458,7 @@ var schemas = {
     createdWith: text,
     releasePackage: releasePackageSchema.optional(),
     taskTracking: external_exports.literal(1).optional(),
+    taskWorkflow: external_exports.literal(1).optional(),
     lifecycleOverrides: external_exports.json().optional()
   }),
   profile: object2({
@@ -27504,6 +27527,8 @@ var schemas = {
     checks: external_exports.array(object2({ name: text, passed: external_exports.boolean() })).optional(),
     paths: external_exports.array(text).optional(),
     planningOnly: external_exports.boolean().optional(),
+    quality: qualityReportSchema.optional(),
+    sourceCommit: text.optional(),
     reviews: object2({
       standards: object2({ passed: external_exports.boolean(), summary: text }),
       plan: object2({ passed: external_exports.boolean(), summary: text })
@@ -27780,8 +27805,16 @@ var actionSequenceSchema = external_exports.looseObject({
 
 // packages/voidra/src/task-view.ts
 function taskColumn(action, hasRun = false) {
-  if (action.stage === "cancelled") return "backlog";
+  if (action.deletedAt || action.stage === "cancelled") return "backlog";
   if (action.status === "complete" || action.releasedIn) return "done";
+  if (action.taskWorkflow === 1) {
+    if (action.stage === "review") return "review";
+    if (action.taskColumn === "backlog" || action.status === "draft")
+      return "backlog";
+    if (action.taskColumn === "planning") return "planning";
+    if (action.taskColumn === "todo") return "todo";
+    return "in-progress";
+  }
   if (action.stage === "review") return "review";
   if (action.status === "running" || action.status === "failed" || action.stage === "verify" || hasRun || action.doneBy === "you" && action.status === "waiting")
     return "in-progress";
@@ -27819,13 +27852,15 @@ function projectTasks(project) {
     const action = record2.kind === "action" ? schemas.action.parse(data) : null;
     tasks.push({
       id: data.id,
+      ...action?.taskWorkflow === 1 ? { workflow: true } : {},
+      ...data.deletedAt ? { deleted: true } : {},
       kind: record2.kind,
       title: data.title,
       body: record2.document.body,
       path,
       revision: hash2(record2.document.raw),
       column: action ? taskColumn(action, ran.has(data.id)) : "backlog",
-      archived: action?.stage === "cancelled" || data.status === "rejected",
+      archived: !!action?.deletedAt || action?.stage === "cancelled" || data.status === "rejected",
       stage: action?.stage ?? null,
       status: data.status,
       type: data.type ?? null,
@@ -27842,7 +27877,7 @@ function projectTasks(project) {
 
 // packages/voidra/src/versions.ts
 var FORMAT_VERSION = 1;
-var PACKAGE_VERSION = "1.1.1";
+var PACKAGE_VERSION = "1.2.0";
 function upgradePrototype(files) {
   const upgraded = new Map(files);
   const raw = files.get(".voidra/voidra.json");
@@ -28146,8 +28181,27 @@ function inspectFiles(files, options = {}) {
       "requiredVoidra",
       "Task tracking requires voidra \u2265 1.1.0"
     );
+  if ((metadata.taskWorkflow === 1 || [...records.values()].some(
+    (record2) => record2.document.data.taskWorkflow === 1 || record2.document.data.deletedAt
+  )) && !((minimumParts[0] ?? 0) > 1 || (minimumParts[0] ?? 0) === 1 && (minimumParts[1] ?? 0) >= 2))
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Task workflow requires voidra \u2265 1.2.0"
+    );
+  if (metadata.taskWorkflow === 1 && metadata.taskTracking !== 1)
+    add(
+      "task-workflow",
+      metaPath,
+      "taskWorkflow",
+      "Task workflow requires taskTracking: 1"
+    );
   const ranActions = new Set(
     [...records.values()].filter((r) => r.kind === "run").map((r) => r.document.data.action)
+  );
+  const qualityRuns = new Map(
+    [...records.values()].filter((record2) => record2.kind === "run").map((record2) => [record2.document.data.id, record2])
   );
   const actions = /* @__PURE__ */ new Map();
   const ids = /* @__PURE__ */ new Set([metadata.project.id]);
@@ -28165,6 +28219,36 @@ function inspectFiles(files, options = {}) {
     }
     if (kind === "action") {
       const action = schemas.action.parse(d);
+      if (action.taskWorkflow === 1 && metadata.taskTracking !== 1)
+        add(
+          "task-workflow",
+          file2,
+          "taskWorkflow",
+          "Task workflow requires taskTracking: 1"
+        );
+      if (["planning", "in-progress", "review"].includes(
+        action.taskColumn ?? ""
+      ) && action.taskWorkflow !== 1)
+        add(
+          "task-workflow",
+          file2,
+          "taskWorkflow",
+          "New workflow columns require taskWorkflow: 1"
+        );
+      if (action.taskWorkflow === 1 && action.stage === "done" && !action.completedBySlices) {
+        const review = action.qualityRun ? qualityRuns.get(action.qualityRun) : void 0;
+        const proof = review?.kind === "run" ? schemas.run.safeParse(review.document.data) : null;
+        if (!proof?.success || proof.data.action !== action.id || proof.data.outcome !== "advanced" || proof.data.toStage !== "done" || !proof.data.endedAt || !proof.data.sourceCommit || proof.data.quality?.decision !== "pass" || proof.data.quality.questions?.length || [
+          ...proof.data.quality.qa.checks,
+          ...proof.data.quality.security.checks
+        ].some((check2) => !check2.passed))
+          add(
+            "task-quality",
+            file2,
+            "qualityRun",
+            "Done workflow tasks require their matching passing QA/security run"
+          );
+      }
       if (action.taskColumn !== void 0 && metadata.taskTracking !== 1)
         add(
           "task-tracking",
@@ -29196,7 +29280,7 @@ function queueIds(project) {
     ...project.records.get(ACTION_QUEUE_PATH)?.document.body.matchAll(/act-[0-9a-hjkmnp-tv-z]{6}/g) ?? []
   ].map((match) => match[0]);
 }
-var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column);
+var active = (task) => task.kind === "action" && !task.archived && !["backlog", "done"].includes(task.column) && (!task.workflow || task.column !== "todo");
 function state(project) {
   const bytes = project.files.get(ACTION_SEQUENCE_PATH);
   if (!bytes) return null;
@@ -29280,7 +29364,7 @@ function conversion(project) {
   );
   if (view.problems.length) throw Error(view.problems.join(" \xB7 "));
   const fresh = projectTasks(project).filter(
-    (task) => task.kind === "action" && task.column === "todo" && task.status === "ready" && !ran.has(task.id) && project.records.get(task.path)?.document.data.doneBy === "agent"
+    (task) => task.kind === "action" && (task.workflow ? ["planning", "in-progress", "review"].includes(task.column) : task.column === "todo") && task.status === "ready" && !ran.has(task.id) && project.records.get(task.path)?.document.data.doneBy === "agent"
   ).map((task) => task.id);
   const pending = view.enabled ? view.pending : [.../* @__PURE__ */ new Set([...view.pending, ...fresh])];
   const sources = [...project.files].filter(
@@ -29436,7 +29520,8 @@ var answerInput = external_exports.strictObject({
 // packages/voidra/src/task-metadata.ts
 var taskInputFields = {
   targetRelease: version2.nullable().optional(),
-  taskColumn: external_exports.enum(["backlog", "todo"]).optional()
+  taskColumn: external_exports.enum(["backlog", "planning", "todo", "in-progress", "review"]).optional(),
+  taskWorkflow: external_exports.literal(1).optional()
 };
 var inputSchema = external_exports.strictObject(taskInputFields);
 
@@ -29466,6 +29551,7 @@ var ideaEdit = ideaInput.omit({ by: true }).extend({
   status: schemas.idea.shape.status
 });
 var promotionInput = external_exports.strictObject({
+  ...taskInputFields,
   id: schemas.idea.shape.id,
   revision: external_exports.string().regex(/^[a-f0-9]{64}$/),
   type: schemas.action.shape.type,
@@ -29779,7 +29865,8 @@ Read the profile and actions before work. Use the Voidra skills and preserve hum
           type: "feature",
           title: "Bootstrap",
           targetRelease: release.version,
-          taskColumn: release.version ? "todo" : "backlog",
+          taskColumn: release.version ? "planning" : "backlog",
+          taskWorkflow: 1,
           stage: (template.lifecycleOverrides?.feature ?? lifecycles.feature).stages[0],
           status: "ready",
           doneBy: "agent",
@@ -29879,7 +29966,14 @@ var syncReportSchema = external_exports.strictObject({
 var moveInput = external_exports.strictObject({
   id: external_exports.union([schemas.action.shape.id, schemas.idea.shape.id]),
   revision: hashSchema,
-  column: external_exports.enum(["backlog", "todo", "in-progress", "review", "done"]),
+  column: external_exports.enum([
+    "backlog",
+    "planning",
+    "todo",
+    "in-progress",
+    "review",
+    "done"
+  ]),
   type: schemas.action.shape.type.optional(),
   by: external_exports.string().min(1).default("You")
 });

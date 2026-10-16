@@ -166,7 +166,8 @@ function queueIds(project: ProjectInspection): string[] {
 const active = (task: TaskView) =>
   task.kind === "action" &&
   !task.archived &&
-  !["backlog", "done"].includes(task.column);
+  !["backlog", "done"].includes(task.column) &&
+  (!task.workflow || task.column !== "todo");
 function state(project: ProjectInspection) {
   const bytes = project.files.get(ACTION_SEQUENCE_PATH);
   if (!bytes) return null;
@@ -294,7 +295,9 @@ function conversion(project: ProjectInspection) {
     .filter(
       (task) =>
         task.kind === "action" &&
-        task.column === "todo" &&
+        (task.workflow
+          ? ["planning", "in-progress", "review"].includes(task.column)
+          : task.column === "todo") &&
         task.status === "ready" &&
         !ran.has(task.id) &&
         project.records.get(task.path)?.document.data.doneBy === "agent",
@@ -459,6 +462,9 @@ export function withActionSequence(
   const after = inspectFiles(files),
     tasks = projectTasks(after),
     byId = new Map(tasks.map((task) => [task.id, task]));
+  const beforeTasks = new Map(
+    projectTasks(project).map((task) => [task.id, task]),
+  );
   const beforeActive = new Set(
     projectTasks(project)
       .filter(active)
@@ -478,9 +484,15 @@ export function withActionSequence(
   for (const task of tasks)
     if (
       active(task) &&
-      task.column === "todo" &&
-      task.status === "ready" &&
-      !beforeActive.has(task.id) &&
+      (task.workflow
+        ? ["planning", "in-progress", "review"].includes(task.column) &&
+          ["ready", "waiting"].includes(task.status) &&
+          (beforeTasks.get(task.id)?.column !== task.column ||
+            (task.status === "ready" &&
+              beforeTasks.get(task.id)?.status === "waiting"))
+        : task.column === "todo" &&
+          task.status === "ready" &&
+          !beforeActive.has(task.id)) &&
       after.records.get(task.path)?.document.data.doneBy === "agent" &&
       !pending.includes(task.id)
     )

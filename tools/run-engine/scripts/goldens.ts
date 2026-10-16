@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readProjectFiles } from "voidra";
+import { answerQuestion, checkProject, hash, readProjectFiles } from "voidra";
 import {
   generalFiles,
   writeProject,
@@ -88,6 +88,26 @@ for (const [name, proposal] of Object.entries(proposals)) {
   const root = await mkdtemp(join(tmpdir(), "voidra-golden-"));
   try {
     await writeProject(root, await generalFiles(repository));
+    if (proposal.kind !== "questions") {
+      await proposeArchitecture(root, proposals.discovery);
+      const path = ".voidra/actions/act-000000/questions.md",
+        doc = (await checkProject(root)).records.get(path)?.document;
+      if (!doc) throw Error("Missing golden questions");
+      const questions = (
+        doc.data.rounds as { questions: { id: string }[] }[]
+      ).flatMap((round) => round.questions);
+      for (const question of questions) {
+        const current = (await checkProject(root)).records.get(path)?.document;
+        if (!current) throw Error("Missing question source");
+        await answerQuestion(root, {
+          action: "act-000000",
+          question: question.id,
+          revision: hash(current.raw),
+          answer: { kind: "choice", choice: "a" },
+          by: "Golden verification",
+        });
+      }
+    }
     const result = await proposeArchitecture(root, proposal);
     const files = (await readProjectFiles(root)).files;
     const ids = new Map(

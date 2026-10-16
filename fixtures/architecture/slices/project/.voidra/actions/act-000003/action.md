@@ -5,6 +5,7 @@
   title: Delete a saved note safely,
   targetRelease,
   taskColumn: backlog,
+  taskWorkflow: 1,
   stage: discovery,
   status: ready,
   doneBy: agent,

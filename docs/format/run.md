@@ -25,3 +25,7 @@ outcome: running
 ## Ordered-intent consumption (reader 1.1.0)
 
 A run started from versioned Actions intent carries optional `orderedIntent: {version: 1, revision: <sha256>, queueRevision: <sha256>}`. It requires `taskTracking: 1`. These hashes identify the exact private ordering/request state consumed at startup. The app maps this receipt to its fixed local ordering paths when checking undo. Do not put those private paths in `consumedRecords`: a shared run must still validate in a fresh clone where private local files are absent. Existing action/dependency/profile consumption and ownership protections remain unchanged. See [queue contract](queue.md).
+
+## Agentic workflow follow-up
+
+Reader 1.2.0 QA runs may carry `quality: {summary, decision, qa, security, questions?}` and `sourceCommit`. Each QA/security part has a summary and nonempty checks with name, passed and evidence. Only an owned unchanged-source review can publish it. `decision` is pass, rework or questions; pass requires all checks passing and advances to Done. Rework preserves evidence in idle TODO; questions append a round in Planning. These read-only results do not create a Git commit.

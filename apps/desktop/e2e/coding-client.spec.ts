@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron, expect, test } from "@playwright/test";
@@ -60,9 +60,9 @@ for (const client of ["claude-code", "codex"] as const)
       ).toBeChecked();
       await desired.check();
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Run", exact: true }).click();
+      await expect(page.locator("#actions-sidebar")).toBeVisible();
       const selected =
-        client === "codex" ? "Copy Codex command" : "Copy Claude Code command";
+        client === "codex" ? "Voidra Go · Codex" : "Voidra Go · Claude Code";
       await expect(
         page.getByRole("button", { name: selected, exact: true }),
       ).toHaveCount(1);
@@ -70,8 +70,8 @@ for (const client of ["claude-code", "codex"] as const)
         page.getByRole("button", {
           name:
             client === "codex"
-              ? "Copy Claude Code command"
-              : "Copy Codex command",
+              ? "Voidra Go · Claude Code"
+              : "Voidra Go · Codex",
           exact: true,
         }),
       ).toHaveCount(0);
@@ -91,11 +91,22 @@ for (const client of ["claude-code", "codex"] as const)
       await expect
         .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()))
         .toBe(client === "codex" ? "$voidra-go" : "/voidra-go");
+      await expect
+        .poll(
+          async () =>
+            JSON.parse(
+              (await readFile(join(temp, "data/agent-launches.jsonl"), "utf8"))
+                .trim()
+                .split("\n")
+                .at(-1) ?? "{}",
+            ).agent,
+        )
+        .toBe(client);
       await app.close();
       app = await launch();
       page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page.getByRole("button", { name: "Run", exact: true }).click();
+      await expect(page.locator("#actions-sidebar")).toBeVisible();
       await expect(
         page.getByRole("button", { name: selected, exact: true }),
       ).toBeVisible();

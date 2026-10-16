@@ -19,7 +19,12 @@ export function inboxItems(
   const items: InboxItem[] = [];
   for (const action of workspace.actions) {
     const { data } = action;
-    if (data.status === "complete" || data.stage === "cancelled") continue;
+    if (
+      data.deletedAt ||
+      data.status === "complete" ||
+      data.stage === "cancelled"
+    )
+      continue;
     if (data.doneBy === "you") {
       items.push({
         kind: "human",
@@ -53,6 +58,7 @@ export function inboxItems(
         action: data.id,
       });
     else if (
+      (data.taskWorkflow !== 1 || data.type === "release") &&
       data.stage === "review" &&
       (data.status === "waiting" ||
         (data.type === "release" &&

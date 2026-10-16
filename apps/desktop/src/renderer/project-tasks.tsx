@@ -26,6 +26,7 @@ import { useToast } from "./ui/toast.tsx";
 type Task = WorkspaceSnapshot["tasks"][number];
 const columns = [
   ["backlog", "Backlog"],
+  ["planning", "Planning"],
   ["todo", "TODO"],
   ["in-progress", "In progress"],
   ["review", "Review"],
@@ -178,7 +179,11 @@ export function ProjectTasks({
       setNotice(null);
       const origin = document.activeElement;
       try {
-        if (task.kind === "idea" && column === "todo" && !task.type)
+        if (
+          task.kind === "idea" &&
+          ["planning", "todo"].includes(column) &&
+          !task.type
+        )
           throw Error(
             "Open this Backlog task and choose an action type with Promote before moving it to TODO.",
           );
@@ -272,9 +277,6 @@ export function ProjectTasks({
                 onClick={() => setCapture("action")}
               >
                 Add task
-              </Button>
-              <Button disabled={!editable} onClick={() => setCapture("idea")}>
-                Add to Backlog
               </Button>
             </div>
           }
@@ -455,7 +457,7 @@ export function ProjectTasks({
               }))
             }
           />
-          Include cancelled and rejected tasks
+          Include deleted, cancelled and rejected tasks
         </label>
         <p role="status" className="text-muted mb-4">
           {visible.length} matching {visible.length === 1 ? "task" : "tasks"}
@@ -557,7 +559,15 @@ const TaskCard = memo(function TaskCard({
   drag: { current: Drag | null };
   onHover: (column: Column | null) => void;
 }) {
-  const next = task.column === "backlog" ? "todo" : "backlog";
+  const next: Column =
+    task.column === "backlog"
+      ? "planning"
+      : task.column === "planning"
+        ? "todo"
+        : task.column === "todo"
+          ? "in-progress"
+          : "planning";
+  const nextLabel = columns.find(([id]) => id === next)?.[1] ?? next;
   return (
     <article className="card action-detail task-card">
       <div className="flex items-start gap-2">
@@ -676,20 +686,27 @@ const TaskCard = memo(function TaskCard({
       </p>
       {task.archived && (
         <span className="badge">
-          {task.status === "rejected" ? "Rejected" : "Cancelled"}
+          {task.deleted
+            ? "Deleted"
+            : task.status === "rejected"
+              ? "Rejected"
+              : "Cancelled"}
         </span>
       )}
-      {!task.archived && ["backlog", "todo"].includes(task.column) && (
-        <Button
-          className="mt-3"
-          disabled={disabled}
-          loading={busy}
-          aria-label={`Move ${task.title} to ${next === "todo" ? "TODO" : "Backlog"}`}
-          onClick={() => void onMove(task, next)}
-        >
-          Move to {next === "todo" ? "TODO" : "Backlog"}
-        </Button>
-      )}
+      {!task.archived &&
+        ["backlog", "planning", "todo", "in-progress", "review"].includes(
+          task.column,
+        ) && (
+          <Button
+            className="mt-3"
+            disabled={disabled}
+            loading={busy}
+            aria-label={`Move ${task.title} to ${nextLabel}`}
+            onClick={() => void onMove(task, next)}
+          >
+            Move to {nextLabel}
+          </Button>
+        )}
     </article>
   );
 });

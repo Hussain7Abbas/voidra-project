@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { GripVertical } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { BridgeRequest, WorkspaceSnapshot } from "../shared/bridge.ts";
+import { ActionExecutionTools } from "./action-execution-tools.tsx";
 import { request } from "./app.tsx";
 import { useCodingClient } from "./coding-client.tsx";
 import { Button } from "./ui/button.tsx";
@@ -132,7 +133,7 @@ export const ActionsSidebar = memo(function ActionsSidebar({
         <h2>
           Actions <span className="text-muted">{sequence.order.length}</span>
         </h2>
-        <p className="text-muted">Implementation sequence</p>
+        <p className="text-muted">Agent work sequence</p>
       </header>
       {!sequence.enabled && (
         <div className="sequence-notice">
@@ -391,18 +392,27 @@ export const ActionsSidebar = memo(function ActionsSidebar({
           );
         })}
         {!sequence.order.length && (
-          <li className="text-muted">Move a task to TODO to add it here.</li>
+          <li className="text-muted">
+            Move a task to Planning, In progress or Review to queue agent work.
+          </li>
         )}
       </ol>
+      <ActionExecutionTools data={data} editable={editable} />
       <footer>
         <Button
           onClick={() =>
-            void request({ command: "copy-agent-command", agent: client })
-              .then(() => toast.success("Command copied"))
+            void request({
+              command: "copy-agent-command",
+              open: true,
+              agent: client,
+            })
+              .then(() =>
+                toast.success("Command copied · coding client opened"),
+              )
               .catch((cause) => toast.error(String(cause)))
           }
         >
-          Copy {client === "codex" ? "Codex" : "Claude Code"} Go command
+          Voidra Go · {client === "codex" ? "Codex" : "Claude Code"}
         </Button>
       </footer>
     </aside>

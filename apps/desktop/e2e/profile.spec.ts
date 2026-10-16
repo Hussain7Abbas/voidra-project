@@ -11,7 +11,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
-import { checkProject, hash, moveTask, schemas } from "voidra";
+import { answerQuestion, checkProject, hash, moveTask, schemas } from "voidra";
 import {
   publishPlanning,
   startRun,
@@ -168,18 +168,48 @@ for (const value of ["light", "dark"])
       taskColumn: "backlog",
       targetRelease: null,
     });
-    // Supplying the project's real version permits the explicit TODO move and enrolls it once.
+    // Supplying the project's real version permits the explicit Planning move and enrolls it once.
     await writeFile(join(root, "package.json"), '{"version":"0.1.0"}\n');
     if (!bootstrap) throw Error("Bootstrap missing");
     await moveTask(root, {
       id,
       revision: hash(bootstrap.document.raw),
-      column: "todo",
+      column: "planning",
       by: "Verification owner",
     });
     const run = await startRun(root, "codex", process.pid, "plan");
     if (!run) throw new Error("Missing Bootstrap planning run");
     await publishPlanning(root, run.ownerToken, {
+      action: id,
+      kind: "questions",
+      questions: [
+        {
+          text: "Keep Bootstrap local?",
+          why: "Confirm the source and Git boundary before planning.",
+          options: [
+            { label: "a", description: "Local only", recommended: true },
+            { label: "b", description: "Remote services", recommended: false },
+          ],
+        },
+      ],
+    });
+    const questions = (await checkProject(root)).records.get(
+      `.voidra/actions/${id}/questions.md`,
+    )?.document;
+    if (!questions) throw Error("Missing Bootstrap questions");
+    const question = schemas.questions.parse(questions.data).rounds.at(-1)
+      ?.questions[0];
+    if (!question) throw Error("Missing question");
+    await answerQuestion(root, {
+      action: id,
+      question: question.id,
+      revision: hash(questions.raw),
+      answer: { kind: "choice", choice: "a" },
+      by: "Verification owner",
+    });
+    const resumed = await startRun(root, "codex", process.pid, "plan");
+    if (!resumed) throw Error("Missing answered Bootstrap planning run");
+    await publishPlanning(root, resumed.ownerToken, {
       action: id,
       kind: "plan",
       requirements:

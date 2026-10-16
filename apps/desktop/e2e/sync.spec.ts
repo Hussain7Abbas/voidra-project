@@ -45,12 +45,12 @@ for (const theme of ["light", "dark"] as const)
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
-      const suggestion = page.getByRole("region", {
+      const suggestion = page.getByRole("status", {
         name: "Changes outside Voidra",
       });
       await expect(suggestion).toBeVisible();
       const copy = page.getByRole("button", {
-        name: "Copy $voidra-sync",
+        name: "Sync",
         exact: true,
       });
       await copy.focus();

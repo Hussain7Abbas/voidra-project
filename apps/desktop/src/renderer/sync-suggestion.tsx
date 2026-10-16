@@ -17,20 +17,25 @@ export function SyncSuggestion({
     try {
       await request({
         command: "copy-agent-command",
+        open: true,
         agent: client,
         skill: "voidra-sync",
       });
-      toast.success("Sync command copied");
+      toast.success("Sync command copied · coding client opened");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
   }
   return (
-    <section className="card p-4 mb-4" aria-label="Changes outside Voidra">
+    <section
+      className="sync-notification"
+      role="status"
+      aria-label="Changes outside Voidra"
+    >
       <p>
         <strong>Changes outside Voidra</strong>
       </p>
-      <p className="text-muted">
+      <p>
         {data.sync.count}{" "}
         {data.sync.count === 1 ? "commit needs" : "commits need"} a look. Run
         Sync in your coding agent to update the profile and suggest follow-up
@@ -38,7 +43,7 @@ export function SyncSuggestion({
       </p>
       <div className="flex flex-wrap gap-2 mt-3">
         <Button variant="secondary" onClick={() => void copy()}>
-          Copy {client === "codex" ? "$voidra-sync" : "/voidra-sync"}
+          Sync
         </Button>
       </div>
     </section>

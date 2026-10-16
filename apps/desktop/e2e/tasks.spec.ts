@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
 
 for (const theme of ["light", "dark"] as const)
-  test(`Tasks shows five columns and one card per promoted task in ${theme}`, async () => {
+  test(`Tasks shows six columns and one card per promoted task in ${theme}`, async () => {
     const temp = await mkdtemp(join(tmpdir(), "voidra-tasks-"));
     const root = join(temp, "project");
     await cp(resolve("../../fixtures/busy-project/project"), root, {
@@ -60,7 +60,14 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("Current release 2.4.0", { exact: true }),
       ).toBeVisible({ timeout: 5000 });
-      for (const name of ["Backlog", "TODO", "In progress", "Review", "Done"])
+      for (const name of [
+        "Backlog",
+        "Planning",
+        "TODO",
+        "In progress",
+        "Review",
+        "Done",
+      ])
         await expect(
           page.getByRole("region", { name: `${name} tasks`, exact: true }),
         ).toBeVisible();
@@ -146,12 +153,20 @@ for (const theme of ["light", "dark"] as const)
           (task) => task.title === "Release aware addition",
         ),
       ).toMatchObject({ targetRelease: "2.4.0" });
-      await page
-        .getByRole("button", {
-          name: "Move Release aware addition to Backlog",
-          exact: true,
-        })
-        .click();
+      const added = created.data.workspace.tasks.find(
+        (task) => task.title === "Release aware addition",
+      );
+      if (!added) throw Error("Missing created task");
+      expect(
+        (
+          await page.evaluate((input) => window.voidra.invoke(input), {
+            command: "move-task",
+            id: added.id,
+            revision: added.revision,
+            column: "backlog",
+          } as const)
+        ).ok,
+      ).toBe(true);
       await expect(
         page
           .getByRole("region", { name: "Backlog tasks", exact: true })
@@ -166,13 +181,13 @@ for (const theme of ["light", "dark"] as const)
       ).toBeVisible();
       await page
         .getByRole("button", {
-          name: "Move Release aware addition to TODO",
+          name: "Move Release aware addition to Planning",
           exact: true,
         })
         .click();
       await expect(
         page
-          .getByRole("region", { name: "TODO tasks", exact: true })
+          .getByRole("region", { name: "Planning tasks", exact: true })
           .getByRole("button", { name: "Release aware addition", exact: true }),
       ).toBeVisible();
       const moved = await page.evaluate(async () =>
@@ -202,13 +217,13 @@ for (const theme of ["light", "dark"] as const)
       expect(capture.ok).toBe(true);
       await page
         .getByRole("button", {
-          name: "Move Unassigned task to TODO",
+          name: "Move Unassigned task to Planning",
           exact: true,
         })
         .click();
       await expect(
         page
-          .getByRole("region", { name: "TODO tasks", exact: true })
+          .getByRole("region", { name: "Planning tasks", exact: true })
           .getByRole("button", { name: "Unassigned task", exact: true }),
       ).toBeVisible();
       const assigned = await page.evaluate(async () =>
@@ -222,9 +237,7 @@ for (const theme of ["light", "dark"] as const)
         ),
       ).toMatchObject({ targetRelease: "2.5.0" });
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       await page
         .getByLabel("Title", { exact: true })
@@ -237,7 +250,7 @@ for (const theme of ["light", "dark"] as const)
       ).toHaveValue("2.5.0");
       await page.getByLabel("Target release", { exact: true }).selectOption("");
       await page
-        .getByRole("button", { name: "Save idea", exact: true })
+        .getByRole("button", { name: "Create action", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const saved = await page.evaluate(async () =>
@@ -255,7 +268,9 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("button", { name: "Parent slice", exact: true }),
       ).toHaveCount(1);
       await expect(page.getByText("Cancelled", { exact: true })).toHaveCount(0);
-      await page.getByLabel("Include cancelled and rejected tasks").check();
+      await page
+        .getByLabel("Include deleted, cancelled and rejected tasks")
+        .check();
       expect(
         await page.getByText("Cancelled", { exact: true }).count(),
       ).toBeGreaterThan(0);

@@ -9,6 +9,7 @@ import {
 import { parseRecord, serializeRecord } from "./records.ts";
 import { schemas } from "./schemas.ts";
 import { newTaskFields } from "./task-metadata.ts";
+import { taskFullyPlanned, taskRunKind } from "./task-workflow.ts";
 import { applyOperation, type WriteOptions } from "./writer.ts";
 
 export function queueDecision(
@@ -28,6 +29,35 @@ export function queueDecision(
   if (!parsed.success)
     return refused("Repair this action’s fields before queueing");
   const action = parsed.data;
+  const kind = taskRunKind(action);
+  if (action.deletedAt) return refused("This task is deleted");
+  if (
+    action.taskWorkflow === 1 &&
+    action.type !== "release" &&
+    action.doneBy === "agent"
+  ) {
+    if (!kind)
+      return refused(
+        action.taskColumn === "todo"
+          ? "Move planned work to In progress to queue implementation"
+          : "Move this task to Planning to begin discovery",
+      );
+    if (
+      kind === "implementation" &&
+      !taskFullyPlanned(project, action) &&
+      !(
+        options.stopAtStalePlan &&
+        project.diagnostics.some(
+          (d) =>
+            d.code === "stale-approval" &&
+            d.file.startsWith(`.voidra/actions/${id}/`),
+        )
+      )
+    )
+      return refused(
+        "Finish questions and approve the exact plan before implementation",
+      );
+  }
   if (
     (action.taskColumn === "backlog" ||
       (project.metadata?.taskTracking === 1 && action.status === "draft")) &&
@@ -48,7 +78,12 @@ export function queueDecision(
     questions.data.rounds.some((r) => r.questions.some((q) => !q.answer))
   )
     return refused("Answer the open questions before queueing");
-  if (action.stage === "review" && action.type !== "release" && !questionData)
+  if (
+    action.stage === "review" &&
+    action.type !== "release" &&
+    kind !== "quality" &&
+    !questionData
+  )
     return refused("Review gate needs a human decision");
   if (
     project.diagnostics.some(
@@ -68,11 +103,15 @@ export function queueDecision(
     return refused("Review and activate the Profile change draft first");
   if (
     action.doneBy !== "agent" ||
-    !["ready", "draft", "failed"].includes(action.status) ||
+    !(
+      kind === "quality"
+        ? ["ready", "waiting", "failed"]
+        : ["ready", "draft", "failed"]
+    ).includes(action.status) ||
     ["done", "released", "cancelled"].includes(action.stage ?? "")
   )
     return refused("This action cannot be queued at its current gate");
-  for (const id of action.blockedBy ?? []) {
+  for (const id of kind === "planning" ? [] : (action.blockedBy ?? [])) {
     const dep = project.records.get(`.voidra/actions/${id}/action.md`),
       parsed = schemas.action.safeParse(dep?.document.data);
     if (!parsed.success || !actionComplete(parsed.data))
@@ -81,6 +120,7 @@ export function queueDecision(
       );
   }
   if (
+    kind !== "planning" &&
     [...project.records.values()].some(
       (r) =>
         r.kind === "action" &&
@@ -180,11 +220,18 @@ export async function replaceActionQueue(
     input.ids.includes(input.activate?.id ?? "") &&
     draft?.type === "profile-change" &&
     draft.status === "draft"
-      ? await newTaskFields(root, project, "action", {
-          taskColumn: "todo",
-          targetRelease:
-            (draft.targetRelease as string | undefined) || undefined,
-        })
+      ? await newTaskFields(
+          root,
+          project,
+          "action",
+          {
+            taskColumn: draft.taskWorkflow === 1 ? "planning" : "todo",
+            taskWorkflow: draft.taskWorkflow === 1 ? 1 : undefined,
+            targetRelease:
+              (draft.targetRelease as string | undefined) || undefined,
+          },
+          false,
+        )
       : {};
   await applyOperation(
     root,

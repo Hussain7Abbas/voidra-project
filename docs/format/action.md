@@ -27,3 +27,9 @@ A Profile change draft records `profileChange: {block, answerId, before, after}`
 `planFeedback` records `{revision, feedback, by, at}` for a requested revision. A Release review decision may also record exact plan `hashes`; this allows the app to identify changed plan files. Previous decisions remain in `reviewHistory` when renewed after changed contents.
 
 P12 structured Releases use releaseActions, releaseVersion, releaseTag, releaseFiles and releaseMessage. The displayed revision binds these fields, the three plan files and proposal metadata/notes. An explicit empty releaseFiles list uses release files when no repository version convention exists. Changed scope needs acceptance again. Included work gains releasedIn; agent members also reach Released, while human members retain their completed checklist and have no agent stage. These forms require reader 0.2.0 and a matching released record.
+
+## Agentic workflow follow-up
+
+Reader 1.2.0 workflow actions carry `taskWorkflow: 1` and placement `backlog | planning | todo | in-progress | review`. `workflowPlanned` records ungated planning completion, while gated actions retain exact `planApproval`. `deletedAt` preserves a soft-deleted record. A completed non-aggregate workflow action must link `qualityRun` to its passing QA/security result. TODO is idle; board movement never grants completion.
+
+Deleting an unfinished Release preserves its original stage/status in `deletedState` and marks the request cancelled so release reservations are freed. Existing released history remains recorded.

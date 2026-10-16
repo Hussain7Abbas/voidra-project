@@ -133,7 +133,7 @@ it("enrolls a fresh Bootstrap once when its real package already supplies a rele
   expect(project.diagnostics).toEqual([]);
   expect(
     projectTasks(project).find((task) => task.id === bootstrap),
-  ).toMatchObject({ targetRelease: "2.0.0", column: "todo" });
+  ).toMatchObject({ targetRelease: "2.0.0", column: "planning" });
   expect(readActionSequence(project)).toMatchObject({
     enabled: true,
     order: [bootstrap],

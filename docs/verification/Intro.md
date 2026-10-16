@@ -64,3 +64,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [V11-P10 delivery](v1.1.0-p10.md): complete 1.1.1 verification/publication, 483 quality tests, 102 desktop scenarios, both actual clients and public downloaded-app checks; measured startup and manual accessibility limits.
 
 - [Titlebar and skill settings refinement](titlebar-skills-refinement.md): counted installer buttons, filled panel icons and grouped controls with an independently centered title; post-release renderer checks.
+
+- [Agentic task workflow](task-workflow.md): six-column routing, owned QA/security, selected-client opening and integration evidence.

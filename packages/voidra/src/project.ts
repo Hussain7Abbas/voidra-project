@@ -391,10 +391,40 @@ export function inspectFiles(
       "requiredVoidra",
       "Task tracking requires voidra ≥ 1.1.0",
     );
+  if (
+    (metadata.taskWorkflow === 1 ||
+      [...records.values()].some(
+        (record) =>
+          record.document.data.taskWorkflow === 1 ||
+          record.document.data.deletedAt,
+      )) &&
+    !(
+      (minimumParts[0] ?? 0) > 1 ||
+      ((minimumParts[0] ?? 0) === 1 && (minimumParts[1] ?? 0) >= 2)
+    )
+  )
+    add(
+      "minimum-reader",
+      metaPath,
+      "requiredVoidra",
+      "Task workflow requires voidra ≥ 1.2.0",
+    );
+  if (metadata.taskWorkflow === 1 && metadata.taskTracking !== 1)
+    add(
+      "task-workflow",
+      metaPath,
+      "taskWorkflow",
+      "Task workflow requires taskTracking: 1",
+    );
   const ranActions = new Set(
     [...records.values()]
       .filter((r) => r.kind === "run")
       .map((r) => r.document.data.action),
+  );
+  const qualityRuns = new Map(
+    [...records.values()]
+      .filter((record) => record.kind === "run")
+      .map((record) => [record.document.data.id, record]),
   );
   const actions = new Map<string, { action: Action; file: string }>();
   const ids = new Set<string>([metadata.project.id]);
@@ -412,6 +442,58 @@ export function inspectFiles(
     }
     if (kind === "action") {
       const action = schemas.action.parse(d);
+      if (action.taskWorkflow === 1 && metadata.taskTracking !== 1)
+        add(
+          "task-workflow",
+          file,
+          "taskWorkflow",
+          "Task workflow requires taskTracking: 1",
+        );
+      if (
+        ["planning", "in-progress", "review"].includes(
+          action.taskColumn ?? "",
+        ) &&
+        action.taskWorkflow !== 1
+      )
+        add(
+          "task-workflow",
+          file,
+          "taskWorkflow",
+          "New workflow columns require taskWorkflow: 1",
+        );
+      if (
+        action.taskWorkflow === 1 &&
+        action.stage === "done" &&
+        !action.completedBySlices
+      ) {
+        const review = action.qualityRun
+          ? qualityRuns.get(action.qualityRun)
+          : undefined;
+        const proof =
+          review?.kind === "run"
+            ? schemas.run.safeParse(review.document.data)
+            : null;
+        if (
+          !proof?.success ||
+          proof.data.action !== action.id ||
+          proof.data.outcome !== "advanced" ||
+          proof.data.toStage !== "done" ||
+          !proof.data.endedAt ||
+          !proof.data.sourceCommit ||
+          proof.data.quality?.decision !== "pass" ||
+          proof.data.quality.questions?.length ||
+          [
+            ...proof.data.quality.qa.checks,
+            ...proof.data.quality.security.checks,
+          ].some((check) => !check.passed)
+        )
+          add(
+            "task-quality",
+            file,
+            "qualityRun",
+            "Done workflow tasks require their matching passing QA/security run",
+          );
+      }
       if (action.taskColumn !== undefined && metadata.taskTracking !== 1)
         add(
           "task-tracking",

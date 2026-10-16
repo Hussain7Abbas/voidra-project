@@ -9,3 +9,5 @@ Write a private report and call `research --token TOKEN --report FILE`:
 ```
 
 The helper creates new backlog ideas, writes the findings/recommendation into the run result and stops at Review without a commit. An empty ideas array is valid. Proposed ideas are not accepted actions. Review rejection returns to Discovery; read the feedback, investigate again and publish a fresh result.
+
+For workflow tasks, Planning first asks its question frontier and writes the ungated plan, then stops in TODO. Move to In progress before publishing findings. Findings enqueue separate read-only QA/security; passing evidence completes the task. A failed review returns it to idle TODO; missing requirements return Planning. Preserve source and Git during both investigation and QA.

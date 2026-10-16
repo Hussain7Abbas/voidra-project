@@ -1,3 +1,4 @@
+import { withActionSequence } from "./action-sequence.ts";
 import { VoidraError } from "./errors.ts";
 import {
   approvalCurrent,
@@ -137,6 +138,9 @@ export async function approveAction(
       action = transition(action, "advance", context, rules).action;
     action = transition(action, "approve-plan", context, rules).action;
   }
+  if (action.taskWorkflow === 1 && action.type !== "release") {
+    action = { ...action, taskColumn: "todo", workflowPlanned: true };
+  }
   const changes: {
     path: string;
     expectedHash: string | null;
@@ -165,5 +169,9 @@ export async function approveAction(
     expectedHash: null,
     content: null,
   });
-  return applyOperation(root, { changes }, options);
+  return applyOperation(
+    root,
+    withActionSequence(checked, { changes }, by),
+    options,
+  );
 }

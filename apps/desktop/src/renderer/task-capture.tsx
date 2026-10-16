@@ -233,6 +233,7 @@ export function TaskCapture({
           assignee: values.assignee || undefined,
           targetRelease: data.taskTracking ? values.release || null : undefined,
           taskColumn: data.taskTracking ? "backlog" : undefined,
+          taskWorkflow: data.taskTracking ? 1 : undefined,
         });
       else
         await request({

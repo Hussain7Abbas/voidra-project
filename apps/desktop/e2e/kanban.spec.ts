@@ -32,6 +32,7 @@ async function finishDrag(page: Page, column: string) {
   const heading = page
     .getByRole("region", { name: `${column} tasks`, exact: true })
     .getByRole("heading");
+  await heading.scrollIntoViewIfNeeded();
   const box = await heading.boundingBox();
   if (!box) throw Error("Missing column bounds");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
@@ -136,8 +137,8 @@ for (const theme of ["light", "dark"] as const)
         status: "ready",
       });
       await expect(grip(page, "Pointer task")).toBeEnabled();
-      await grip(page, "Pointer task").focus();
-      await page.keyboard.press("ArrowLeft");
+      await beginDrag(page, "Pointer task");
+      await finishDrag(page, "Backlog");
       await expect
         .poll(task)
         .toMatchObject({ column: "backlog", targetRelease: "1.2.0" });
@@ -210,7 +211,7 @@ for (const theme of ["light", "dark"] as const)
       await grip(page, "Filter move").focus();
       await page.keyboard.press("ArrowRight");
       await expect(
-        page.getByText("Moved to TODO. Hidden by the current filters.", {
+        page.getByText("Moved to Planning. Hidden by the current filters.", {
           exact: true,
         }),
       ).toBeVisible();

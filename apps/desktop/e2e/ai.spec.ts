@@ -6,9 +6,10 @@ import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { _electron, expect, test } from "@playwright/test";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
+import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 
 for (const theme of ["light", "dark"] as const)
-  test(`optional AI key settings and editable idea suggestions in ${theme}`, async () => {
+  test(`optional AI key settings and editable historical idea suggestions in ${theme}`, async () => {
     const temp = await mkdtemp(join(tmpdir(), "voidra-ai-ui-")),
       root = join(temp, "project"),
       requests: { url: string; body: string; auth: string }[] = [];
@@ -73,10 +74,7 @@ for (const theme of ["light", "dark"] as const)
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "Normal", exact: true }).check();
+      await openLegacyIdeaEditor(page, root);
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
       ).toHaveCount(0);
@@ -113,10 +111,7 @@ for (const theme of ["light", "dark"] as const)
           .violations,
       ).toEqual([]);
       await page.getByRole("button", { name: "Done", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "Normal", exact: true }).check();
+      await openLegacyIdeaEditor(page, root);
       await page
         .getByLabel("Description", { exact: true })
         .fill("rough idea: export offline notes to json");
@@ -178,10 +173,7 @@ for (const theme of ["light", "dark"] as const)
         page.getByText("No key saved", { exact: true }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Done", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "Normal", exact: true }).check();
+      await openLegacyIdeaEditor(page, root);
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
       ).toHaveCount(0);

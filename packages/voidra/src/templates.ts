@@ -368,7 +368,8 @@ export async function initializeProject(
           type: "feature",
           title: "Bootstrap",
           targetRelease: release.version,
-          taskColumn: release.version ? "todo" : "backlog",
+          taskColumn: release.version ? "planning" : "backlog",
+          taskWorkflow: 1,
           stage: (template.lifecycleOverrides?.feature ?? lifecycles.feature)
             .stages[0],
           status: "ready",

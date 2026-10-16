@@ -85,6 +85,28 @@ export const questionSchema = object({
     at: date,
   }).optional(),
 });
+const qualityChecksSchema = object({
+  summary: text,
+  checks: z
+    .array(object({ name: text, passed: z.boolean(), evidence: text }))
+    .min(1),
+});
+export const qualityReportSchema = object({
+  summary: text,
+  decision: z.enum(["pass", "rework", "questions"]),
+  qa: qualityChecksSchema,
+  security: qualityChecksSchema,
+  questions: z
+    .array(
+      questionSchema.pick({
+        text: true,
+        why: true,
+        options: true,
+        dependsOn: true,
+      }),
+    )
+    .optional(),
+});
 export const actionSchema = object({
   id: id("act"),
   type: z.enum(types),
@@ -101,7 +123,13 @@ export const actionSchema = object({
   doneBy: z.enum(["agent", "you"]),
   assignee: text.optional(),
   targetRelease: version.nullable().optional(),
-  taskColumn: z.enum(["backlog", "todo"]).optional(),
+  taskColumn: z
+    .enum(["backlog", "planning", "todo", "in-progress", "review"])
+    .optional(),
+  taskWorkflow: z.literal(1).optional(),
+  workflowPlanned: z.boolean().optional(),
+  qualityRun: id("run").optional(),
+  deletedAt: date.optional(),
   parent: id("act").optional(),
   blockedBy: z.array(id("act")).optional(),
   links: z.array(text).optional(),
@@ -152,6 +180,7 @@ export const schemas = {
     createdWith: text,
     releasePackage: releasePackageSchema.optional(),
     taskTracking: z.literal(1).optional(),
+    taskWorkflow: z.literal(1).optional(),
     lifecycleOverrides: z.json().optional(),
   }),
   profile: object({
@@ -220,6 +249,8 @@ export const schemas = {
     checks: z.array(object({ name: text, passed: z.boolean() })).optional(),
     paths: z.array(text).optional(),
     planningOnly: z.boolean().optional(),
+    quality: qualityReportSchema.optional(),
+    sourceCommit: text.optional(),
     reviews: object({
       standards: object({ passed: z.boolean(), summary: text }),
       plan: object({ passed: z.boolean(), summary: text }),

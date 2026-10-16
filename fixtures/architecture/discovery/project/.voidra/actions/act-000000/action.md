@@ -5,6 +5,7 @@
   title: Bootstrap,
   targetRelease,
   taskColumn: backlog,
+  taskWorkflow: 1,
   stage: discovery,
   status: waiting,
   doneBy: agent,

@@ -38,9 +38,7 @@ for (const theme of ["light", "dark"] as const)
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();
       const title = page.getByLabel("Title", { exact: true }),
         editor = page.getByLabel("Description", { exact: true });
@@ -93,12 +91,14 @@ for (const theme of ["light", "dark"] as const)
         path: resolve(`../../.cache/screenshots/v11-p02-editor-${theme}.png`),
       });
       await page
-        .getByRole("button", { name: "Save idea", exact: true })
+        .getByRole("button", { name: "Create action", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
       const checked = await checkProject(root),
         idea = [...checked.records.values()].find(
-          (record) => record.kind === "idea",
+          (record) =>
+            record.kind === "action" &&
+            record.document.data.title === "Source stays intact",
         );
       expect(checked.diagnostics).toEqual([]);
       expect(idea?.document.body.trimEnd()).toBe(source);

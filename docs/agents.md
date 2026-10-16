@@ -23,3 +23,5 @@ Local releases use voidra-release for atomic selection/queueing, then Go for a p
 `voidra-sync` inspects actual outside Git commits, infers source-linked profile values and proposes work without source/Git writes. Confirmed differences create draft Profile changes; repeat revisions reuse proposals. Its standalone script and template references travel with the skill.
 
 The v1.1.0 versioned Actions contract preserves blocked/gated pending requests and selects the first eligible request in global order. Reordering never retries consumed work; legacy queues retain strict first-item semantics. See [queue format](format/queue.md) and [actual V11-P06 checks](verification/v1.1.0-p06.md). Explicit absolute runtime paths plus `--project` and an explicit fixture working directory avoid a small model substituting a stale global skill after a non-following symlink listing.
+
+Workflow task runs additionally dispatch using `taskRunKind`; see the [QA/security contract](architecture/runs.md#workflow-runs-reader-120). Passing owned quality reports can complete these tasks automatically; legacy results retain human review.

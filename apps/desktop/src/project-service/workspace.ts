@@ -33,6 +33,7 @@ import {
   createAction as createPlanningAction,
   createReleaseAction,
   decideReview,
+  deleteTask,
   detectCode,
   editAction,
   editIdea,
@@ -303,6 +304,14 @@ export class ProjectWorkspace {
           revisions: request.revisions,
           by: current.identity.value ?? "You",
         });
+      await this.publish();
+    }
+    if (request.command === "delete-task") {
+      await deleteTask(this.root, {
+        id: request.id,
+        revision: request.revision,
+        by: "You",
+      });
       await this.publish();
     }
     if (request.command === "move-task") {
@@ -701,6 +710,7 @@ export class ProjectWorkspace {
       steps: options?.steps,
       targetRelease: options?.targetRelease,
       taskColumn: options?.taskColumn,
+      taskWorkflow: options?.taskWorkflow,
     });
     await this.publish();
   }

@@ -2,9 +2,17 @@ import { hash } from "./lifecycle.ts";
 import type { ProjectInspection } from "./project.ts";
 import { type Action, schemas } from "./schemas.ts";
 
-export type TaskColumn = "backlog" | "todo" | "in-progress" | "review" | "done";
+export type TaskColumn =
+  | "backlog"
+  | "planning"
+  | "todo"
+  | "in-progress"
+  | "review"
+  | "done";
 export interface TaskView {
   id: string;
+  workflow?: true;
+  deleted?: true;
   kind: "action" | "idea";
   title: string;
   body: string;
@@ -25,8 +33,16 @@ export interface TaskView {
 
 /** Board organization never changes the lifecycle or grants an approval. */
 export function taskColumn(action: Action, hasRun = false): TaskColumn {
-  if (action.stage === "cancelled") return "backlog";
+  if (action.deletedAt || action.stage === "cancelled") return "backlog";
   if (action.status === "complete" || action.releasedIn) return "done";
+  if (action.taskWorkflow === 1) {
+    if (action.stage === "review") return "review";
+    if (action.taskColumn === "backlog" || action.status === "draft")
+      return "backlog";
+    if (action.taskColumn === "planning") return "planning";
+    if (action.taskColumn === "todo") return "todo";
+    return "in-progress";
+  }
   if (action.stage === "review") return "review";
   if (
     action.status === "running" ||
@@ -84,13 +100,18 @@ export function projectTasks(project: ProjectInspection): TaskView[] {
     const action = record.kind === "action" ? schemas.action.parse(data) : null;
     tasks.push({
       id: data.id,
+      ...(action?.taskWorkflow === 1 ? { workflow: true as const } : {}),
+      ...(data.deletedAt ? { deleted: true as const } : {}),
       kind: record.kind,
       title: data.title,
       body: record.document.body,
       path,
       revision: hash(record.document.raw),
       column: action ? taskColumn(action, ran.has(data.id)) : "backlog",
-      archived: action?.stage === "cancelled" || data.status === "rejected",
+      archived:
+        !!action?.deletedAt ||
+        action?.stage === "cancelled" ||
+        data.status === "rejected",
       stage: action?.stage ?? null,
       status: data.status,
       type: data.type ?? null,

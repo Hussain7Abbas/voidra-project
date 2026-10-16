@@ -217,11 +217,26 @@ for (const theme of ["light", "dark"] as const)
           `../../.cache/screenshots/v11-p08-documentation-${theme}.png`,
         ),
       });
-      await page.getByRole("button", { name: "Glossary", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Documentation", exact: true })
+        .click();
+      await page.getByRole("tab", { name: "Glossary", exact: true }).click();
       await page.getByLabel("Search glossary", { exact: true }).fill("intact");
-      await expect(page.locator("main pre")).toContainText("intact fence");
-      await expect(page.locator("main table")).toHaveCount(1);
-      await expect(page.locator("main mark")).toHaveText("intact");
+      await expect(
+        page
+          .getByRole("tabpanel", { name: "Glossary", exact: true })
+          .locator("pre"),
+      ).toContainText("intact fence");
+      await expect(
+        page
+          .getByRole("tabpanel", { name: "Glossary", exact: true })
+          .locator("table"),
+      ).toHaveCount(1);
+      await expect(
+        page
+          .getByRole("tabpanel", { name: "Glossary", exact: true })
+          .locator("mark"),
+      ).toHaveText("intact");
       expect(await readFile(join(root, "docs/nested/guide.md"), "utf8")).toBe(
         body,
       );

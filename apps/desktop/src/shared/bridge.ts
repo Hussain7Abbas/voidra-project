@@ -269,12 +269,21 @@ export const workspaceSchema = z.strictObject({
     .array(
       z.strictObject({
         id: z.string(),
+        workflow: z.literal(true).optional(),
+        deleted: z.literal(true).optional(),
         kind: z.enum(["action", "idea"]),
         title: z.string(),
         body: z.string(),
         path: z.string(),
         revision: z.string(),
-        column: z.enum(["backlog", "todo", "in-progress", "review", "done"]),
+        column: z.enum([
+          "backlog",
+          "planning",
+          "todo",
+          "in-progress",
+          "review",
+          "done",
+        ]),
         archived: z.boolean(),
         stage: z.string().nullable(),
         status: z.string(),
@@ -383,7 +392,10 @@ export const workspaceSchema = z.strictObject({
         status: z.string(),
         doneBy: z.string(),
         targetRelease: z.string().nullable().optional(),
-        taskColumn: z.enum(["backlog", "todo"]).optional(),
+        taskColumn: z
+          .enum(["backlog", "planning", "todo", "in-progress", "review"])
+          .optional(),
+        taskWorkflow: z.literal(1).optional(),
         assignee: z.string().optional(),
         parent: z.string().optional(),
         blockedBy: z.array(z.string()).optional(),
@@ -557,10 +569,22 @@ export const serviceStateSchema = z.enum([
 export const workspaceRequestSchema = z.discriminatedUnion("command", [
   ...actionSequenceRequestSchemas,
   z.strictObject({
+    command: z.literal("delete-task"),
+    id: z.string().min(1),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  z.strictObject({
     command: z.literal("move-task"),
     id: z.string().regex(/^(act|idea)-[0-9a-hjkmnp-tv-z]{6}$/),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
-    column: z.enum(["backlog", "todo", "in-progress", "review", "done"]),
+    column: z.enum([
+      "backlog",
+      "planning",
+      "todo",
+      "in-progress",
+      "review",
+      "done",
+    ]),
     type: actionTypeSchema.optional(),
   }),
   z.strictObject({
@@ -759,7 +783,10 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
     command: z.literal("create-action"),
     submission: z.uuid().optional(),
     targetRelease: z.string().min(1).max(80).nullable().optional(),
-    taskColumn: z.enum(["backlog", "todo"]).optional(),
+    taskColumn: z
+      .enum(["backlog", "planning", "todo", "in-progress", "review"])
+      .optional(),
+    taskWorkflow: z.literal(1).optional(),
     title: z.string().trim().min(1).max(160),
     description: z.string().min(1).max(20000),
     type: actionTypeSchema.optional(),
@@ -774,6 +801,7 @@ export const workspaceEdits = {
   "enable-action-sequence": "Enable Actions sequence",
   "replace-action-sequence": "Reorder Actions sequence",
   "move-task": "Move task",
+  "delete-task": "Delete task",
   "enable-task-tracking": "Enable task tracking",
   "set-release-package": "Select release package",
   "create-release": "Create release",
@@ -841,10 +869,12 @@ export const requestSchema = z.discriminatedUnion("command", [
     kind: z.enum(["run", "operation"]),
     id: z.string().regex(/^(?:run|op)-[0-9a-hjkmnp-tv-z]{6}$/),
     agent: z.enum(["claude-code", "codex"]),
+    open: z.boolean().optional(),
   }),
   z.strictObject({
     command: z.literal("copy-agent-command"),
     agent: z.enum(["claude-code", "codex"]),
+    open: z.boolean().optional(),
     skill: z.enum(["voidra-go", "voidra-init", "voidra-sync"]).optional(),
   }),
   z.strictObject({

@@ -56,7 +56,7 @@ it("creates a valid Docs/chore record from the form and lists it immediately", a
       .getByRole("dialog", { name: "Create action", exact: true })
       .waitFor({ state: "hidden", timeout: 30000 });
     await page
-      .getByText('Fix docs: "install"', { exact: true })
+      .getByRole("button", { name: 'Fix docs: "install"', exact: true })
       .waitFor({ timeout: 5000 });
     const checked = await checkProject(root);
     expect(checked.diagnostics).toEqual([]);

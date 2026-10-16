@@ -61,7 +61,8 @@ export function releaseCandidates(
       )
         return [];
       const action = schemas.action.parse(record.document.data);
-      return action.type !== "release" &&
+      return !action.deletedAt &&
+        action.type !== "release" &&
         actionComplete(action) &&
         action.stage !== "released" &&
         !action.releasedIn &&
@@ -171,7 +172,7 @@ export async function createReleaseAction(
               id,
               type: "release",
               title: "New release",
-              ...(await newTaskFields(root, project, "action")),
+              ...(await newTaskFields(root, project, "action", {}, false)),
               stage: projectLifecycles(project.metadata).release.stages[0],
               status: "ready",
               doneBy: "agent",

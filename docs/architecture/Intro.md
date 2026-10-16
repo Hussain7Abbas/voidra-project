@@ -19,7 +19,7 @@
 - [General template](general-template.md): approved questions, architecture proposals, slices and gate/write boundaries.
 
 - [Backlog and actions](backlog-actions.md): editing, promotion, dependencies, aggregate completion and board views.
-- [Tasks](tasks.md): v1.1.0 task projection and project release identity; implementation in progress.
+- [Tasks](tasks.md): task projection, project release identity and the six-column agent workflow.
 - [Local Team and preferences](team-settings.md): private roster, project membership, Me and revision-guarded settings.
 - [Private form drafts](form-drafts.md): durable local sessions, encrypted credential drafts and close-time flush across forms.
 - [Markdown editing](markdown-editing.md): safe GFM, active-line source reveal, exact source history and editor security.

@@ -492,7 +492,10 @@ export const WaitingPanel = memo(function WaitingPanel({
         tabIndex={0}
         ref={body}
       >
-        {selected ? (
+        {selected &&
+        workspace.actions.some(
+          (action) => action.data.id === selected && !action.data.deletedAt,
+        ) ? (
           <ProjectActions
             key={selected}
             view="actions"

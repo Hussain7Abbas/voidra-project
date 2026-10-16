@@ -2,7 +2,7 @@ import { VoidraError } from "./errors.ts";
 import { parseRecord, serializeRecord } from "./records.ts";
 import { schemas } from "./schemas.ts";
 export const FORMAT_VERSION = 1;
-export const PACKAGE_VERSION = "1.1.1";
+export const PACKAGE_VERSION = "1.2.0";
 /** The only legacy shape is a local, unreleased format-0 migration fixture. */
 export function upgradePrototype(
   files: Map<string, Buffer>,

@@ -262,6 +262,7 @@ export function ProjectOnboarding({ name }: { name: string }) {
                 onClick={() =>
                   void request({
                     command: "copy-agent-command",
+                    open: true,
                     agent,
                     skill: "voidra-init",
                   })

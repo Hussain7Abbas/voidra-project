@@ -31,3 +31,7 @@ The right Actions sidebar always edits the complete global order, independent of
 Runtime chooses the first eligible pending request in this order. It skips blocked/gated requests without removing them, rechecks existing `queueDecision` rules, and returns null when none qualify. Legacy queues retain strict first-entry behavior. New runs store an `orderedIntent` version/hash receipt so local undo recognizes consumed ordering; it carries no private-file references requiring those files in a clone. Existing ownership, source, approval and recovery guards still apply.
 
 New task-tracking upgrades bootstrap the pair in the exact migration preview/write. Already tracked projects preview conversion before enabling it. Reorder/enrollment/Backlog removal use grouped writes and persistent app undo. Run consumption blocks replay of earlier ordering even after restart. Unknown/missing/corrupt intent remains visible as a problem and is never silently repaired by a read.
+
+## Agentic workflow follow-up
+
+For reader 1.2.0 workflow actions, active intent covers Planning, In progress and Review; TODO has no execution request. Question resolution re-enrolls planning, exact approval parks TODO, implementation result enrolls QA. This changes only explicitly marked workflow tasks; legacy task queues retain reader 1.1 behavior.

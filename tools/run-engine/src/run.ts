@@ -22,6 +22,7 @@ import {
   newTaskFields,
   parseRecord,
   projectLifecycles,
+  qualityReportSchema,
   queueDecision,
   readActionSequence,
   readPlan,
@@ -30,8 +31,10 @@ import {
   releaseCandidates,
   releasedMember,
   releasePreparationSchema,
+  reviewRevision,
   schemas,
   serializeRecord,
+  taskRunKind,
   transition,
   withActionSequence,
 } from "voidra";
@@ -70,6 +73,7 @@ const checkpointSchema = z.looseObject({
   ]),
   baseCommit: z.string().nullable(),
   mode: z.enum(["go", "plan"]).optional(),
+  taskRunKind: z.enum(["planning", "implementation", "quality"]).optional(),
   sourceSnapshot: z.record(z.string(), z.string().nullable()).optional(),
   inputHashes: z.record(z.string(), z.string()).optional(),
   priorWork: z.record(z.string(), z.string().nullable()).optional(),
@@ -733,6 +737,7 @@ export async function startRun(
     doc = checked.records.get(actionPath)?.document;
   if (!doc) throw new Error("Queued action not found");
   const action = schemas.action.parse(doc.data);
+  const workflowKind = taskRunKind(action);
   const decision = queueDecision(checked, actionId, { stopAtStalePlan: true });
   if (!decision.allowed)
     throw new Error(decision.reason ?? "Queued action cannot run");
@@ -751,6 +756,24 @@ export async function startRun(
   const identity = await processIdentity(ownerPid);
   if (!identity) throw new Error("Run owner process is missing");
   const repository = await repositoryRoot(root);
+  if (
+    repository &&
+    ["implementation", "quality"].includes(workflowKind ?? "")
+  ) {
+    let committedReader = "";
+    try {
+      committedReader = schemas.project.parse(
+        JSON.parse(await git(root, ["show", "HEAD:.voidra/voidra.json"])),
+      ).requiredVoidra;
+    } catch {
+      /* An absent committed baseline needs an explicit planning commit too. */
+    }
+    const [major = 0, minor = 0] = committedReader.split(".").map(Number);
+    if (!(major > 1 || (major === 1 && minor >= 2)))
+      throw Error(
+        "Commit the task-workflow metadata upgrade before implementation or QA. Open Actions → Execution options → Commit planning changes and include .voidra/voidra.json.",
+      );
+  }
   const rules = projectLifecycles(checked.metadata),
     plan = readPlan(checked.files, action.id, checked.records);
   const stale =
@@ -764,9 +787,12 @@ export async function startRun(
           value,
       ));
   const boundary =
-    mode === "plan" && !["discovery", "plan"].includes(action.stage ?? "");
+    mode === "plan" &&
+    workflowKind !== "planning" &&
+    !["discovery", "plan"].includes(action.stage ?? "");
   const planning =
       mode === "plan" ||
+      workflowKind === "planning" ||
       stale ||
       ["discovery", "plan"].includes(action.stage ?? ""),
     bootstrapGit =
@@ -797,13 +823,26 @@ export async function startRun(
   if (
     action.stage === "review" &&
     action.type !== "release" &&
+    workflowKind !== "quality" &&
     !checked.records.get(`.voidra/actions/${action.id}/questions.md`)
   )
     throw new Error("Review needs a human decision");
   let startedAction: Action = { ...action, status: "running" };
-  if (stale) startedAction = { ...action, stage: "plan", status: "waiting" };
+  if (stale)
+    startedAction = {
+      ...action,
+      stage: "plan",
+      status: "waiting",
+      ...(action.taskWorkflow === 1
+        ? { taskColumn: "planning", workflowPlanned: false }
+        : {}),
+    };
   else if (boundary) startedAction = action;
-  else if (action.stage === "review" && action.type !== "release")
+  else if (
+    action.stage === "review" &&
+    action.type !== "release" &&
+    workflowKind !== "quality"
+  )
     startedAction = {
       ...action,
       stage: rules[action.type].rejectTo,
@@ -920,6 +959,7 @@ export async function startRun(
     ).toString();
   const ctx: RunContext = {
     schema: 1,
+    ...(workflowKind ? { taskRunKind: workflowKind } : {}),
     run,
     action: actionId,
     agent,
@@ -1112,7 +1152,12 @@ export async function prepareResult(
   const { action, actionRaw, runRaw } = await current(root, ctx);
   const project = await checkProject(root),
     plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan" || action.type === "research")
+  if (
+    ctx.mode === "plan" ||
+    ctx.taskRunKind === "planning" ||
+    ctx.taskRunKind === "quality" ||
+    action.type === "research"
+  )
     throw new Error("This run cannot prepare an implementation commit");
   if (action.type !== "docs" && !report.reviews)
     throw new Error("Both standards and plan review are required");
@@ -1641,6 +1686,8 @@ export async function publishPlanning(
     { ctx, lockRaw } = await inspectOwnedRun(root, token);
   if (ctx.phase !== "started" || input.action !== ctx.action)
     throw new Error("Planning report does not match the active action");
+  if (ctx.taskRunKind && ctx.taskRunKind !== "planning")
+    throw Error("Return this task to Planning before publishing a new plan");
   await unchangedPlanningGit(root, ctx);
   const source = await snapshotSources(root),
     changesOutside = sourceChanges(ctx.sourceSnapshot ?? {}, source).filter(
@@ -1648,6 +1695,7 @@ export async function publishPlanning(
     );
   if (
     (ctx.mode === "plan" ||
+      ctx.taskRunKind === "planning" ||
       ["discovery", "plan"].includes(
         schemas.action.parse(
           parseRecord(
@@ -1769,8 +1817,14 @@ export async function guardRun(
     project = await checkProject(root),
     rules = projectLifecycles(project.metadata),
     plan = readPlan(project.files, action.id, project.records);
-  if (ctx.mode === "plan")
-    throw new Error("Planning-only runs cannot edit implementation files");
+  if (
+    ctx.mode === "plan" ||
+    ctx.taskRunKind === "planning" ||
+    ctx.taskRunKind === "quality"
+  )
+    throw new Error(
+      "Planning-only and QA runs cannot edit implementation files",
+    );
   const repository = await repositoryRoot(root);
   if (
     repository !==
@@ -1936,6 +1990,10 @@ export async function publishResearch(
   const input = researchReportSchema.parse(raw),
     { ctx } = await inspectOwnedRun(root, token),
     { action } = await current(root, ctx);
+  if (ctx.taskRunKind === "planning" || ctx.taskRunKind === "quality")
+    throw Error(
+      "Plan Research in Planning, then move TODO to In progress for findings",
+    );
   if (action.type !== "research" || action.stage !== "discovery")
     throw new Error("Findings require Research Discovery");
   await assertPlanningEffects(root, ctx);
@@ -2016,7 +2074,7 @@ export async function publishHumanBlocker(
   if (ctx.mode === "plan" || ["discovery", "plan"].includes(action.stage ?? ""))
     await assertPlanningEffects(root, ctx);
   const human = schemas.action.parse({
-    ...(await newTaskFields(root, project, "action")),
+    ...(await newTaskFields(root, project, "action", {}, false)),
     id,
     type: "docs",
     title: input.title,
@@ -2095,5 +2153,195 @@ export async function resolveDelegatedChoices(
     root,
     { ...ctx, inputHashes: { ...ctx.inputHashes, [path]: hash(bytes) } },
     [{ path, expectedHash: hash(doc.raw), content: bytes }],
+  );
+}
+
+/** QA is an owned, read-only source pass. Only its bound evidence can automatically complete a workflow task. */
+export async function publishQuality(
+  root: string,
+  token: string,
+  raw: unknown,
+): Promise<void> {
+  const report = qualityReportSchema.parse(raw),
+    { ctx, lockRaw } = await owned(root, token);
+  if (
+    ctx.phase !== "started" ||
+    ctx.taskRunKind !== "quality" ||
+    ctx.mode === "plan"
+  )
+    throw Error("An owned QA/security run is required");
+  const { action, actionRaw, runRaw } = await current(root, ctx);
+  if (
+    action.taskWorkflow !== 1 ||
+    action.stage !== "review" ||
+    action.type === "release"
+  )
+    throw Error("This task is not awaiting QA/security");
+  await unchangedPlanningGit(root, ctx);
+  if (
+    sourceChanges(ctx.sourceSnapshot ?? {}, await snapshotSources(root)).length
+  )
+    throw Error("Source changed during QA; preserve it and stop");
+  const project = await checkProject(root);
+  for (const [path, expected] of Object.entries(ctx.inputHashes ?? {}))
+    if (hash(project.files.get(path) ?? Buffer.alloc(0)) !== expected)
+      throw Error("QA context changed; run it again against current inputs");
+  const prior = [...project.records.values()].find(
+    (record) =>
+      record.kind === "run" &&
+      record.document.data.action === ctx.action &&
+      record.document.data.toStage === "review" &&
+      (record.document.data.commit ||
+        (action.type === "research" &&
+          record.document.data.planningOnly === true)) &&
+      record.document.data.endedAt,
+  );
+  if (!prior)
+    throw Error("QA requires a completed implementation or Research result");
+  if (prior.document.data.commit)
+    await git(root, [
+      "cat-file",
+      "-e",
+      `${String(prior.document.data.commit)}^{commit}`,
+    ]);
+  const checks = [...report.qa.checks, ...report.security.checks];
+  if (report.questions?.length && report.decision !== "questions")
+    throw Error(
+      "Unresolved requirements must return to Planning through a questions result",
+    );
+  if (report.decision === "pass" && checks.some((check) => !check.passed))
+    throw Error("Failed QA/security checks cannot complete a task");
+  if (report.decision === "rework" && checks.every((check) => check.passed))
+    throw Error("Record the failed check before returning work to TODO");
+  if (report.decision === "questions" && !report.questions?.length)
+    throw Error("Record the missing requirements as questions");
+  const at = new Date().toISOString(),
+    by = ctx.agent,
+    revision = reviewRevision(project, action.id);
+  const plan = readPlan(project.files, action.id, project.records);
+  const next = transition(
+    action,
+    report.decision === "pass" ? "accept-review" : "reject-review",
+    {
+      revision,
+      reviewRevision: revision,
+      by,
+      at,
+      ...(plan ? { plan } : {}),
+    },
+    projectLifecycles(project.metadata),
+  ).action;
+  if (report.decision === "pass") next.qualityRun = ctx.run;
+  else delete next.qualityRun;
+  next.reviewHistory = [
+    ...(Array.isArray(action.reviewHistory) ? action.reviewHistory : []),
+    ...(action.reviewDecision ? [action.reviewDecision] : []),
+    { ...report, run: ctx.run, revision, sourceCommit: ctx.baseCommit, by, at },
+  ];
+  if (next.reviewDecision && report.decision !== "pass")
+    next.reviewDecision.feedback = report.summary;
+  next.taskColumn =
+    report.decision === "questions"
+      ? "planning"
+      : report.decision === "rework"
+        ? "todo"
+        : "review";
+  const changes: Parameters<typeof applyOperation>[1]["changes"] = [];
+  if (report.decision === "questions") {
+    const path = `.voidra/actions/${ctx.action}/questions.md`,
+      old = project.records.get(path)?.document;
+    const questions = old
+      ? schemas.questions.parse(old.data)
+      : { action: ctx.action, rounds: [] };
+    if (
+      questions.rounds.some((round) =>
+        round.questions.some(
+          (q) =>
+            !q.answer || (q.answer.kind === "agent-decides" && !q.agentChoice),
+        ),
+      )
+    )
+      throw Error("Resolve the current question round before adding another");
+    const round = {
+      round: Math.max(0, ...questions.rounds.map((r) => r.round)) + 1,
+      askedAt: at,
+      questions:
+        report.questions?.map((q) => {
+          if (q.options.filter((option) => option.recommended).length !== 1)
+            throw Error("Each question needs one recommended option");
+          return { ...q, id: createId("q"), allowFreeText: true };
+        }) ?? [],
+    };
+    questions.rounds.push(round);
+    changes.push({
+      path,
+      expectedHash: old ? hash(old.raw) : null,
+      content: serializeRecord(
+        old ?? parseRecord(path, "---\n{}\n---\n"),
+        questions,
+      ).toString(),
+    });
+    next.stage = projectLifecycles(project.metadata)[next.type].stages.includes(
+      "discovery",
+    )
+      ? "discovery"
+      : projectLifecycles(project.metadata)[next.type].planGate
+        ? "plan"
+        : "implement";
+    next.status = "waiting";
+    if (next.planApproval)
+      next.approvalHistory = [
+        ...(next.approvalHistory ?? []),
+        next.planApproval,
+      ];
+    delete next.planApproval;
+    next.workflowPlanned = false;
+  }
+  const finalAction = serializeRecord(
+    parseRecord(ctx.actionPath, actionRaw),
+    next,
+  ).toString();
+  const finalRun = serializeRecord(
+    parseRecord(ctx.runPath, runRaw),
+    {
+      ...parseRecord(ctx.runPath, runRaw).data,
+      outcome: report.decision === "pass" ? "advanced" : "waiting",
+      endedAt: at,
+      toStage: next.stage,
+      checks: checks.map(({ name, passed }) => ({ name, passed })),
+      quality: report,
+      sourceCommit: ctx.baseCommit ?? undefined,
+      planningOnly: true,
+    },
+    `## QA and security review\n${report.summary}\n\n## QA\n${report.qa.summary}\n${report.qa.checks.map((check) => `- ${check.passed ? "Pass" : "Fail"}: ${check.name} — ${check.evidence}`).join("\n")}\n\n## Security\n${report.security.summary}\n${report.security.checks.map((check) => `- ${check.passed ? "Pass" : "Fail"}: ${check.name} — ${check.evidence}`).join("\n")}`,
+  ).toString();
+  await save(
+    root,
+    {
+      ...ctx,
+      phase: "finalized",
+      indexReconciled: true,
+      actionHash: hash(finalAction),
+      runHash: hash(finalRun),
+      paths: [],
+      fileHashes: {
+        [ctx.actionPath]: hash(finalAction),
+        [ctx.runPath]: hash(finalRun),
+      },
+    },
+    [
+      ...changes,
+      {
+        path: ctx.actionPath,
+        expectedHash: hash(actionRaw),
+        content: finalAction,
+      },
+      { path: ctx.runPath, expectedHash: hash(runRaw), content: finalRun },
+      {
+        path: ".voidra/local/run.lock",
+        expectedHash: hash(lockRaw),
+        content: null,
+      },
+    ],
   );
 }

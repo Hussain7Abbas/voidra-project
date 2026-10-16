@@ -161,7 +161,7 @@ function Directory({
     </ul>
   );
 }
-export function DocumentationPage() {
+export function DocumentationPage({ visible = true }: { visible?: boolean }) {
   const nav = useContext(documentContext),
     snapshot = useSnapshot(),
     client = useQueryClient(),
@@ -198,6 +198,7 @@ export function DocumentationPage() {
     const find = (event: KeyboardEvent) => {
       if (
         (event.metaKey || event.ctrlKey) &&
+        visible &&
         event.key.toLowerCase() === "f" &&
         !document.querySelector("dialog[open]")
       ) {
@@ -208,7 +209,7 @@ export function DocumentationPage() {
     };
     window.addEventListener("keydown", find);
     return () => window.removeEventListener("keydown", find);
-  }, []);
+  }, [visible]);
   const directory = useQuery({
     queryKey: ["documents", snapshot.data?.project?.path, q],
     retry: false,

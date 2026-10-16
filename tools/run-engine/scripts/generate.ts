@@ -108,6 +108,7 @@ await checkCopies(templateCopies);
 
 for (const name of [
   "runtime.md",
+  "quality.md",
   "discovery.md",
   "plan.md",
   "research.md",

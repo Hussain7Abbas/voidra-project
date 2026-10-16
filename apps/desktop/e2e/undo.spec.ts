@@ -13,6 +13,7 @@ import {
   replaceActionQueue,
 } from "voidra";
 import { publishFakeGate } from "../../../tools/fake-agent/src/gates.ts";
+import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 import { showWaiting } from "./workspace-helpers.ts";
 
 const env = Object.fromEntries(
@@ -50,10 +51,7 @@ for (const theme of ["light", "dark"] as const)
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
-      await page
-        .getByRole("button", { name: "Add to Backlog", exact: true })
-        .click();
-      await page.getByRole("radio", { name: "Normal", exact: true }).check();
+      await openLegacyIdeaEditor(page, root);
       const title = page.getByLabel("Title", { exact: true });
       await title.fill("Export");
       await title.press("End");
@@ -72,9 +70,7 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save idea", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
-      await page
-        .getByRole("button", { name: "Export notes", exact: true })
-        .click();
+
       await page
         .getByRole("button", {
           name: "Promote idea: Export notes",
