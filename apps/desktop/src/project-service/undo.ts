@@ -66,6 +66,7 @@ const historyPath = (path: string): boolean =>
 /** Local app history. The format writer still owns every file mutation. */
 export class UndoHistory {
   private notice: string | null = null;
+  private readonly activeOperations = new Set<string>();
   private readonly root: string;
   private readonly db: Database.Database;
   constructor(root: string, db: Database.Database) {
@@ -175,6 +176,7 @@ export class UndoHistory {
     observer?: OperationObserver,
   ): Promise<T> {
     await this.reconcile();
+    const ownedOperations = new Set<string>();
     return withOperationObserver(
       this.root,
       {
@@ -211,6 +213,8 @@ export class UndoHistory {
           )
             throw new Error("This edit exceeds the 32 MiB undo history limit");
           const runs = runIds(await checkProject(this.root));
+          this.activeOperations.add(operation.id);
+          ownedOperations.add(operation.id);
           this.db.transaction(() => {
             for (const [key, content] of bytes)
               this.db
@@ -250,16 +254,32 @@ export class UndoHistory {
         },
       },
       edit,
-    );
+    ).finally(() => {
+      for (const id of ownedOperations) this.activeOperations.delete(id);
+    });
   }
   private async reconcile(): Promise<void> {
     const pending = this.rows().filter(
-      (r) => r.state === "prepared" || r.replay_id,
+      (r) =>
+        (r.state === "prepared" || r.replay_id) &&
+        !this.activeOperations.has(r.replay_id ?? r.id),
     );
     if (!pending.length) return;
     const project = await checkProject(this.root);
     for (const row of pending) {
       const id = row.replay_id ?? row.id;
+      // A read may overlap a live observer before its durable receipt exists.
+      const current = this.db
+        .prepare("select * from undo_operations where id=?")
+        .get(row.id) as Row | undefined;
+      if (
+        this.activeOperations.has(id) ||
+        !current ||
+        current.state !== row.state ||
+        current.replay_id !== row.replay_id ||
+        current.replay_direction !== row.replay_direction
+      )
+        continue;
       const raw = project.files.get(`.voidra/local/operations/${id}.json`);
       const receipt = raw
         ? (JSON.parse(raw.toString()) as { state?: string })
@@ -460,36 +480,43 @@ export class UndoHistory {
       "op",
       new Set(this.rows().flatMap((r) => [r.id, r.replay_id ?? ""])),
     );
-    this.db
-      .prepare(
-        "update undo_operations set replay_id=?,replay_direction=? where id=?",
-      )
-      .run(id, direction, row.id);
-    await applyOperation(
-      this.root,
-      { id, changes },
-      {
-        allowEmptyProject: true,
-        checkpoint: async (point) => {
-          if (point !== "lock-acquired") return;
-          const latest = await this.inspect(
-            row,
-            direction,
-            await checkProject(this.root),
-          );
-          if (latest.blocked) throw new Error(latest.blocked);
-          if (
-            latest.conflicts.length &&
-            latest.overwriteRevision !== overwriteRevision
-          )
-            throw new Error("Files changed on disk; refresh the confirmation");
+    this.activeOperations.add(id);
+    try {
+      this.db
+        .prepare(
+          "update undo_operations set replay_id=?,replay_direction=? where id=?",
+        )
+        .run(id, direction, row.id);
+      await applyOperation(
+        this.root,
+        { id, changes },
+        {
+          allowEmptyProject: true,
+          checkpoint: async (point) => {
+            if (point !== "lock-acquired") return;
+            const latest = await this.inspect(
+              row,
+              direction,
+              await checkProject(this.root),
+            );
+            if (latest.blocked) throw new Error(latest.blocked);
+            if (
+              latest.conflicts.length &&
+              latest.overwriteRevision !== overwriteRevision
+            )
+              throw new Error(
+                "Files changed on disk; refresh the confirmation",
+              );
+          },
         },
-      },
-    );
-    this.db
-      .prepare(
-        "update undo_operations set state=?,replay_id=null,replay_direction=null where id=?",
-      )
-      .run(direction === "undo" ? "undone" : "applied", row.id);
+      );
+      this.db
+        .prepare(
+          "update undo_operations set state=?,replay_id=null,replay_direction=null where id=?",
+        )
+        .run(direction === "undo" ? "undone" : "applied", row.id);
+    } finally {
+      this.activeOperations.delete(id);
+    }
   }
 }

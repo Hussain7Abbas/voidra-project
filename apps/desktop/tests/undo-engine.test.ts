@@ -34,7 +34,7 @@ async function scenario(body: string, timeout = 25000): Promise<void> {
         import {execFileSync} from 'node:child_process';
         import {UndoHistory} from ${JSON.stringify(resolve("apps/desktop/src/project-service/undo.ts"))};
         import {ProjectWorkspace} from ${JSON.stringify(resolve("apps/desktop/src/project-service/workspace.ts"))};
-        import {createIdea,editIdea,createAction,replaceActionQueue,checkProject,hash,applyOperation,recoverOperation} from ${JSON.stringify(resolve("packages/voidra/src/index.ts"))};
+        import {createIdea,editIdea,createAction,replaceActionQueue,checkProject,hash,applyOperation,recoverOperation,withOperationObserver} from ${JSON.stringify(resolve("packages/voidra/src/index.ts"))};
         import {startRun} from ${JSON.stringify(resolve("tools/run-engine/src/run.ts"))};
         import {applySync,syncContext} from ${JSON.stringify(resolve("tools/run-engine/src/sync.ts"))};
         async function main() {
@@ -275,5 +275,36 @@ it("builds the initial workspace on demand and reads fresh source after edits, m
     await third.start();await unlink(databasePath+'.removed');
     assert.equal((await third.handle({command:'workspace'})).ideas.length,fresh.ideas.length+1);
     await third.close();
+  `);
+});
+
+it("retains live history and replay ownership when a concurrent read precedes the writer receipt", async () => {
+  await scenario(`
+    const id=await idea(),path='.voidra/backlog/'+id+'.md',original=await readFile(join(root,path));let observed=0;
+    await history.perform('Edit idea',()=>editIdea(root,{id,revision:hash(original),title:'Live edit',description:'Retain outside-edit protection',status:'new'}),{
+      committed:async()=>{},
+      prepared:async operation=>{
+        observed++;assert.equal((await history.state()).undo.label,'Create idea');
+        assert.equal(db.prepare('select state from undo_operations where id=?').get(operation.id)?.state,'prepared');
+      }
+    });
+    assert.equal(observed,1);assert.equal((await history.state()).undo.label,'Edit idea');
+    await writeFile(join(root,path),(await readFile(join(root,path),'utf8'))+String.fromCharCode(10)+'Teammate note.'+String.fromCharCode(10));
+    const entry=(await history.state()).undo;assert.deepEqual(entry.conflicts,[path]);
+    await assert.rejects(history.replay('undo',entry.revision),/confirm|changed/);
+    await withOperationObserver(root,{committed:async()=>{},prepared:async operation=>{
+      assert.equal(db.prepare('select replay_id from undo_operations where replay_id=?').get(operation.id)?.replay_id,operation.id);
+      await history.state();
+      assert.equal(db.prepare('select replay_id from undo_operations where replay_id=?').get(operation.id)?.replay_id,operation.id);
+    }},()=>history.replay('undo',entry.revision,entry.overwriteRevision));
+    assert.deepEqual(await readFile(join(root,path)),original);
+    reopen();assert.equal((await history.state()).redo.label,'Edit idea');
+    await assert.rejects(history.perform('Rejected edit',()=>createIdea(root,{title:'Never saved',description:'Observer failure',by:'You'}),{
+      committed:async()=>{},
+      prepared:async()=>{await history.state();throw Error('Observer stopped the edit');}
+    }),/Observer stopped/);
+    assert.equal((await history.state()).redo.label,'Edit idea');
+    assert.equal(db.prepare("select count(*) as n from undo_operations where state='prepared'").get().n,0);
+    assert.equal((await checkProject(root)).diagnostics.length,0);
   `);
 });

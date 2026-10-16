@@ -145,6 +145,12 @@ for (const theme of ["light", "dark"] as const)
         .getByRole("button", { name: "Save answer", exact: true })
         .click();
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: 30000 });
+      await expect(
+        page.getByRole("button", {
+          name: "Undo Edit profile answer",
+          exact: true,
+        }),
+      ).toBeEnabled();
       const profile = join(root, ".voidra/profile/problem.md");
       await writeFile(
         profile,

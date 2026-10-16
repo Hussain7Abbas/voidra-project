@@ -2,7 +2,7 @@
 
 ## 1.1.1
 
-Completes the Tasks workspace described below with an explicit readiness/focus check in hosted shortcut verification and current CLI documentation. App, library and all six skills share 1.1.1.
+Completes the Tasks workspace described below with an explicit readiness/focus check in hosted shortcut verification and current CLI documentation. Fixes concurrent history reads treating a live edit/replay as interrupted before its writer receipt exists, preserving Undo and outside-edit protection. App, library and all six skills share 1.1.1.
 
 ## 1.1.0
 

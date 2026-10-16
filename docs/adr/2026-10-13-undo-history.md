@@ -9,3 +9,7 @@ Capture app edits through a root-scoped asynchronous observer of the shared grou
 Replay uses the same validated writer and preserves exact bytes. Recheck consumed records from persistent runs, current hashes and lock guards before mutation and again under the writer lock. Retain consuming run identities across interruption and lock cleanup. An external overwrite requires a confirmation tied to the current hashes; cancellation writes nothing. Refuse deleting a file changed outside the logged edit. A bounded explicit writer option permits undoing initialization only when no shared project files remain, never a partially invalid project. Receipts remain private for recovery.
 
 Undo tables survive index schema rebuilds. Invalid history clears only history tables, displays a notice and preserves project files and index tables. Git commits, source files and implementation results remain outside app edit history.
+
+## Concurrency correction — 2026-10-16
+
+A live observer can register its prepared history row before the grouped writer creates a receipt. History reads must distinguish that active operation from an interrupted one. The service tracks active edit/replay IDs in memory and releases them in finally; after restart, receipt-based reconciliation remains authoritative. Asynchronous inspection rechecks the current row before changing it. This closes an operation-ownership race without changing the SQLite schema, the exact overwrite confirmation or consumption guards.
