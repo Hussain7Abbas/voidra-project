@@ -54,6 +54,50 @@ async function launch() {
   await page.reload();
   await page.locator('[data-app-ready="true"]').waitFor();
 }
+async function assertTitlebarLayout(selector: string) {
+  const metrics = await page.locator(selector).evaluate((bar) => {
+    const box = bar.getBoundingClientRect();
+    const title = bar.querySelector(".window-title")?.getBoundingClientRect();
+    const tools = bar.querySelector(".window-tools");
+    const controls = bar
+      .querySelector(".window-controls")
+      ?.getBoundingClientRect();
+    const buttons = [...(tools?.querySelectorAll("button") ?? [])];
+    return {
+      center: title
+        ? Math.abs(title.x + title.width / 2 - box.x - box.width / 2)
+        : Infinity,
+      toolNames: buttons.map((button) => button.getAttribute("aria-label")),
+      opposite:
+        !controls ||
+        controls.right <= (tools?.getBoundingClientRect().left ?? 0),
+      reachable: buttons
+        .filter((button) => !button.disabled)
+        .every((button) => {
+          const rect = button.getBoundingClientRect();
+          return (
+            document
+              .elementFromPoint(
+                rect.x + rect.width / 2,
+                rect.y + rect.height / 2,
+              )
+              ?.closest("button") === button
+          );
+        }),
+    };
+  });
+  expect(metrics.center).toBeLessThan(0.5);
+  expect(metrics.opposite).toBe(true);
+  expect(metrics.reachable).toBe(true);
+  expect(metrics.toolNames).toEqual([
+    "Navigation",
+    "Actions",
+    "Waiting for you",
+    "Undo",
+    "Redo",
+    "Settings",
+  ]);
+}
 async function audit() {
   expect(
     (await new AxeBuilder({ page }).setLegacyMode(true).analyze()).violations,
@@ -128,6 +172,20 @@ for (const theme of ["light", "dark"] as const) {
       page.getByRole("button", { name: "Settings", exact: true }),
     ).toBeFocused();
     await expect(page.locator(".window-titlebar")).toBeVisible();
+    await assertTitlebarLayout(".window-titlebar");
+    await application.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setBounds({ width: 700, height: 600 });
+    });
+    await expect.poll(() => page.evaluate(() => innerWidth)).toBe(700);
+    await page.locator(".window-title").evaluate((title) => {
+      title.textContent =
+        "A very long project title that stays centered beneath the titlebar buttons";
+    });
+    await assertTitlebarLayout(".window-titlebar");
+    await page.screenshot({
+      path: resolve(`../../.cache/screenshots/titlebar-narrow-${theme}.png`),
+    });
+
     const positions = await page
       .locator(".window-titlebar")
       .evaluate((element) => {
@@ -209,6 +267,12 @@ for (const theme of ["light", "dark"] as const) {
     await application.close();
     await launch();
     await expect(page.locator(".window-titlebar")).toHaveCount(0);
+    await application.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setBounds({ width: 700, height: 600 });
+    });
+    await expect.poll(() => page.evaluate(() => innerWidth)).toBe(700);
+    await assertTitlebarLayout(".native-titlebar-accessory");
+
     expect(
       await application.evaluate(({ BrowserWindow }) => {
         const window = BrowserWindow.getAllWindows()[0];

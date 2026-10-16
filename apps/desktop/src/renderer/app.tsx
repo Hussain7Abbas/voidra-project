@@ -284,6 +284,16 @@ function Shell() {
   const hideWaiting = useCallback(() => {
     void panels.toggle("waiting");
   }, [panels.toggle]);
+  const settingsButton = (
+    <Button
+      variant="ghost"
+      iconOnly
+      aria-label="Settings"
+      title="Settings"
+      onClick={() => setSettings(true)}
+      icon={<Settings size={18} aria-hidden />}
+    />
+  );
   const controls = (
     <div className="titlebar-accessories">
       <PanelControls
@@ -341,20 +351,17 @@ function Shell() {
       ) : (
         <section
           className="native-titlebar-accessory"
+          data-platform={data?.window?.platform}
           aria-label="Workspace controls"
         >
-          {controls}
           <span className="window-title">
             {data?.project?.name ?? "Voidra Project"}
           </span>
-          <Button
-            variant="ghost"
-            iconOnly
-            aria-label="Settings"
-            title="Settings"
-            onClick={() => setSettings(true)}
-            icon={<Settings size={18} aria-hidden />}
-          />
+          <div className="window-tools">
+            {data?.window?.platform !== "darwin" && settingsButton}
+            {controls}
+            {data?.window?.platform === "darwin" && settingsButton}
+          </div>
         </section>
       )}
       <div className="desktop-shell" ref={panels.host}>

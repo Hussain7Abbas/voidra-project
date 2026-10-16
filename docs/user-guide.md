@@ -18,7 +18,7 @@ For a folder with code, follow the app’s `voidra-init` instructions in your co
 
 ## Install the agent skills
 
-Use the first-run offer or **Settings → General**. **Install Claude skills** and **Install Codex skills** each install the complete bundled set for that client, offline. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
+Use the first-run offer or **Settings → General**. **Install Claude Skill 0/6** and **Install Codex Skill 0/6** each install the complete bundled set for that client, offline. Each button shows the number of current bundled skills installed, such as **6/6** after installation. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
 
 The public skills are:
 

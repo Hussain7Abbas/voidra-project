@@ -69,12 +69,18 @@ export function WindowTitlebar({
       {state.platform !== "darwin" && close}
     </fieldset>
   );
+  const tools = (
+    <div className="window-tools">
+      {state.platform !== "darwin" && settings}
+      {accessories}
+      {state.platform === "darwin" && settings}
+    </div>
+  );
   return (
     <section className="window-titlebar" aria-label="Window titlebar">
-      {state.platform === "darwin" ? controls : settings}
-      {accessories}
+      {state.platform === "darwin" ? controls : tools}
       <span className="window-title">{title}</span>
-      {state.platform === "darwin" ? settings : controls}
+      {state.platform === "darwin" ? tools : controls}
     </section>
   );
 }

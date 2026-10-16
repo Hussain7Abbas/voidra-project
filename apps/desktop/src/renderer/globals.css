@@ -653,6 +653,8 @@
 }
 
 .window-titlebar {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -669,16 +671,31 @@
   app-region: no-drag;
 }
 .window-title {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  pointer-events: none;
   font-size: 0.8rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.window-tools,
 .window-controls {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
   display: flex;
   flex: none;
+  align-items: center;
   gap: 0.25rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  app-region: no-drag;
 }
 .window-titlebar .window-close:hover {
   background: var(--error);
@@ -1211,10 +1228,6 @@
 .panel-controls .btn {
   position: relative;
 }
-.panel-controls .btn[aria-expanded="true"] {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 .panel-attention-count {
   position: absolute;
   inset: -2px -2px auto auto;
@@ -1227,6 +1240,8 @@
   padding-inline: 0.15rem;
 }
 .native-titlebar-accessory {
+  position: relative;
+  isolation: isolate;
   height: 2.625rem;
   display: flex;
   align-items: center;
@@ -1236,9 +1251,8 @@
   border-bottom: 1px solid var(--border);
   flex: none;
 }
-.native-titlebar-accessory .window-title {
-  flex: 1;
-  text-align: center;
+.native-titlebar-accessory[data-platform="darwin"] .window-tools {
+  margin-left: auto;
 }
 .pane-resizer {
   border: 0;

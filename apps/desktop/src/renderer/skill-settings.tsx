@@ -28,6 +28,7 @@ export function SkillSettingsPanel() {
     const result = await request({ command: "skills-bundle-preview", agent });
     if (result.kind !== "skills-bundle-preview")
       throw Error("Bundle preview is unavailable");
+    await query.invalidateQueries({ queryKey: ["skills-status"] });
     return result.preview;
   }
   async function apply(selected: SkillBundlePreview, confirmed: boolean) {
@@ -85,62 +86,36 @@ export function SkillSettingsPanel() {
       aria-label="Coding agent skills"
     >
       <h3 className="font-semibold">Coding agent skills</h3>
-      <p className="text-sm text-muted">
-        Install the complete bundled skill set for either client. Locally edited
-        copies require a review before replacement.
-      </p>
       <div className="flex flex-wrap gap-3">
-        {(["claude", "codex"] as const).map((agent) => (
-          <Button
-            key={agent}
-            variant="secondary"
-            disabled={busy || status.isFetching}
-            loading={busyAgent === agent}
-            onClick={() => void install(agent)}
-          >
-            {agent === "claude"
-              ? "Install Claude skills"
-              : "Install Codex skills"}
-          </Button>
-        ))}
+        {(["claude", "codex"] as const).map((agent) => {
+          const rows = status.data?.filter((row) => row.agent === agent);
+          const installed = rows?.filter(
+            (row) =>
+              row.present &&
+              !row.edited &&
+              !row.blocked &&
+              row.installedVersion === row.bundledVersion &&
+              row.installedFormat === row.bundledFormat,
+          ).length;
+          return (
+            <Button
+              key={agent}
+              variant="secondary"
+              disabled={busy || status.isFetching || !rows}
+              loading={busyAgent === agent}
+              onClick={() => void install(agent)}
+            >
+              Install {agent === "claude" ? "Claude" : "Codex"} Skill{" "}
+              {rows ? `${installed}/${rows.length}` : "…/…"}
+            </Button>
+          );
+        })}
       </div>
-      {status.isPending && <p role="status">Checking installed bundles…</p>}
-      {(["claude", "codex"] as const).map((agent) => {
-        const rows = status.data?.filter((row) => row.agent === agent) ?? [];
-        return (
-          rows.length > 0 && (
-            <div className="text-sm" key={agent}>
-              <p>
-                {agentNames[agent]}:{" "}
-                {
-                  rows.filter(
-                    (row) =>
-                      row.present &&
-                      !row.edited &&
-                      !row.blocked &&
-                      row.installedVersion === row.bundledVersion &&
-                      row.installedFormat === row.bundledFormat,
-                  ).length
-                }
-                /{rows.length} bundled copies installed ·{" "}
-                {rows[0]?.bundledVersion}
-              </p>
-              {[
-                ...new Set(
-                  rows
-                    .flatMap((row) => [row.blocked, row.compatibility])
-                    .filter((value): value is string => !!value),
-                ),
-              ].map((problem) => (
-                <p className="text-danger" key={problem}>
-                  {problem}
-                </p>
-              ))}
-            </div>
-          )
-        );
-      })}
-      {message && <p role="status">{message}</p>}
+      {message && (
+        <p role="status" className="sr-only">
+          {message}
+        </p>
+      )}
       {(error || status.error) && (
         <p role="alert" className="text-danger">
           {error || status.error?.message}

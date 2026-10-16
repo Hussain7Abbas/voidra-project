@@ -53,8 +53,23 @@ for (const theme of ["light", "dark"] as const)
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
       await expect(
-        page.getByRole("button", { name: /^Install (Claude|Codex) skills$/ }),
+        page.getByRole("button", {
+          name: /^Install (Claude|Codex) Skill \d+\/6$/,
+        }),
       ).toHaveCount(2);
+      const skillSection = page.getByRole("region", {
+        name: "Coding agent skills",
+        exact: true,
+      });
+      await expect(skillSection.getByRole("button")).toHaveCount(2);
+      for (const agent of ["Claude", "Codex"])
+        await expect(
+          skillSection.getByRole("button", {
+            name: `Install ${agent} Skill 0/6`,
+            exact: true,
+          }),
+        ).toBeVisible();
+      await expect(skillSection).not.toContainText("bundled copies");
       await expect(
         page.getByRole("button", { name: /Install voidra-/ }),
       ).toHaveCount(0);
@@ -63,14 +78,22 @@ for (const theme of ["light", "dark"] as const)
         ["Codex", ".agents"],
       ] as const) {
         await page
-          .getByRole("button", { name: `Install ${agent} skills`, exact: true })
+          .getByRole("button", {
+            name: new RegExp(`^Install ${agent} Skill \\d+/6$`),
+          })
           .click();
         await expect(
           page.getByText(
             `${agent === "Claude" ? "Claude Code" : "Codex"} skills installed`,
             { exact: true },
           ),
-        ).toBeVisible({ timeout: 30000 });
+        ).toHaveCount(1, { timeout: 30000 });
+        await expect(
+          skillSection.getByRole("button", {
+            name: `Install ${agent} Skill 6/6`,
+            exact: true,
+          }),
+        ).toBeEnabled();
         for (const name of names) {
           const marker = JSON.parse(
             await readFile(
@@ -91,7 +114,7 @@ for (const theme of ["light", "dark"] as const)
       await chmod(claudeParent, 0o500);
       try {
         await page
-          .getByRole("button", { name: "Install Claude skills", exact: true })
+          .getByRole("button", { name: /^Install Claude Skill \d+\/6$/ })
           .click();
         await expect(
           page
@@ -107,11 +130,11 @@ for (const theme of ["light", "dark"] as const)
         await chmod(claudeParent, 0o700);
       }
       await page
-        .getByRole("button", { name: "Install Claude skills", exact: true })
+        .getByRole("button", { name: /^Install Claude Skill \d+\/6$/ })
         .click();
       await expect(
         page.getByText("Claude Code skills installed", { exact: true }),
-      ).toBeVisible({ timeout: 30000 });
+      ).toHaveCount(1, { timeout: 30000 });
       const go = join(home, ".claude/skills/voidra-go/SKILL.md"),
         plan = join(home, ".claude/skills/voidra-plan/SKILL.md");
       const originalGo = await readFile(go, "utf8"),
@@ -122,8 +145,14 @@ for (const theme of ["light", "dark"] as const)
       await writeFile(go, `${originalGo}My hand edit.\n`);
       await writeFile(plan, `${originalPlan}My plan edit.\n`);
       await page
-        .getByRole("button", { name: "Install Claude skills", exact: true })
+        .getByRole("button", { name: /^Install Claude Skill \d+\/6$/ })
         .click();
+      await expect(
+        skillSection.getByRole("button", {
+          name: "Install Claude Skill 4/6",
+          exact: true,
+        }),
+      ).toBeVisible();
       const review = page.getByRole("dialog", {
         name: "Review skill bundle",
         exact: true,
@@ -134,7 +163,7 @@ for (const theme of ["light", "dark"] as const)
       expect(await readFile(go, "utf8")).toContain("My hand edit.");
       expect(await readFile(plan, "utf8")).toContain("My plan edit.");
       await page
-        .getByRole("button", { name: "Install Claude skills", exact: true })
+        .getByRole("button", { name: /^Install Claude Skill \d+\/6$/ })
         .click();
       await expect(review).toBeVisible();
       await writeFile(plan, `${await readFile(plan, "utf8")}Later edit.\n`);
@@ -158,12 +187,11 @@ for (const theme of ["light", "dark"] as const)
       ).toBe("outside");
       await expect(
         page.getByRole("button", {
-          name: "Install Claude skills",
-          exact: true,
+          name: /^Install Claude Skill \d+\/6$/,
         }),
       ).toBeEnabled();
       await expect(
-        page.getByRole("button", { name: "Install Codex skills", exact: true }),
+        page.getByRole("button", { name: /^Install Codex Skill \d+\/6$/ }),
       ).toBeEnabled();
       await page.waitForFunction(() =>
         Array.from(document.querySelectorAll("button")).every((button) =>
@@ -187,17 +215,13 @@ for (const theme of ["light", "dark"] as const)
         page.getByRole("region", { name: "Coding agent setup", exact: true }),
       ).toHaveCount(0);
       await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await expect(
-        page.getByText(
-          `Claude Code: 6/6 bundled copies installed · ${version}`,
-          { exact: true },
-        ),
-      ).toBeVisible();
-      await expect(
-        page.getByText(`Codex: 6/6 bundled copies installed · ${version}`, {
-          exact: true,
-        }),
-      ).toBeVisible();
+      for (const agent of ["Claude", "Codex"])
+        await expect(
+          page.getByRole("button", {
+            name: `Install ${agent} Skill 6/6`,
+            exact: true,
+          }),
+        ).toBeVisible();
     } finally {
       await app.close();
       await rm(temp, { recursive: true, force: true, maxRetries: 3 });

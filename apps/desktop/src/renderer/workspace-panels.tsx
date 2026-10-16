@@ -237,6 +237,11 @@ export function PanelControls({
   waitingCount: number;
   onToggle: (panel: WorkspacePanel) => Promise<void>;
 }) {
+  const fills = {
+    navigation: "M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4Z",
+    actions: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4Z",
+    waiting: "M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4Z",
+  };
   return (
     <fieldset className="panel-controls">
       <legend className="sr-only">Workspace panels</legend>
@@ -265,7 +270,14 @@ export function PanelControls({
           disabled={!ready || (panel !== "navigation" && !available)}
           title={`${label} · Cmd/Ctrl+Alt+${index + 1}`}
           onClick={() => void onToggle(panel)}
-          icon={<Icon size={18} aria-hidden />}
+          icon={
+            <Icon size={18} aria-hidden>
+              {(panel === "navigation" || available) &&
+                value[openField[panel]] && (
+                  <path d={fills[panel]} fill="currentColor" stroke="none" />
+                )}
+            </Icon>
+          }
         >
           {panel === "waiting" && waitingCount > 0 && (
             <span className="panel-attention-count">{waitingCount}</span>

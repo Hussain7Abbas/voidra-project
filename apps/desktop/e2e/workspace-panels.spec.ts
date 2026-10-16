@@ -93,6 +93,17 @@ for (const theme of ["light", "dark"] as const)
         await expect(
           titlebar.getByRole("group", { name: "Edit history" }),
         ).toBeVisible();
+        for (const [name, open] of [
+          ["Navigation", true],
+          ["Actions", true],
+          ["Waiting for you", false],
+        ] as const) {
+          const button = titlebar.getByRole("button", { name, exact: true });
+          await expect(button).toHaveAttribute("aria-expanded", String(open));
+          await expect(button.locator('svg [fill="currentColor"]')).toHaveCount(
+            open ? 1 : 0,
+          );
+        }
         await expect(page.locator(".workspace-topbar")).toHaveCount(0);
         await expect(
           page.getByText("Local project", { exact: true }),
@@ -128,6 +139,20 @@ for (const theme of ["light", "dark"] as const)
           .getByRole("button", { name: "Waiting for you", exact: true })
           .click();
         await expect(page.locator("#waiting-panel")).toBeVisible();
+        const waitingToggle = titlebar.getByRole("button", {
+          name: "Waiting for you",
+          exact: true,
+        });
+        await expect(
+          waitingToggle.locator('svg [fill="currentColor"]'),
+        ).toHaveCount(1);
+        await page.mouse.move(400, 300);
+        expect(
+          await waitingToggle.evaluate(
+            (button) => getComputedStyle(button).backgroundColor,
+          ),
+        ).toBe("rgba(0, 0, 0, 0)");
+
         await dragSeparator(page, "Resize Project navigation", 24, 0);
         await expect
           .poll(async () => (await savedLayout(page)).navigationWidth)
