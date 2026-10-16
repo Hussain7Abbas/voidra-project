@@ -1,0 +1,27 @@
+{
+  "type": "mono",
+  "subprojectsDir": "apps",
+  "tag_prefix": "v",
+  "generate_release_notes": true,
+  "create_production_release_branch": true,
+  "create_tag": true,
+  "create_pr": {
+    "staging": false,
+    "uat": false,
+    "sandbox": false,
+    "production": false
+  },
+  "environments": {
+    "develop": "develop",
+    "staging": null,
+    "uat": null,
+    "sandbox": null,
+    "production": "main"
+  },
+  "subprojects": [
+    {
+      "repo": "desktop",
+      "enabled": true
+    }
+  ]
+}
