@@ -11,13 +11,13 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
 import {
-  _electron,
   type ElectronApplication,
   expect,
   type Page,
   test,
 } from "@playwright/test";
 import { checkProject, createAction, readActionSequence } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 import { openExecutionOptions } from "./helpers/execution.ts";
 
 const execute = promisify(execFile),
@@ -105,7 +105,7 @@ test.beforeEach(async () => {
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
     ),
   );
-  app = await _electron.launch({
+  app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`],
     env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
   });

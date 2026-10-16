@@ -1,7 +1,6 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron } from "@playwright/test";
 import { expect, it } from "vitest";
 import { checkProject, parseRecord, reviewRevision, schemas } from "voidra";
 import {
@@ -11,6 +10,7 @@ import {
   startRun,
 } from "../../../tools/run-engine/src/run.ts";
 import { fixture, report } from "../../../tools/run-engine/tests/helpers.ts";
+import { launchConfiguredApp } from "../e2e/helpers/configured-app.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
 
 it("rejects review with feedback, supports a follow-up run and accepts only the displayed result revision", async () => {
@@ -34,7 +34,7 @@ it("rejects review with feedback, supports a follow-up run and accepts only the 
         p[1] !== undefined && p[0] !== "ELECTRON_RUN_AS_NODE",
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("apps/desktop"), `--project=${root}`],
     env: {
       ...env,

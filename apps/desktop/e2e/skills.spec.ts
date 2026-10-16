@@ -9,7 +9,8 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`complete skill bundles protect edits and retain both installations in ${theme}`, async () => {
@@ -25,7 +26,7 @@ for (const theme of ["light", "dark"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve(".")],
         env: {
           ...env,
@@ -46,9 +47,7 @@ for (const theme of ["light", "dark"] as const)
       const version = await app.evaluate(({ app }) => app.getVersion());
       let page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page
-        .getByRole("button", { name: "Review skill installation", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
       await page.getByRole("tab", { name: "Appearance", exact: true }).click();
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();

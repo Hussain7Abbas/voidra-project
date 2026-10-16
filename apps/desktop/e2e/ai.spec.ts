@@ -4,8 +4,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 
 for (const theme of ["light", "dark"] as const)
@@ -62,7 +63,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`, "--use-mock-keychain"],
       env: {
         ...env,
@@ -319,7 +320,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`, "--use-mock-keychain"],
       env: {
         ...env,
@@ -505,7 +506,7 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`, "--use-mock-keychain"],
     env: {
       ...env,

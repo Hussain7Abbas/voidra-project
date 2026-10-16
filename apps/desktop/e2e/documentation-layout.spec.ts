@@ -3,7 +3,8 @@ import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`keeps compact documentation focus and directory preferences in ${theme}`, async () => {
@@ -31,7 +32,7 @@ for (const theme of ["light", "dark"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve("."), `--project=${root}`],
         env: { ...env, VOIDRA_DATA_DIR: data },
       });

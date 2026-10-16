@@ -3,8 +3,9 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { createAction, parseRecord, serializeRecord } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 const environment = () =>
   Object.fromEntries(
@@ -23,7 +24,7 @@ for (const theme of ["light", "dark"] as const)
     });
     const path = ".voidra/actions/act-000000/action.md",
       before = await readFile(join(root, path));
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...environment(), VOIDRA_DATA_DIR: join(temp, "data") },
     });
@@ -128,7 +129,7 @@ test("refreshes action details after an actual teammate push and local pull", as
   git(temp, ["clone", "-q", remote, teammate]);
   git(teammate, ["config", "user.name", "Teammate"]);
   git(teammate, ["config", "user.email", "teammate@example.test"]);
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`],
     env: { ...environment(), VOIDRA_DATA_DIR: join(temp, "data") },
   });

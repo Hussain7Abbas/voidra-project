@@ -1,7 +1,8 @@
 import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const client of ["claude-code", "codex"] as const)
   test(`operational guidance uses only ${client} and retains it after restart`, async () => {
@@ -18,7 +19,7 @@ for (const client of ["claude-code", "codex"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve("."), `--project=${root}`],
         env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
       });

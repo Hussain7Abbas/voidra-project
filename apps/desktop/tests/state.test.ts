@@ -5,6 +5,55 @@ import { expect, it } from "vitest";
 import { AppStore, resolveTheme, WindowRegistry } from "../src/main/state.ts";
 import { requestSchema, responseSchema } from "../src/shared/bridge.ts";
 
+it("resumes unfinished setup and completes only the displayed preferences", async () => {
+  const root = await mkdtemp(join(tmpdir(), "voidra-setup-state-"));
+  const file = join(root, "settings.json");
+  try {
+    const store = new AppStore(file);
+    expect((await store.read()).setupCompleted).toBe(false);
+    await store.setTheme("dark");
+    await store.setClient("claude-code");
+    const resumed = new AppStore(file);
+    expect(await resumed.read()).toMatchObject({
+      setupCompleted: false,
+      theme: "dark",
+      defaultClient: "claude-code",
+    });
+    await expect(resumed.completeSetup("codex", "dark")).rejects.toThrow(
+      /changed/,
+    );
+    expect((await resumed.read()).setupCompleted).toBe(false);
+    await expect(resumed.completeSetup("claude-code", "light")).rejects.toThrow(
+      /changed/,
+    );
+    await resumed.completeSetup("claude-code", "dark");
+    expect((await new AppStore(file).read()).setupCompleted).toBe(true);
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        theme: "light",
+        recents: [],
+        skillsOfferSeen: true,
+      }),
+    );
+    expect((await store.read()).setupCompleted).toBe(true);
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        theme: "light",
+        recents: [],
+        skillsOfferSeen: true,
+        setupCompleted: false,
+      }),
+    );
+    expect((await store.read()).setupCompleted).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("persists theme and canonical recent folders; reports moved folders", async () => {
   const root = await mkdtemp(join(tmpdir(), "voidra-state-"));
   try {

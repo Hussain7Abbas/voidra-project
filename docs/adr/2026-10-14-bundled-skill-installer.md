@@ -28,3 +28,7 @@ Publishing retains voidra-skills' own rules: catalog/templates shared changes pu
 Updates work without installed coding-agent CLIs or network access. Each agent has an independent copy; hand edits and other skills survive. Future folder changes require source-linked research, not guessed fallback directories. skills.sh terminal discovery remains independent of app installation and does not promise immediate directory indexing.
 
 A local invocation of the pinned CLI confirms that explicit Claude Code/Codex project installation with --copy produces both documented project folders and byte-identical payloads in a temporary project. Telemetry is disabled and global installations are untouched; see [P14 evidence](../verification/p14.md).
+
+## First-launch update — 2026-10-16
+
+The user replaced the optional first-run offer with [full-page app setup](../architecture/onboarding.md#app-setup-before-the-workspace): theme, selected coding client and installation of its complete bundle before entering the workspace. Existing acknowledged offers migrate to completed setup; explicit unfinished state takes precedence. Settings keeps both installers. Bundle ownership, exact previews, explicit replacement confirmation and offline installation are unchanged.

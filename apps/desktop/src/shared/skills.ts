@@ -19,6 +19,20 @@ export const skillStatusSchema = z.strictObject({
   revision: z.string().nullable(),
 });
 export type SkillStatus = z.infer<typeof skillStatusSchema>;
+export function installedSkillCount(rows: readonly SkillStatus[]): number {
+  return rows.filter(
+    (row) =>
+      row.present &&
+      !row.edited &&
+      !row.blocked &&
+      !row.compatibility &&
+      row.installedVersion === row.bundledVersion &&
+      row.installedFormat === row.bundledFormat,
+  ).length;
+}
+export function skillBundleInstalled(rows: readonly SkillStatus[]): boolean {
+  return rows.length > 0 && installedSkillCount(rows) === rows.length;
+}
 export const skillPreviewSchema = z.strictObject({
   agent: skillAgentSchema,
   name: skillNameSchema,

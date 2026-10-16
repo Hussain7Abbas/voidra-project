@@ -1,6 +1,6 @@
 # Voidra Project documentation
 
-Current development follows the [six-column workflow tracker](../plan-v1.2.0/main.md): Planning, idle TODO, queued In progress, owned QA/security, integrated Documentation tabs and selected-client opening. Published v1.1.1 evidence below remains historical.
+Current development follows the [six-column workflow tracker](../plan-v1.2.0/main.md): Planning, idle TODO, queued In progress, owned QA/security, integrated Documentation tabs and selected-client opening. Fresh installations also use [app setup](architecture/onboarding.md#app-setup-before-the-workspace) for theme, coding agent and selected skills before entering the workspace. Published v1.1.1 evidence below remains historical.
 
 Voidra is an open-source desktop app for planning and tracking projects built with AI coding agents. Its [vision](../VISION.md) defines the product, the [implementation plan](../plan/main.md) tracks delivery, and the [root instructions](../AGENTS.md) define the development workflow.
 

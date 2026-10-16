@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   checkProject,
   createAction,
@@ -20,6 +20,7 @@ import {
   serializeRecord,
 } from "voidra";
 import { publishFakeGate } from "../../../tools/fake-agent/src/gates.ts";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 const environment = Object.fromEntries(
   Object.entries(process.env).filter(
@@ -47,7 +48,7 @@ async function fixture(theme: "light" | "dark", customTitlebar = true) {
     }),
   );
   const launch = () =>
-    _electron.launch({
+    launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...environment, VOIDRA_DATA_DIR: data },
     });

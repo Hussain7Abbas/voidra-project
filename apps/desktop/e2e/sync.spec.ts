@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`outside-work suggestion refreshes after standalone sync in ${theme}`, async () => {
@@ -33,7 +34,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });

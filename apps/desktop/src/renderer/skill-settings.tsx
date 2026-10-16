@@ -1,21 +1,18 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import type { SkillBundlePreview } from "../shared/skills.ts";
+import { useEffect, useState } from "react";
+import {
+  installedSkillCount,
+  type SkillBundlePreview,
+} from "../shared/skills.ts";
 import { request } from "./app.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 
 type Agent = "claude" | "codex";
 const agentNames = { claude: "Claude Code", codex: "Codex" } as const;
-export function SkillSettingsPanel() {
-  const query = useQueryClient(),
-    [busyAgent, setBusyAgent] = useState<Agent | null>(null),
-    [preview, setPreview] = useState<SkillBundlePreview | null>(null),
-    [error, setError] = useState(""),
-    [message, setMessage] = useState("");
-  const busy = busyAgent !== null;
-  const status = useQuery({
+export function useSkillStatus() {
+  return useQuery({
     queryKey: ["skills-status"],
     queryFn: async () => {
       const result = await request({ command: "skills-status" });
@@ -24,6 +21,24 @@ export function SkillSettingsPanel() {
       return result.skills;
     },
   });
+}
+export function SkillSettingsPanel({
+  agent: selectedAgent,
+  onBusyChange,
+}: {
+  agent?: Agent;
+  onBusyChange?: (busy: boolean) => void;
+} = {}) {
+  const query = useQueryClient(),
+    [busyAgent, setBusyAgent] = useState<Agent | null>(null),
+    [preview, setPreview] = useState<SkillBundlePreview | null>(null),
+    [error, setError] = useState(""),
+    [message, setMessage] = useState("");
+  const busy = busyAgent !== null;
+  useEffect(() => {
+    onBusyChange?.(busy || preview !== null);
+  }, [busy, preview, onBusyChange]);
+  const status = useSkillStatus();
   async function getPreview(agent: Agent): Promise<SkillBundlePreview> {
     const result = await request({ command: "skills-bundle-preview", agent });
     if (result.kind !== "skills-bundle-preview")
@@ -82,43 +97,48 @@ export function SkillSettingsPanel() {
   }
   return (
     <section
-      className="mt-6 border-t border-line pt-5 space-y-4"
+      className={
+        selectedAgent ? "space-y-4" : "mt-6 border-t border-line pt-5 space-y-4"
+      }
       aria-label="Coding agent skills"
     >
-      <h3 className="font-semibold">Coding agent skills</h3>
+      {!selectedAgent && <h3 className="font-semibold">Coding agent skills</h3>}
       <div className="flex flex-wrap gap-3">
-        {(["claude", "codex"] as const).map((agent) => {
-          const rows = status.data?.filter((row) => row.agent === agent);
-          const installed = rows?.filter(
-            (row) =>
-              row.present &&
-              !row.edited &&
-              !row.blocked &&
-              row.installedVersion === row.bundledVersion &&
-              row.installedFormat === row.bundledFormat,
-          ).length;
-          return (
-            <Button
-              key={agent}
-              variant="secondary"
-              disabled={busy || status.isFetching || !rows}
-              loading={busyAgent === agent}
-              onClick={() => void install(agent)}
-            >
-              Install {agent === "claude" ? "Claude" : "Codex"} Skill{" "}
-              {rows ? `${installed}/${rows.length}` : "…/…"}
-            </Button>
-          );
-        })}
+        {(selectedAgent ? [selectedAgent] : (["claude", "codex"] as const)).map(
+          (agent) => {
+            const rows = status.data?.filter((row) => row.agent === agent);
+            const installed = rows ? installedSkillCount(rows) : 0;
+            return (
+              <Button
+                key={agent}
+                variant="secondary"
+                disabled={busy || status.isFetching || !rows}
+                loading={busyAgent === agent}
+                onClick={() => void install(agent)}
+              >
+                Install {agent === "claude" ? "Claude" : "Codex"} Skill{" "}
+                {rows ? `${installed}/${rows.length}` : "…/…"}
+              </Button>
+            );
+          },
+        )}
       </div>
       {message && (
-        <p role="status" className="sr-only">
+        <p
+          role="status"
+          className={selectedAgent ? "text-success text-sm" : "sr-only"}
+        >
           {message}
         </p>
       )}
       {(error || status.error) && (
         <p role="alert" className="text-danger">
           {error || status.error?.message}
+          {status.error && (
+            <Button variant="ghost" onClick={() => void status.refetch()}>
+              Try again
+            </Button>
+          )}
         </p>
       )}
       <Dialog

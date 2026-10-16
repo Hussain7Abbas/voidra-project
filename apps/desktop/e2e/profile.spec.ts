@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
 import {
-  _electron,
   type ElectronApplication,
   expect,
   type Page,
@@ -16,6 +15,7 @@ import {
   publishPlanning,
   startRun,
 } from "../../../tools/run-engine/src/run.ts";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 import { showWaiting } from "./workspace-helpers.ts";
 
 const execute = promisify(execFile);
@@ -35,7 +35,7 @@ async function start(existing = false) {
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
     ),
   );
-  app = await _electron.launch({
+  app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`],
     env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
   });

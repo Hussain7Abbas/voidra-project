@@ -31,21 +31,27 @@ import {
 
 const teamRevision = (team: unknown): string =>
   createHash("sha256").update(JSON.stringify(team)).digest("hex");
-const settingsSchema = z.looseObject({
-  version: z.literal(1),
-  layouts: z.record(z.string(), z.unknown()).catch({}).default({}),
-  defaultClient: codingClientSchema.default("codex"),
-  team: storedTeamSchema.default(() => ({
-    members: [],
-    me: null,
-    projects: {},
-  })),
-  theme: themeSchema,
-  recents: z.array(recentSchema),
-  skillsOfferSeen: z.boolean().default(false),
-  updatesEnabled: z.boolean().default(true),
-  customTitlebar: z.boolean().default(true),
-});
+const settingsSchema = z
+  .looseObject({
+    version: z.literal(1),
+    layouts: z.record(z.string(), z.unknown()).catch({}).default({}),
+    defaultClient: codingClientSchema.default("codex"),
+    team: storedTeamSchema.default(() => ({
+      members: [],
+      me: null,
+      projects: {},
+    })),
+    theme: themeSchema,
+    recents: z.array(recentSchema),
+    skillsOfferSeen: z.boolean().default(false),
+    setupCompleted: z.boolean().optional(),
+    updatesEnabled: z.boolean().default(true),
+    customTitlebar: z.boolean().default(true),
+  })
+  .transform((settings) => ({
+    ...settings,
+    setupCompleted: settings.setupCompleted ?? settings.skillsOfferSeen,
+  }));
 type Settings = z.infer<typeof settingsSchema>;
 export function resolveTheme(
   preference: ThemePreference,
@@ -79,6 +85,7 @@ export class AppStore {
           theme: "system",
           recents: [],
           skillsOfferSeen: false,
+          setupCompleted: false,
           updatesEnabled: true,
           customTitlebar: true,
         };
@@ -244,6 +251,16 @@ export class AppStore {
   setCustomTitlebar(enabled: boolean): Promise<void> {
     return this.mutate((settings) => {
       settings.customTitlebar = z.boolean().parse(enabled);
+    });
+  }
+  completeSetup(client: CodingClient, theme: ThemePreference): Promise<void> {
+    return this.mutate((settings) => {
+      if (settings.defaultClient !== client || settings.theme !== theme)
+        throw Error(
+          "Setup preferences changed; review your choices before continuing.",
+        );
+      settings.setupCompleted = true;
+      settings.skillsOfferSeen = true;
     });
   }
   dismissSkillsOffer(): Promise<void> {

@@ -14,7 +14,7 @@
 
 - [Runs and review](runs.md): standalone helpers, ownership, checkpoints and human gates.
 
-- [Onboarding and profile](onboarding.md): bundled templates, both intake routes, inference confirmation and Profile change drafts.
+- [Onboarding and profile](onboarding.md): first-launch theme/agent/skill setup, bundled templates, both intake routes, inference confirmation and Profile change drafts.
 
 - [General template](general-template.md): approved questions, architecture proposals, slices and gate/write boundaries.
 

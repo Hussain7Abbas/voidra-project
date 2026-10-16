@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 async function chooseVersion(page: Page) {
   await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -68,7 +69,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });
@@ -235,7 +236,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });

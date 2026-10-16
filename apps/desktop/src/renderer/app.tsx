@@ -24,6 +24,7 @@ import type {
 } from "../shared/bridge.ts";
 import { ActionsSidebar } from "./actions-sidebar.tsx";
 import { AiSettingsPanel } from "./ai-settings.tsx";
+import { AppOnboarding } from "./app-onboarding.tsx";
 import { CodingClientSetting } from "./coding-client.tsx";
 import { DocumentViewerProvider } from "./document-viewer.tsx";
 import { DraftRecovery } from "./draft-recovery.tsx";
@@ -201,7 +202,7 @@ function Shell() {
       );
   }, [toast]);
   const data = snapshot.data;
-  const workspace = useWorkspace(!!data?.project);
+  const workspace = useWorkspace(!!data?.project && data.setupCompleted);
   const hasPlanning = workspace.data
     ? workspace.data.hasVoidra || workspace.data.recoveries.length > 0
     : !!data?.project?.hasVoidra;
@@ -287,7 +288,7 @@ function Shell() {
       icon={<Settings size={18} aria-hidden />}
     />
   );
-  const controls = (
+  const controls = data?.setupCompleted ? (
     <div className="titlebar-accessories">
       <PanelControls
         value={panels.value}
@@ -303,7 +304,7 @@ function Shell() {
         onChange={() => query.invalidateQueries()}
       />
     </div>
-  );
+  ) : null;
   const navigationMaximum = Math.max(
     180,
     Math.min(
@@ -357,362 +358,365 @@ function Shell() {
           </div>
         </section>
       )}
-      <SyncSuggestion data={workspace.data} />
+      {data?.setupCompleted && <SyncSuggestion data={workspace.data} />}
       <div className="desktop-shell" ref={panels.host}>
-        <aside
-          id="project-navigation"
-          className="sidebar"
-          hidden={!panels.value.navigationOpen}
-          style={{ width: panels.fitted.navigationWidth }}
-          aria-label="Project navigation"
-        >
-          <div className="brand">
-            <span className="brand-mark">
-              <Layers size={22} strokeWidth={1.75} aria-hidden />
-            </span>
-            <div>
-              <strong>Voidra</strong>
-              <span className="brand-subtitle">PROJECT</span>
-            </div>
-          </div>
-          <div className="project-switcher">
-            <Button
-              className="switcher-trigger"
-              aria-expanded={switcher}
-              aria-controls="project-list"
-              onClick={() => {
-                setSwitcher(!switcher);
-                void snapshot.refetch();
-              }}
-              icon={<FolderOpen size={18} aria-hidden />}
+        {data?.setupCompleted ? (
+          <>
+            <aside
+              id="project-navigation"
+              className="sidebar"
+              hidden={!panels.value.navigationOpen}
+              style={{ width: panels.fitted.navigationWidth }}
+              aria-label="Project navigation"
             >
-              {data?.project?.name ?? "Choose a project"}
-              <ChevronDown size={16} aria-hidden />
-            </Button>
-            {switcher && (
-              <section
-                id="project-list"
-                className="switcher-list"
-                aria-label="Recent projects"
-              >
-                <p className="eyebrow">Recent projects</p>
-                {data?.recents.length ? (
-                  data.recents.map((recent) => (
-                    <div key={recent.path} className="recent-row">
-                      <Button
-                        variant="ghost"
-                        disabled={recent.missing || busy}
-                        onClick={() => {
-                          void act({
-                            command: "open-recent",
-                            path: recent.path,
-                          });
-                          setSwitcher(false);
-                        }}
-                      >
-                        {recent.name}
-                      </Button>
-                      {recent.missing && (
-                        <>
-                          <span className="text-warning text-xs">Missing</span>
+              <div className="brand">
+                <span className="brand-mark">
+                  <Layers size={22} strokeWidth={1.75} aria-hidden />
+                </span>
+                <div>
+                  <strong>Voidra</strong>
+                  <span className="brand-subtitle">PROJECT</span>
+                </div>
+              </div>
+              <div className="project-switcher">
+                <Button
+                  className="switcher-trigger"
+                  aria-expanded={switcher}
+                  aria-controls="project-list"
+                  onClick={() => {
+                    setSwitcher(!switcher);
+                    void snapshot.refetch();
+                  }}
+                  icon={<FolderOpen size={18} aria-hidden />}
+                >
+                  {data?.project?.name ?? "Choose a project"}
+                  <ChevronDown size={16} aria-hidden />
+                </Button>
+                {switcher && (
+                  <section
+                    id="project-list"
+                    className="switcher-list"
+                    aria-label="Recent projects"
+                  >
+                    <p className="eyebrow">Recent projects</p>
+                    {data?.recents.length ? (
+                      data.recents.map((recent) => (
+                        <div key={recent.path} className="recent-row">
                           <Button
                             variant="ghost"
-                            onClick={() =>
+                            disabled={recent.missing || busy}
+                            onClick={() => {
                               void act({
-                                command: "locate-recent",
+                                command: "open-recent",
                                 path: recent.path,
-                              })
-                            }
+                              });
+                              setSwitcher(false);
+                            }}
                           >
-                            Locate
+                            {recent.name}
                           </Button>
-                        </>
-                      )}
-                      <Button
-                        variant="ghost"
-                        aria-label={`Remove ${recent.name} from recents`}
-                        onClick={() => setRemove(recent.path)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted">
-                    Your opened folders will appear here.
-                  </p>
-                )}
-                <Button
-                  className="mt-3 w-full"
-                  onClick={open}
-                  icon={<FolderOpen size={16} aria-hidden />}
-                >
-                  Open another folder
-                </Button>
-              </section>
-            )}
-          </div>
-          <nav aria-label="Project pages">
-            <ul className="navigation">
-              {navigation.map((item, index) => (
-                <li key={item.label}>
-                  <button
-                    type="button"
-                    aria-label={item.label}
-                    className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Documentation" : navigationTarget === "releases" ? "Releases" : navigationTarget === "documentation" ? "Documentation" : navigationTarget === "glossary" ? "Documentation" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
-                    disabled={
-                      hasPlanning
-                        ? ![
-                            "Tasks",
-                            "Actions",
-                            "Run",
-                            "Profile",
-                            "Backlog",
-                            "Waiting for you",
-                            "Decisions",
-                            "Glossary",
-                            "Documentation",
-                            "Releases",
-                          ].includes(item.label)
-                        : index !== 0
-                    }
-                    onClick={async () => {
-                      try {
-                        await flushFormDrafts();
-                      } catch (cause) {
-                        toast.error(
-                          cause instanceof Error
-                            ? cause.message
-                            : "Draft could not be saved",
-                        );
-                        return;
-                      }
-                      setSelectedAction(null);
-                      setSelectedIdea(null);
-                      setNavigationEpoch((value) => value + 1);
-                      setNavigationTarget(
-                        item.label === "Tasks"
-                          ? "tasks"
-                          : item.label === "Releases"
-                            ? "releases"
-                            : item.label === "Decisions"
-                              ? "decisions"
-                              : item.label === "Documentation"
-                                ? "documentation"
-                                : item.label === "Glossary"
-                                  ? "glossary"
-                                  : item.label === "Waiting for you"
-                                    ? "inbox"
-                                    : item.label === "Run"
-                                      ? "run"
-                                      : item.label === "Backlog"
-                                        ? "backlog"
-                                        : item.label === "Profile"
-                                          ? "profile"
-                                          : "actions",
-                      );
-                    }}
-                    aria-current={
-                      (
-                        hasPlanning
-                          ? item.label ===
-                            (["tasks", "actions", "backlog"].includes(
-                              navigationTarget,
-                            )
-                              ? "Tasks"
-                              : navigationTarget === "inbox"
-                                ? "Waiting for you"
-                                : navigationTarget === "run"
-                                  ? "Run"
-                                  : navigationTarget === "decisions"
-                                    ? "Documentation"
-                                    : navigationTarget === "documentation"
-                                      ? "Documentation"
-                                      : navigationTarget === "releases"
-                                        ? "Releases"
-                                        : navigationTarget === "glossary"
-                                          ? "Documentation"
-                                          : navigationTarget === "profile"
-                                            ? "Profile"
-                                            : navigationTarget === "backlog"
-                                              ? "Backlog"
-                                              : "Actions")
-                          : index === 0
-                      )
-                        ? "page"
-                        : undefined
-                    }
-                  >
-                    <item.icon size={18} strokeWidth={1.75} aria-hidden />
-                    {item.label}
-                    {item.label === "Waiting for you" && (
-                      <span
-                        className="badge"
-                        role="status"
-                        aria-label={`${waitingCount} waiting items`}
-                      >
-                        {waitingCount}
-                      </span>
+                          {recent.missing && (
+                            <>
+                              <span className="text-warning text-xs">
+                                Missing
+                              </span>
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  void act({
+                                    command: "locate-recent",
+                                    path: recent.path,
+                                  })
+                                }
+                              >
+                                Locate
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="ghost"
+                            aria-label={`Remove ${recent.name} from recents`}
+                            onClick={() => setRemove(recent.path)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted">
+                        Your opened folders will appear here.
+                      </p>
                     )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="sidebar-footer">
-            <span className="version">
-              Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
-            </span>
-          </div>
-        </aside>
-        <PaneResize
-          key={`${panels.context}-navigation`}
-          panel="navigation"
-          orientation="vertical"
-          hidden={!panels.value.navigationOpen}
-          value={panels.fitted.navigationWidth}
-          preferred={panels.value.navigationWidth}
-          min={180}
-          max={navigationMaximum}
-          onPreview={(navigationWidth) => panels.preview({ navigationWidth })}
-          onSave={(navigationWidth) => void panels.save({ navigationWidth })}
-          onToggle={() => void panels.toggle("navigation")}
-        />
-        <div className="workspace">
+                    <Button
+                      className="mt-3 w-full"
+                      onClick={open}
+                      icon={<FolderOpen size={16} aria-hidden />}
+                    >
+                      Open another folder
+                    </Button>
+                  </section>
+                )}
+              </div>
+              <nav aria-label="Project pages">
+                <ul className="navigation">
+                  {navigation.map((item, index) => (
+                    <li key={item.label}>
+                      <button
+                        type="button"
+                        aria-label={item.label}
+                        className={`nav-item ${(hasPlanning ? item.label === (["tasks", "actions", "backlog"].includes(navigationTarget) ? "Tasks" : navigationTarget === "inbox" ? "Waiting for you" : navigationTarget === "run" ? "Run" : navigationTarget === "decisions" ? "Documentation" : navigationTarget === "releases" ? "Releases" : navigationTarget === "documentation" ? "Documentation" : navigationTarget === "glossary" ? "Documentation" : navigationTarget === "profile" ? "Profile" : navigationTarget === "backlog" ? "Backlog" : "Actions") : index === 0) ? "active" : ""}`}
+                        disabled={
+                          hasPlanning
+                            ? ![
+                                "Tasks",
+                                "Actions",
+                                "Run",
+                                "Profile",
+                                "Backlog",
+                                "Waiting for you",
+                                "Decisions",
+                                "Glossary",
+                                "Documentation",
+                                "Releases",
+                              ].includes(item.label)
+                            : index !== 0
+                        }
+                        onClick={async () => {
+                          try {
+                            await flushFormDrafts();
+                          } catch (cause) {
+                            toast.error(
+                              cause instanceof Error
+                                ? cause.message
+                                : "Draft could not be saved",
+                            );
+                            return;
+                          }
+                          setSelectedAction(null);
+                          setSelectedIdea(null);
+                          setNavigationEpoch((value) => value + 1);
+                          setNavigationTarget(
+                            item.label === "Tasks"
+                              ? "tasks"
+                              : item.label === "Releases"
+                                ? "releases"
+                                : item.label === "Decisions"
+                                  ? "decisions"
+                                  : item.label === "Documentation"
+                                    ? "documentation"
+                                    : item.label === "Glossary"
+                                      ? "glossary"
+                                      : item.label === "Waiting for you"
+                                        ? "inbox"
+                                        : item.label === "Run"
+                                          ? "run"
+                                          : item.label === "Backlog"
+                                            ? "backlog"
+                                            : item.label === "Profile"
+                                              ? "profile"
+                                              : "actions",
+                          );
+                        }}
+                        aria-current={
+                          (
+                            hasPlanning
+                              ? item.label ===
+                                (["tasks", "actions", "backlog"].includes(
+                                  navigationTarget,
+                                )
+                                  ? "Tasks"
+                                  : navigationTarget === "inbox"
+                                    ? "Waiting for you"
+                                    : navigationTarget === "run"
+                                      ? "Run"
+                                      : navigationTarget === "decisions"
+                                        ? "Documentation"
+                                        : navigationTarget === "documentation"
+                                          ? "Documentation"
+                                          : navigationTarget === "releases"
+                                            ? "Releases"
+                                            : navigationTarget === "glossary"
+                                              ? "Documentation"
+                                              : navigationTarget === "profile"
+                                                ? "Profile"
+                                                : navigationTarget === "backlog"
+                                                  ? "Backlog"
+                                                  : "Actions")
+                              : index === 0
+                          )
+                            ? "page"
+                            : undefined
+                        }
+                      >
+                        <item.icon size={18} strokeWidth={1.75} aria-hidden />
+                        {item.label}
+                        {item.label === "Waiting for you" && (
+                          <span
+                            className="badge"
+                            role="status"
+                            aria-label={`${waitingCount} waiting items`}
+                          >
+                            {waitingCount}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <div className="sidebar-footer">
+                <span className="version">
+                  Voidra Project{data?.appVersion && ` · ${data.appVersion}`}
+                </span>
+              </div>
+            </aside>
+            <PaneResize
+              key={`${panels.context}-navigation`}
+              panel="navigation"
+              orientation="vertical"
+              hidden={!panels.value.navigationOpen}
+              value={panels.fitted.navigationWidth}
+              preferred={panels.value.navigationWidth}
+              min={180}
+              max={navigationMaximum}
+              onPreview={(navigationWidth) =>
+                panels.preview({ navigationWidth })
+              }
+              onSave={(navigationWidth) =>
+                void panels.save({ navigationWidth })
+              }
+              onToggle={() => void panels.toggle("navigation")}
+            />
+            <div className="workspace">
+              <main
+                id="main"
+                tabIndex={-1}
+                className="main-content"
+                data-app-ready={Boolean(data)}
+              >
+                <UpdateNotice />
+                {data?.serviceState && data?.serviceState !== "ready" && (
+                  <div
+                    className="service-notice"
+                    role="alert"
+                    aria-label="Project connection"
+                  >
+                    <p>
+                      {data?.serviceState === "failed"
+                        ? "The project connection stopped."
+                        : "The project connection stopped. Reconnecting…"}
+                    </p>
+                    <Button
+                      onClick={() => void act({ command: "service-retry" })}
+                    >
+                      Reconnect
+                    </Button>
+                  </div>
+                )}
+
+                {snapshot.isPending ? (
+                  <div className="loading-state">
+                    <Spinner label="Loading workspace" />
+                    <p>Opening your workspace…</p>
+                  </div>
+                ) : snapshot.isError ? (
+                  <ErrorState
+                    error={snapshot.error}
+                    onRetry={() => void snapshot.refetch()}
+                  />
+                ) : (
+                  <Content
+                    data={data as Snapshot}
+                    hasPlanning={hasPlanning}
+                    open={open}
+                    busy={busy}
+                    navigationEpoch={navigationEpoch}
+                    navigationTarget={navigationTarget}
+                    selectedAction={selectedAction}
+                    selectedIdea={selectedIdea}
+                    onIdea={showIdea}
+                    onAction={showAction}
+                    onTasks={onTasks}
+                    onProfile={showProfile}
+                  />
+                )}
+              </main>
+              <PaneResize
+                key={`${panels.context}-waiting`}
+                panel="waiting"
+                orientation="horizontal"
+                hidden={!hasPlanning || !panels.value.waitingOpen}
+                value={panels.fitted.waitingHeight}
+                preferred={panels.value.waitingHeight}
+                min={160}
+                max={Math.max(160, Math.min(2000, panels.bounds.height - 166))}
+                sign={-1}
+                onPreview={(waitingHeight) => panels.preview({ waitingHeight })}
+                onSave={(waitingHeight) => void panels.save({ waitingHeight })}
+                onToggle={() => void panels.toggle("waiting")}
+              />
+              {workspace.data && hasPlanning && (
+                <div
+                  className="waiting-pane"
+                  hidden={!panels.value.waitingOpen}
+                  style={{ height: panels.fitted.waitingHeight }}
+                >
+                  <WaitingPanel
+                    key={data?.project?.path}
+                    workspace={workspace.data}
+                    onHide={hideWaiting}
+                  />
+                </div>
+              )}
+            </div>
+            <PaneResize
+              key={`${panels.context}-actions`}
+              panel="actions"
+              orientation="vertical"
+              hidden={!hasPlanning || !panels.value.actionsOpen}
+              value={panels.fitted.actionsWidth}
+              preferred={panels.value.actionsWidth}
+              min={240}
+              max={actionsMaximum}
+              sign={-1}
+              onPreview={(actionsWidth) => panels.preview({ actionsWidth })}
+              onSave={(actionsWidth) => void panels.save({ actionsWidth })}
+              onToggle={() => void panels.toggle("actions")}
+            />
+            {workspace.data?.hasVoidra && (
+              <div
+                className="actions-pane"
+                hidden={!panels.value.actionsOpen}
+                style={{ width: panels.fitted.actionsWidth }}
+              >
+                <ActionsSidebar
+                  key={data?.project?.path}
+                  data={workspace.data}
+                  onAction={showAction}
+                />
+              </div>
+            )}
+          </>
+        ) : (
           <main
             id="main"
             tabIndex={-1}
-            className="main-content"
+            className="setup-scroll"
             data-app-ready={Boolean(data)}
           >
-            <UpdateNotice />
-            {data?.skillsOffer && (
-              <section
-                aria-label="Coding agent setup"
-                className="service-notice mb-5"
-              >
-                <p>
-                  Install Voidra’s bundled skills for Claude Code and Codex when
-                  you are ready.
-                </p>
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    onClick={() => {
-                      setSettings(true);
-                      void act({ command: "skills-dismiss-offer" });
-                    }}
-                  >
-                    Review skill installation
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      void act({ command: "skills-dismiss-offer" })
-                    }
-                  >
-                    Dismiss skill setup
-                  </Button>
-                </div>
-              </section>
-            )}
-            {data?.serviceState && data?.serviceState !== "ready" && (
-              <div
-                className="service-notice"
-                role="alert"
-                aria-label="Project connection"
-              >
-                <p>
-                  {data?.serviceState === "failed"
-                    ? "The project connection stopped."
-                    : "The project connection stopped. Reconnecting…"}
-                </p>
-                <Button onClick={() => void act({ command: "service-retry" })}>
-                  Reconnect
-                </Button>
-              </div>
-            )}
-
-            {snapshot.isPending ? (
-              <div className="loading-state">
-                <Spinner label="Loading workspace" />
-                <p>Opening your workspace…</p>
-              </div>
-            ) : snapshot.isError ? (
+            {data ? (
+              <AppOnboarding data={data} />
+            ) : snapshot.error ? (
               <ErrorState
                 error={snapshot.error}
                 onRetry={() => void snapshot.refetch()}
               />
             ) : (
-              <Content
-                data={data as Snapshot}
-                hasPlanning={hasPlanning}
-                open={open}
-                busy={busy}
-                navigationEpoch={navigationEpoch}
-                navigationTarget={navigationTarget}
-                selectedAction={selectedAction}
-                selectedIdea={selectedIdea}
-                onIdea={showIdea}
-                onAction={showAction}
-                onTasks={onTasks}
-                onProfile={showProfile}
-              />
+              <div className="setup-loading">
+                <Spinner /> Loading your workspace…
+              </div>
             )}
           </main>
-          <PaneResize
-            key={`${panels.context}-waiting`}
-            panel="waiting"
-            orientation="horizontal"
-            hidden={!hasPlanning || !panels.value.waitingOpen}
-            value={panels.fitted.waitingHeight}
-            preferred={panels.value.waitingHeight}
-            min={160}
-            max={Math.max(160, Math.min(2000, panels.bounds.height - 166))}
-            sign={-1}
-            onPreview={(waitingHeight) => panels.preview({ waitingHeight })}
-            onSave={(waitingHeight) => void panels.save({ waitingHeight })}
-            onToggle={() => void panels.toggle("waiting")}
-          />
-          {workspace.data && hasPlanning && (
-            <div
-              className="waiting-pane"
-              hidden={!panels.value.waitingOpen}
-              style={{ height: panels.fitted.waitingHeight }}
-            >
-              <WaitingPanel
-                key={data?.project?.path}
-                workspace={workspace.data}
-                onHide={hideWaiting}
-              />
-            </div>
-          )}
-        </div>
-        <PaneResize
-          key={`${panels.context}-actions`}
-          panel="actions"
-          orientation="vertical"
-          hidden={!hasPlanning || !panels.value.actionsOpen}
-          value={panels.fitted.actionsWidth}
-          preferred={panels.value.actionsWidth}
-          min={240}
-          max={actionsMaximum}
-          sign={-1}
-          onPreview={(actionsWidth) => panels.preview({ actionsWidth })}
-          onSave={(actionsWidth) => void panels.save({ actionsWidth })}
-          onToggle={() => void panels.toggle("actions")}
-        />
-        {workspace.data?.hasVoidra && (
-          <div
-            className="actions-pane"
-            hidden={!panels.value.actionsOpen}
-            style={{ width: panels.fitted.actionsWidth }}
-          >
-            <ActionsSidebar
-              key={data?.project?.path}
-              data={workspace.data}
-              onAction={showAction}
-            />
-          </div>
         )}
       </div>
       <Dialog

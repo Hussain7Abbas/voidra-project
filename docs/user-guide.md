@@ -8,6 +8,12 @@ The workspace uses **Tasks** with Backlog, Planning, TODO, In progress, Review a
 
 Voidra keeps your project’s plans in readable files under `.voidra/`. The desktop helps you organize work and make decisions; Claude Code or Codex runs the installed skills to plan and implement it. You can use the skills while the app is closed. Your code and planning history stay in your local project.
 
+## Set up the app
+
+On first launch, choose **Light**, **Dark** or **System**, then choose **Codex** or **Claude Code**. Install the selected agent’s complete skill bundle and select **Continue to Voidra** to enter the workspace. Your theme and agent choices save automatically, including if you close the app before finishing. Installation works offline. Edited skill copies require a replacement review; cancellation or failure leaves setup open so you can retry. Existing users who already acknowledged the older setup offer continue into their workspace.
+
+You can change appearance, the default coding agent and installed skills later in **Settings**.
+
 ## Open or create a project
 
 Open the project folder in the app. For an existing Git project, choose the worktree root rather than one of its subfolders. Linked worktrees are supported.
@@ -18,7 +24,7 @@ For a folder with code, follow the app’s `voidra-init` instructions in your co
 
 ## Install the agent skills
 
-Use the first-run offer or **Settings → General**. **Install Claude Skill 0/6** and **Install Codex Skill 0/6** each install the complete bundled set for that client, offline. Each button shows the number of current bundled skills installed, such as **6/6** after installation. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
+First-launch setup shows the installer for your selected agent. Later, use **Settings → General**. **Install Claude Skill 0/6** and **Install Codex Skill 0/6** each install the complete bundled set for that client, offline. Each button shows the number of current bundled skills installed, such as **6/6** after installation. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
 
 The public skills are:
 

@@ -2,6 +2,20 @@
 
 [Architecture index](Intro.md) · [Template contract](../format/template.md) · [Intake skill](../../skills/voidra-init/SKILL.md)
 
+## App setup before the workspace
+
+A fresh app opens a full-page setup surface before project navigation or Tasks. It uses the normal native/custom titlebar, the existing Ink & Iris tokens, and a bounded independent scroll region. Keep the shell’s measured host mounted from first paint through setup completion so its ResizeObserver continues to fit panels when the window changes size. Three numbered sections offer System/Light/Dark theme previews, Codex/Claude Code radio choices, and the complete bundle installer for only the selected client. Settings retains both bundle buttons after setup. The Continue button explains its prerequisite and becomes available only when the selected bundle is current and unedited.
+
+Theme/client choices use the existing main-owned atomic preference writes immediately, so closing or restarting resumes them without a separate unfinished text draft or repeated installation. No AI key, account sign-in or network request is required. Installation uses the existing exact-preview, explicit replacement-review, symlink refusal and partial-failure protections. Errors remain actionable on this page; cancellation preserves edited skills and leaves setup unfinished.
+
+`complete-setup` carries the displayed theme/client, never a filesystem path. Main obtains fresh validated skill status, requires every selected-client skill to match the bundle, and AppStore compares the displayed preferences inside its serialized write before saving `setupCompleted`. An outside edit or another window's preference change refuses completion. Project navigation mounts only after completion; a project passed at startup does not bypass setup. Successful completion focuses the workspace and survives restart. Later skill changes do not unexpectedly return an established user to onboarding.
+
+Absent completion metadata migrates from the legacy `skillsOfferSeen` acknowledgement. An explicit `setupCompleted: false` remains unfinished even if that legacy offer was acknowledged. Fresh settings default false. This preserves existing users' choices without pretending that the old optional offer verified installed skills.
+
+Workspace end-to-end scenarios and native task UI fixtures explicitly seed completed setup through their shared launcher; first-launch scenarios launch the real app with no completion state and disposable installation homes. See [setup verification](../verification/app-onboarding.md).
+
+## Project initialization and profile
+
 The utility process loads bundled templates through the shared package. Bridge objects strip execution-only template fields and never import Node/YAML into preload. Invalid template entries are skipped and their paths/fields are shown; unknown or missing project template versions leave profile answers readable and editing disabled.
 
 A folder without planning data is classified as existing code if an unlinked known manifest or at least one source file is found within six directory levels. Known manifests include package.json, go.mod, Cargo.toml, pyproject.toml, requirements.txt, pom.xml, build.gradle, Gemfile, composer.json and project.godot. Source suffixes include JavaScript/TypeScript, Python, Go, Rust, Java/Kotlin, Swift, C/C++, C#, Ruby, PHP and GDScript. Dependencies, Git, planning data, generated/build output and virtual environments are ignored. Evidence is a relative filename; detection reads names, not file contents.

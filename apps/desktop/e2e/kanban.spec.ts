@@ -2,7 +2,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   checkProject,
   createAction,
@@ -11,6 +11,7 @@ import {
   previewTaskTracking,
   projectTasks,
 } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 const grip = (page: Page, title: string) =>
   page.getByRole("button", {
@@ -90,7 +91,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(entry[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });

@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron } from "@playwright/test";
 import { expect, it } from "vitest";
 import { createAction } from "voidra";
+import { launchConfiguredApp } from "../e2e/helpers/configured-app.ts";
 import type { BridgeRequest } from "../src/shared/bridge.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
 
@@ -36,7 +36,7 @@ it("shows tagged commits and opens only a current verified GitHub link through t
         p[1] !== undefined && p[0] !== "ELECTRON_RUN_AS_NODE",
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("apps/desktop"), `--project=${root}`],
     env: {
       ...env,

@@ -25,3 +25,7 @@ Requested and clarified 2026-10-16. This tracker covers new source changes; v1.1
 Verification is recorded only after execution. New durable workflow fields require a matching reader; align a development version without tagging/publishing. Preserve legacy project behavior until adopting the new task workflow through explicit task moves/creation.
 
 All five slices are complete. [Verification](../docs/verification/task-workflow.md) records 491 passing quality tests, 104 unique desktop scenarios across full/focused runs, both actual clients, actual old-reader refusal and packaged-app checks. Version 1.2.0 remains a development version; no publication was requested.
+
+## First-launch setup follow-up
+
+User request 2026-10-16: show theme, coding-agent and selected complete-bundle setup before the unconfigured app opens its workspace. Persist choices immediately, validate completion in main, preserve existing acknowledged setup and retain safe install/retry/replacement review. Done (2026-10-16): [verification](../docs/verification/app-onboarding.md) records 492 passing quality tests, 12 passing desktop scenarios, both themes/agent installers, restart and safe retry, and panel resizing after setup completion. This follow-up changes no skill runtime or shared project format and requests no publication.

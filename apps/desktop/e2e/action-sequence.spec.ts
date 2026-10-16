@@ -3,7 +3,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   checkProject,
   createAction,
@@ -14,6 +14,7 @@ import {
   readActionSequence,
 } from "voidra";
 import { failRun, startRun } from "../../../tools/run-engine/src/run.ts";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`Actions global order, warnings, pointer, keyboard and undo in ${theme}`, async () => {
@@ -70,7 +71,7 @@ for (const theme of ["light", "dark"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve("."), `--project=${root}`],
         env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
       });

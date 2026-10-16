@@ -3,8 +3,9 @@ import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`Team and encrypted credential drafts restore without applying settings in ${theme}`, async () => {
@@ -30,7 +31,7 @@ for (const theme of ["light", "dark"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve("."), `--project=${root}`, "--use-mock-keychain"],
         env: {
           ...env,

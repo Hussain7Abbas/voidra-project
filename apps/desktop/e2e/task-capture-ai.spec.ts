@@ -3,8 +3,9 @@ import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`task capture reviews optional titles and Agentic metadata before Save in ${theme}`, async () => {
@@ -67,7 +68,7 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(entry[0]),
       ),
     );
-    const app = await _electron.launch({
+    const app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`, "--use-mock-keychain"],
       env: {
         ...env,

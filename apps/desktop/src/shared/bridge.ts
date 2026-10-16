@@ -892,6 +892,11 @@ export const requestSchema = z.discriminatedUnion("command", [
   workspaceLayoutRequestSchema,
   z.strictObject({ command: z.literal("set-theme"), theme: themeSchema }),
   z.strictObject({
+    command: z.literal("complete-setup"),
+    client: codingClientSchema,
+    theme: themeSchema,
+  }),
+  z.strictObject({
     command: z.literal("set-custom-titlebar"),
     enabled: z.boolean(),
   }),
@@ -924,6 +929,7 @@ export const snapshotSchema = z.strictObject({
   updatesEnabled: z.boolean().default(true),
   update: updateNoticeSchema.nullable().default(null),
   skillsOffer: z.boolean().default(true),
+  setupCompleted: z.boolean().default(false),
   kind: z.literal("snapshot"),
   theme: themeSchema,
   customTitlebar: z.boolean().default(true),

@@ -1,8 +1,9 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 test("Markdown clipboard, native-menu history, IME and Unicode retain source independently of project undo", async () => {
   const temp = await mkdtemp(join(tmpdir(), "voidra-editor-native-")),
@@ -17,7 +18,7 @@ test("Markdown clipboard, native-menu history, IME and Unicode retain source ind
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`],
     env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
   });

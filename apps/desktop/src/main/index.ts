@@ -30,6 +30,7 @@ import {
   type WorkspaceSnapshot,
 } from "../shared/bridge.ts";
 import { draftRecoveryText } from "../shared/form-drafts.ts";
+import { skillBundleInstalled } from "../shared/skills.ts";
 import { isTeamRequest } from "../shared/team.ts";
 import { AiService } from "./ai-service.ts";
 import { AiSettings } from "./ai-settings.ts";
@@ -516,6 +517,7 @@ async function start(): Promise<void> {
               updatesEnabled: settings.updatesEnabled,
               update: updates.notice,
               skillsOffer: !settings.skillsOfferSeen,
+              setupCompleted: settings.setupCompleted,
               theme: settings.theme,
               customTitlebar: settings.customTitlebar,
               window: {
@@ -727,6 +729,18 @@ async function start(): Promise<void> {
                   process.env.VOIDRA_TEST_AGENT_LAUNCH === "1",
               },
             );
+          response = { ok: true, data: { kind: "changed" } };
+        } else if (request.command === "complete-setup") {
+          const agent = request.client === "codex" ? "codex" : "claude";
+          const rows = (await skills.status()).filter(
+            (row) => row.agent === agent,
+          );
+          if (!skillBundleInstalled(rows))
+            throw Error(
+              "Install the complete skills for your selected coding agent before continuing.",
+            );
+          await store.completeSetup(request.client, request.theme);
+          broadcast();
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-theme") {
           await store.setTheme(request.theme);

@@ -4,7 +4,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   checkProject,
   createAction,
@@ -13,6 +13,7 @@ import {
   replaceActionQueue,
 } from "voidra";
 import { publishFakeGate } from "../../../tools/fake-agent/src/gates.ts";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 import { showWaiting } from "./workspace-helpers.ts";
 
@@ -31,7 +32,7 @@ async function fixture() {
     recursive: true,
   });
   const launch = () =>
-    _electron.launch({
+    launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });

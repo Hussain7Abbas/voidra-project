@@ -3,7 +3,8 @@ import { chmod, cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
   test(`capture retains invalid Normal and Agentic drafts through native close and restart in ${theme}`, async () => {
@@ -21,7 +22,7 @@ for (const theme of ["light", "dark"] as const)
       ),
     );
     const launch = () =>
-      _electron.launch({
+      launchConfiguredApp({
         args: [resolve("."), `--project=${root}`],
         env: { ...env, VOIDRA_DATA_DIR: data },
       });
@@ -161,7 +162,7 @@ test("a real draft-storage failure keeps capture open and retry preserves the la
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(entry[0]),
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve("."), `--project=${root}`],
     env: { ...env, VOIDRA_DATA_DIR: data },
   });
@@ -256,7 +257,7 @@ test("release settings keeps unfinished text open on storage failure and restore
     ),
   );
   const launch = () =>
-    _electron.launch({
+    launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: data },
     });

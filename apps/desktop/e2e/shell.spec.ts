@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import {
-  _electron,
   type ElectronApplication,
   expect,
   type Page,
   test,
 } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 let application: ElectronApplication;
 let page: Page;
@@ -31,7 +31,7 @@ test.beforeEach(async () => {
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
     ),
   );
-  application = await _electron.launch({
+  application = await launchConfiguredApp({
     args: [resolve(".")],
     env: { ...env, VOIDRA_DATA_DIR: root },
   });
@@ -163,7 +163,7 @@ test("persisted theme is present before the first renderer document", async () =
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(pair[0]),
     ),
   );
-  application = await _electron.launch({
+  application = await launchConfiguredApp({
     args: [resolve(".")],
     env: { ...env, VOIDRA_DATA_DIR: root },
   });

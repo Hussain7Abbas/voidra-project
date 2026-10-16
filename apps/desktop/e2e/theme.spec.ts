@@ -1,7 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 test("theme changes keep the complete text and background palette on every rendered frame", async () => {
   const root = await mkdtemp(join(tmpdir(), "voidra-theme-frames-"));
@@ -12,7 +13,7 @@ test("theme changes keep the complete text and background palette on every rende
         !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
     ),
   );
-  const app = await _electron.launch({
+  const app = await launchConfiguredApp({
     args: [resolve(".")],
     env: { ...env, VOIDRA_DATA_DIR: root },
   });
@@ -85,7 +86,7 @@ test("late board rendering uses the complete selected palette and stays reachabl
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
       ),
     ),
-    app = await _electron.launch({
+    app = await launchConfiguredApp({
       args: [resolve("."), `--project=${root}`],
       env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
     });
