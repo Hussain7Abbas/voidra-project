@@ -59,13 +59,21 @@ it("shows tagged commits and opens only a current verified GitHub link through t
       throw new Error("Missing snapshot");
     expect(result.data.workspace.history.commits[0]?.actions).toEqual([id]);
     await app.evaluate(({ shell }) => {
+      const state = globalThis as unknown as { opened: string[] };
+      state.opened = [];
       shell.openExternal = async (url) => {
-        (globalThis as unknown as { opened: string }).opened = url;
+        state.opened.push(url);
       };
     });
+    const opened = () =>
+      app.evaluate(
+        () => (globalThis as unknown as { opened: string[] }).opened,
+      );
+    const expectedUrls = [`https://github.com/Owner/project/commit/${commit}`];
     expect(
       (await invoke({ command: "open-commit", hash: "0".repeat(40) })).ok,
     ).toBe(false);
+    expect(await opened()).toEqual([]);
     await page
       .getByRole("button", { name: "Document export", exact: true })
       .click();
@@ -76,16 +84,23 @@ it("shows tagged commits and opens only a current verified GitHub link through t
       })
       .click();
     await expect
-      .poll(() =>
-        app.evaluate(
-          () => (globalThis as unknown as { opened: string }).opened,
-        ),
+      // Opening revalidates Git history through a five-second workspace read.
+      // Include renderer errors so a failed request is visible in the assertion.
+      .poll(
+        async () => ({
+          urls: await opened(),
+          errors: (await page.getByRole("alert").allTextContents()).filter(
+            (text) => text.trim().length > 0,
+          ),
+        }),
+        { timeout: 5000 },
       )
-      .toBe(`https://github.com/Owner/project/commit/${commit}`);
+      .toEqual({ urls: expectedUrls, errors: [] });
     git(["remote", "set-url", "origin", "https://github.com.evil.test/o/r"]);
     expect((await invoke({ command: "open-commit", hash: commit })).ok).toBe(
       false,
     );
+    expect(await opened()).toEqual(expectedUrls);
     git(["commit", "--allow-empty", "-qm", "Outside change"]);
     const updated = await invoke({ command: "workspace" });
     if (!updated.ok || updated.data.kind !== "workspace")
