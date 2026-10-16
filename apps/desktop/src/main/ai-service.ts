@@ -1,8 +1,14 @@
 import { hash } from "voidra";
-import type { AiContext, AiSuggestion } from "../shared/ai.ts";
+import type {
+  AiAgentConfiguration,
+  AiContext,
+  AiPreferences,
+  AiSuggestion,
+} from "../shared/ai.ts";
+import type { CodingClient } from "../shared/team.ts";
 import { buildAiPrompt, parseAiSuggestion } from "./ai-prompts.ts";
-import type { AiPreferences, AiSettings } from "./ai-settings.ts";
-import type { OpenRouterClient, RouterModel } from "./openrouter.ts";
+import type { AiSettings } from "./ai-settings.ts";
+import type { AgentClient } from "./headless-agent.ts";
 
 export class AiService {
   private active = new Map<
@@ -11,29 +17,38 @@ export class AiService {
   >();
   private epoch = 0;
   readonly settings: AiSettings;
-  readonly client: OpenRouterClient;
-  constructor(settings: AiSettings, client: OpenRouterClient) {
+  readonly client: AgentClient;
+  private selectedClient: () => Promise<CodingClient>;
+  constructor(
+    settings: AiSettings,
+    client: AgentClient,
+    selectedClient: () => Promise<CodingClient>,
+  ) {
     this.settings = settings;
     this.client = client;
+    this.selectedClient = selectedClient;
   }
-  status(): Promise<AiPreferences> {
-    return this.settings.status();
+  async status(): Promise<AiPreferences> {
+    const client = await this.selectedClient();
+    return {
+      client,
+      ...(await this.settings.configuration(client)),
+      configured: true,
+      available: true,
+    };
   }
-  private cancelAll(): void {
+  cancelAll(): void {
     this.epoch++;
     for (const request of this.active.values()) request.controller.abort();
   }
-  async setKey(key: string): Promise<void> {
+  async configure(
+    client: CodingClient,
+    configuration: AiAgentConfiguration,
+  ): Promise<void> {
+    if (client !== (await this.selectedClient()))
+      throw Error("The selected agent changed. Reopen AI settings.");
     this.cancelAll();
-    await this.settings.setKey(key);
-  }
-  async removeKey(): Promise<void> {
-    this.cancelAll();
-    await this.settings.removeKey();
-  }
-  async setModel(model: string): Promise<void> {
-    this.cancelAll();
-    await this.settings.setModel(model);
+    await this.settings.set(client, configuration);
   }
   cancel(window: number, id: string): boolean {
     const request = this.active.get(`${window}:${id}`);
@@ -45,37 +60,29 @@ export class AiService {
     for (const request of this.active.values())
       if (request.window === window) request.controller.abort();
   }
-  async models(): Promise<RouterModel[]> {
-    const key = await this.settings.key();
-    if (!key) throw new Error("Add an OpenRouter key in Settings first");
-    const models = await this.client.models(key);
-    if (JSON.stringify(models).includes(key))
-      throw new Error("OpenRouter returned unsafe model data");
-    return models;
-  }
-  async test(): Promise<{ connected: true }> {
-    const key = await this.settings.key();
-    if (!key) throw new Error("Add an OpenRouter key in Settings first");
-    return this.client.test(key);
-  }
   async preview(context: AiContext): Promise<{
     version: number;
     revision: string;
     model: string;
+    client: CodingClient;
+    effort: AiAgentConfiguration["effort"];
     text: string;
   }> {
-    const preferences = await this.settings.configured();
-    if (!preferences.configured)
-      throw new Error("Add an OpenRouter key in Settings first");
-    if (!preferences.model)
-      throw new Error("Choose an AI model in Settings first");
+    const preferences = await this.status();
     const prompt = buildAiPrompt(context);
     return {
       version: prompt.version,
       revision: hash(
-        JSON.stringify({ prompt: prompt.revision, model: preferences.model }),
+        JSON.stringify({
+          prompt: prompt.revision,
+          client: preferences.client,
+          model: preferences.model,
+          effort: preferences.effort,
+        }),
       ),
-      model: preferences.model,
+      model: preferences.model ?? "Agent default",
+      client: preferences.client,
+      effort: preferences.effort,
       text: prompt.preview,
     };
   }
@@ -94,25 +101,25 @@ export class AiService {
       epoch = this.epoch;
     this.active.set(identity, { window, controller });
     try {
-      const key = await this.settings.key(),
-        preferences = await this.settings.configured();
-      if (!key) throw new Error("Add an OpenRouter key in Settings first");
-      if (!preferences.model)
-        throw new Error("Choose an AI model in Settings first");
+      const preferences = await this.status();
       if (
         hash(
-          JSON.stringify({ prompt: prompt.revision, model: preferences.model }),
+          JSON.stringify({
+            prompt: prompt.revision,
+            client: preferences.client,
+            model: preferences.model,
+            effort: preferences.effort,
+          }),
         ) !== revision
       )
         throw Error(
-          "Selected text or model changed; review the current privacy preview",
+          "Selected text, agent, model or effort changed; review the current privacy preview",
         );
       if (epoch !== this.epoch || controller.signal.aborted)
         throw new Error("AI request cancelled");
       let characters = 0;
       const text = await this.client.complete({
-        key,
-        model: preferences.model,
+        preferences,
         messages: prompt.messages,
         signal: controller.signal,
         onText: (part) => {
@@ -122,10 +129,11 @@ export class AiService {
       });
       if (epoch !== this.epoch || controller.signal.aborted)
         throw new Error("AI request cancelled");
-      if (text.includes(key))
-        throw new Error(
-          "OpenRouter returned unsafe suggestion content; your form is unchanged",
-        );
+      const current = await this.preview(context);
+      if (epoch !== this.epoch || controller.signal.aborted)
+        throw new Error("AI request cancelled");
+      if (current.revision !== revision)
+        throw Error("AI settings changed; review the current privacy preview");
       return parseAiSuggestion(context, text);
     } finally {
       this.active.delete(identity);

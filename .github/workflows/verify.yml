@@ -1,0 +1,143 @@
+name: Shared verification
+
+on:
+  workflow_call:
+    inputs:
+      source-ref:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: macOS quality and shared build
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source-ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - run: make install native
+      - run: make check
+      - name: Archive the build already checked by the quality suite
+        run: tar -cf .cache/verified-build.tar apps/desktop/dist apps/desktop/out packages/voidra/dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-build
+          path: .cache/verified-build.tar
+          overwrite: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain combined quality coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: quality-coverage
+          path: coverage/
+          overwrite: true
+          if-no-files-found: error
+
+  desktop:
+    name: Desktop shard ${{ matrix.shard }}/3
+    needs: quality
+    runs-on: macos-15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source-ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - run: make install native
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: verified-build
+          path: .cache/
+      - run: tar -xf .cache/verified-build.tar
+      - name: Run one shard with exclusive desktop access
+        run: pnpm --filter voidra-project e2e --shard=${{ matrix.shard }}/3 --reporter=list,blob
+        env:
+          VOIDRA_TEST_BACKGROUND: "0"
+      - name: Retain shard report and failure evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-shard-${{ matrix.shard }}
+          path: apps/desktop/blob-report/*.zip
+          overwrite: true
+          if-no-files-found: error
+      - name: Retain screenshots and traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-failures-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: apps/desktop/test-results/
+
+  reports:
+    name: Complete desktop verification
+    needs: [quality, desktop]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source-ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: e2e-shard-*
+          path: .cache/e2e-shards/
+      - name: Require every shard report before merging
+        run: |
+          node --input-type=module <<'JS'
+          import { mkdir, readdir, copyFile } from 'node:fs/promises';
+          await mkdir('.cache/e2e-reports', { recursive: true });
+          for (const shard of [1, 2, 3]) {
+            const directory = `.cache/e2e-shards/e2e-shard-${shard}`;
+            const reports = (await readdir(directory)).filter(name => name.endsWith('.zip'));
+            if (reports.length !== 1) throw new Error(`Shard ${shard}: expected exactly one blob report`);
+            await copyFile(`${directory}/${reports[0]}`, `.cache/e2e-reports/shard-${shard}.zip`);
+          }
+          JS
+      - name: Merge desktop reports
+        run: pnpm --filter voidra-project exec playwright merge-reports --reporter=html ../../.cache/e2e-reports
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: desktop-report
+          path: apps/desktop/playwright-report/
+          overwrite: true
+          if-no-files-found: error
+      - name: Require successful quality and every desktop shard
+        if: ${{ always() }}
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
+        run: test "$QUALITY_RESULT" = success && test "$DESKTOP_RESULT" = success

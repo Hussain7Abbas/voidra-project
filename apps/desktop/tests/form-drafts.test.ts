@@ -1,10 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  randomUUID,
-} from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import {
   chmod,
@@ -20,7 +15,6 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import type { SecretEncryption } from "../src/main/ai-settings.ts";
 import { DraftStore } from "../src/main/form-drafts.ts";
 
 async function fixture() {
@@ -241,98 +235,6 @@ it("preserves corrupt/escaping files, lists valid drafts and upgrades legacy Nor
     await rm(temp, { recursive: true, force: true });
   }
 });
-it("keeps unfinished keys encrypted, exposes metadata only, preserves a failed apply and uses main-only explicit application", async () => {
-  const { temp, directory, project } = await fixture(),
-    key = randomBytes(32);
-  let availableCalls = 0;
-  const encryption: SecretEncryption = {
-    available: async () => {
-      availableCalls++;
-      return true;
-    },
-    encrypt: async (value) => {
-      const iv = randomBytes(12),
-        cipher = createCipheriv("aes-256-gcm", key, iv),
-        data = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-      return Buffer.concat([iv, cipher.getAuthTag(), data]);
-    },
-    decrypt: async (bytes) => {
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        key,
-        bytes.subarray(0, 12),
-      );
-      decipher.setAuthTag(bytes.subarray(12, 28));
-      return {
-        result: Buffer.concat([
-          decipher.update(bytes.subarray(28)),
-          decipher.final(),
-        ]).toString(),
-        shouldReEncrypt: false,
-      };
-    },
-  };
-  try {
-    const store = new DraftStore(directory, encryption);
-    await store.list(project);
-    await store.listSecrets();
-    expect(availableCalls).toBe(0);
-    const id = randomUUID(),
-      value = "pending-private-openrouter-key",
-      first = await store.putSecret({ id, revision: null, value }),
-      saved = await store.putSecret({ id, revision: first.revision, value });
-    await expect(
-      store.putSecret({
-        id,
-        revision: first.revision,
-        value: "competing unfinished key",
-      }),
-    ).rejects.toThrow(/changed/);
-    const fork = await store.putSecret({
-      id: randomUUID(),
-      revision: null,
-      value: "competing unfinished key",
-    });
-    expect((await store.listSecrets()).drafts).toHaveLength(2);
-    await store.delete(null, fork.id, fork.revision, true);
-    expect(JSON.stringify(saved)).not.toContain(value);
-    expect(saved.hasValue).toBe(true);
-    for (const path of await readdir(directory, { recursive: true })) {
-      if (path.endsWith(".json"))
-        expect(await readFile(join(directory, path), "utf8")).not.toContain(
-          value,
-        );
-    }
-    await expect(
-      store.applySecret(id, saved.revision, async () => {
-        throw Error("apply failed");
-      }),
-    ).rejects.toThrow(/apply failed/);
-    expect((await store.listSecrets()).drafts[0]?.revision).toBe(
-      saved.revision,
-    );
-    let applied = "";
-    await store.applySecret(id, saved.revision, async (key) => {
-      applied = key;
-    });
-    expect(applied).toBe(value);
-    expect((await store.listSecrets()).drafts).toEqual([]);
-    const unavailable = new DraftStore(directory, {
-      ...encryption,
-      available: async () => false,
-    });
-    await expect(
-      unavailable.putSecret({
-        id: randomUUID(),
-        revision: null,
-        value: "partial",
-      }),
-    ).rejects.toThrow(/encryption|secure/i);
-  } finally {
-    await rm(temp, { recursive: true, force: true });
-  }
-});
-
 it("keeps a complete durable draft across actual process death before and after atomic replacement", async () => {
   const { temp, directory, project, store } = await fixture();
   try {
@@ -365,7 +267,7 @@ it("keeps a complete durable draft across actual process death before and after 
         script,
         `import {DraftStore} from ${JSON.stringify(new URL("../src/main/form-drafts.ts", import.meta.url).href)};
 process.stdin.resume();
-const store=new DraftStore(${JSON.stringify(directory)},undefined,async stage=>{if(stage===${JSON.stringify(stage)}){process.stdout.write("checkpoint\\n");await new Promise(()=>{});}});
+const store=new DraftStore(${JSON.stringify(directory)},async stage=>{if(stage===${JSON.stringify(stage)}){process.stdout.write("checkpoint\\n");await new Promise(()=>{});}});
 await store.put(${JSON.stringify(project)},${JSON.stringify(next)});
 throw Error("Checkpoint was not reached");
 `,
@@ -424,6 +326,29 @@ throw Error("Checkpoint was not reached");
         }
       }
     }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+it("removes retired encrypted-key drafts without following credential or parent links", async () => {
+  const { temp, directory, store } = await fixture();
+  try {
+    const credentials = join(directory, "credentials"),
+      outside = join(temp, "outside-credentials");
+    await mkdir(credentials, { recursive: true });
+    await writeFile(join(credentials, "old.json"), "encrypted legacy bytes");
+    await store.removeLegacyCredentials();
+    await expect(stat(credentials)).rejects.toThrow();
+    await mkdir(outside);
+    await writeFile(join(outside, "keep.txt"), "preserve");
+    await symlink(outside, credentials);
+    await expect(store.removeLegacyCredentials()).rejects.toThrow(/link/);
+    expect(await readFile(join(outside, "keep.txt"), "utf8")).toBe("preserve");
+    await rm(directory, { recursive: true, force: true });
+    await symlink(outside, directory);
+    await expect(store.removeLegacyCredentials()).rejects.toThrow(/link/);
+    expect(await readFile(join(outside, "keep.txt"), "utf8")).toBe("preserve");
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

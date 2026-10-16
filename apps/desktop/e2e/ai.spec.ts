@@ -6,11 +6,12 @@ import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { checkProject, parseRecord, serializeRecord } from "voidra";
+import { fixtureAgentCli } from "../tests/helpers/headless-cli.ts";
 import { launchConfiguredApp } from "./helpers/configured-app.ts";
 import { openLegacyIdeaEditor } from "./helpers/legacy-idea.ts";
 
 for (const theme of ["light", "dark"] as const)
-  test(`optional AI key settings and editable historical idea suggestions in ${theme}`, async () => {
+  test(`headless AI preferences and editable historical idea suggestions in ${theme}`, async () => {
     const temp = await mkdtemp(join(tmpdir(), "voidra-ai-ui-")),
       root = join(temp, "project"),
       requests: { url: string; body: string; auth: string }[] = [];
@@ -47,7 +48,7 @@ for (const theme of ["light", "dark"] as const)
           return response.end(JSON.stringify({ data: { label: "fixture" } }));
         response.writeHead(200, { "content-type": "text/event-stream" });
         response.end(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify({ title: "Clear offline export", description: "Export notes as local JSON documents." }) } }] })}\n\ndata: [DONE]\n\n`,
+          `data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(body.includes("Create a concise title") ? { title: "Connection test" } : { title: "Clear offline export", description: "Export notes as local JSON documents." }) } }] })}\n\ndata: [DONE]\n\n`,
         );
       });
     });
@@ -68,7 +69,10 @@ for (const theme of ["light", "dark"] as const)
       env: {
         ...env,
         VOIDRA_DATA_DIR: join(temp, "data"),
-        VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
+        VOIDRA_TEST_CODEX_CLI: await fixtureAgentCli(
+          temp,
+          `http://127.0.0.1:${address.port}/complete`,
+        ),
       },
     });
     try {
@@ -78,31 +82,27 @@ for (const theme of ["light", "dark"] as const)
       await openLegacyIdeaEditor(page, root);
       await expect(
         page.getByRole("button", { name: "Improve with AI", exact: true }),
-      ).toHaveCount(0);
+      ).toHaveCount(1);
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await page.getByRole("tab", { name: "Appearance", exact: true }).click();
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
+      await page.getByLabel("AI model", { exact: true }).fill("test/model");
       await page
-        .getByText("AI suggestions (optional)", { exact: true })
+        .getByRole("button", { name: "Save AI preferences", exact: true })
         .click();
       await page
-        .getByLabel("OpenRouter API key", { exact: true })
-        .fill("fixture-private-key");
-      await page.getByRole("button", { name: "Save key", exact: true }).click();
-      await expect(page.getByText("Key saved", { exact: true })).toBeVisible();
-      await page
-        .getByLabel("AI model", { exact: true })
-        .selectOption("test/model");
-      await page
-        .getByRole("button", { name: "Test connection", exact: true })
+        .getByRole("button", { name: "Test agent connection", exact: true })
         .click();
       await expect(
-        page.getByText("Connection works", { exact: true }),
+        page.getByText("Agent connection works", { exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Test connection", exact: true }),
+        page.getByRole("button", {
+          name: "Test agent connection",
+          exact: true,
+        }),
       ).toBeEnabled();
       expect(
         await readFile(join(temp, "data/ai-settings.json"), "utf8"),
@@ -121,7 +121,7 @@ for (const theme of ["light", "dark"] as const)
         .click();
       await expect(
         page.getByRole("heading", {
-          name: "Review text sent to OpenRouter",
+          name: "Review text sent to your agent",
           exact: true,
         }),
       ).toBeVisible();
@@ -154,30 +154,14 @@ for (const theme of ["light", "dark"] as const)
         page.getByText("Reviewed offline export", { exact: true }),
       ).toBeVisible();
       expect(
-        requests.filter(
-          (request) => request.url === "/api/v1/chat/completions",
-        ),
-      ).toHaveLength(1);
-      expect(
-        requests.every(
-          (request) => request.auth === "Bearer fixture-private-key",
-        ),
-      ).toBe(true);
+        requests.filter((request) => request.url === "/complete"),
+      ).toHaveLength(2);
+      expect(requests.every((request) => request.auth === "")).toBe(true);
       await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page
-        .getByText("AI suggestions (optional)", { exact: true })
-        .click();
-      await page
-        .getByRole("button", { name: "Remove key", exact: true })
-        .click();
-      await expect(
-        page.getByText("No key saved", { exact: true }),
-      ).toBeVisible();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        "test/model",
+      );
       await page.getByRole("button", { name: "Done", exact: true }).click();
-      await openLegacyIdeaEditor(page, root);
-      await expect(
-        page.getByRole("button", { name: "Improve with AI", exact: true }),
-      ).toHaveCount(0);
     } finally {
       await app.close();
       host.closeAllConnections();
@@ -325,7 +309,10 @@ for (const theme of ["light", "dark"] as const)
       env: {
         ...env,
         VOIDRA_DATA_DIR: join(temp, "data"),
-        VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
+        VOIDRA_TEST_CODEX_CLI: await fixtureAgentCli(
+          temp,
+          `http://127.0.0.1:${address.port}/complete`,
+        ),
       },
     });
     try {
@@ -335,26 +322,19 @@ for (const theme of ["light", "dark"] as const)
       await page.getByRole("tab", { name: "Appearance", exact: true }).click();
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
       await page.getByRole("tab", { name: "General", exact: true }).click();
+      await page.getByLabel("AI model", { exact: true }).fill("test/model");
       await page
-        .getByText("AI suggestions (optional)", { exact: true })
+        .getByRole("button", { name: "Save AI preferences", exact: true })
         .click();
-      await page
-        .getByLabel("OpenRouter API key", { exact: true })
-        .fill("fixture-private-key");
-      await page.getByRole("button", { name: "Save key", exact: true }).click();
-      await expect(page.getByText("Key saved", { exact: true })).toBeVisible();
-      await page
-        .getByLabel("AI model", { exact: true })
-        .selectOption("test/model");
       await expect(
-        page.getByText("Model saved", { exact: true }),
+        page.getByText("AI preferences saved", { exact: true }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Done", exact: true }).click();
       async function generate(label: string) {
         await page.getByRole("button", { name: label, exact: true }).click();
         await expect(
           page.getByRole("heading", {
-            name: "Review text sent to OpenRouter",
+            name: "Review text sent to your agent",
             exact: true,
           }),
         ).toBeVisible();
@@ -462,7 +442,7 @@ for (const theme of ["light", "dark"] as const)
     }
   });
 
-test("AI onboarding suggestions and rate errors keep the profile draft under user control", async () => {
+test("AI onboarding suggestions and agent failures keep the profile draft under user control", async () => {
   const temp = await mkdtemp(join(tmpdir(), "voidra-ai-onboarding-")),
     root = join(temp, "project");
   await mkdir(root);
@@ -511,7 +491,10 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
     env: {
       ...env,
       VOIDRA_DATA_DIR: join(temp, "data"),
-      VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
+      VOIDRA_TEST_CODEX_CLI: await fixtureAgentCli(
+        temp,
+        `http://127.0.0.1:${address.port}/complete`,
+      ),
     },
   });
   try {
@@ -521,22 +504,21 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
       .getByRole("button", { name: "Use General software", exact: true })
       .click();
     await expect(
-      page.getByRole("button", { name: "Suggest answer with AI", exact: true }),
-    ).toHaveCount(0);
+      page
+        .getByRole("button", { name: "Suggest answer with AI", exact: true })
+        .first(),
+    ).toBeVisible();
     await page
       .getByLabel(/What should this project make possible/)
       .fill("My original notes");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByText("AI suggestions (optional)", { exact: true }).click();
+    await page.getByLabel("AI model", { exact: true }).fill("test/model");
     await page
-      .getByLabel("OpenRouter API key", { exact: true })
-      .fill("fixture-private-key");
-    await page.getByRole("button", { name: "Save key", exact: true }).click();
-    await expect(page.getByText("Key saved", { exact: true })).toBeVisible();
-    await page
-      .getByLabel("AI model", { exact: true })
-      .selectOption("test/model");
-    await expect(page.getByText("Model saved", { exact: true })).toBeVisible();
+      .getByRole("button", { name: "Save AI preferences", exact: true })
+      .click();
+    await expect(
+      page.getByText("AI preferences saved", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Done", exact: true }).click();
     await page
       .getByRole("button", { name: "Suggest answer with AI", exact: true })
@@ -546,10 +528,10 @@ test("AI onboarding suggestions and rate errors keep the profile draft under use
       .getByRole("button", { name: "Generate suggestion", exact: true })
       .click();
     const aiDialog = page.getByRole("dialog", {
-      name: "Review text sent to OpenRouter",
+      name: "Review text sent to your agent",
       exact: true,
     });
-    await expect(aiDialog.getByRole("alert")).toContainText(/rate|limit/i);
+    await expect(aiDialog.getByRole("alert")).toContainText(/request failed/i);
     await expect(aiDialog.getByRole("alert")).not.toContainText(
       "fixture-private-key",
     );

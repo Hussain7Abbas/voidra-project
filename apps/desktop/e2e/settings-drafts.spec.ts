@@ -1,6 +1,4 @@
-import { once } from "node:events";
-import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
-import { createServer } from "node:http";
+import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -8,21 +6,13 @@ import { checkProject } from "voidra";
 import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
-  test(`Team and encrypted credential drafts restore without applying settings in ${theme}`, async () => {
+  test(`Team and agent preference drafts restore without applying settings in ${theme}`, async () => {
     const temp = await mkdtemp(join(tmpdir(), "voidra-settings-drafts-")),
       root = join(temp, "project"),
       data = join(temp, "data");
     await cp(resolve("../../fixtures/new-project/project"), root, {
       recursive: true,
     });
-    const server = createServer((_request, response) =>
-      response.end(JSON.stringify({ data: [] })),
-    );
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-    if (!address || typeof address === "string")
-      throw Error("No fixture address");
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         (entry): entry is [string, string] =>
@@ -36,7 +26,6 @@ for (const theme of ["light", "dark"] as const)
         env: {
           ...env,
           VOIDRA_DATA_DIR: data,
-          VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
         },
       });
     let app = await launch();
@@ -124,57 +113,52 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("No unfinished forms in this project.", { exact: true }),
       ).toBeVisible();
-      await page
-        .getByText("AI suggestions (optional)", { exact: true })
-        .click();
-      await page
-        .getByLabel("OpenRouter API key", { exact: true })
-        .fill("pending-fixture-secret");
+      await page.getByLabel("AI model", { exact: true }).fill("custom-model");
+      await page.getByLabel("AI effort", { exact: true }).selectOption("high");
       await page.keyboard.press("Escape");
       await app.close();
       app = await launch();
       page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("button", { name: /Restore draft/ }).click();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        "custom-model",
+      );
       await page
-        .getByText("AI suggestions (optional)", { exact: true })
-        .click();
-      await page
-        .getByRole("button", {
-          name: "Unfinished OpenRouter key 1",
-          exact: true,
-        })
+        .getByRole("button", { name: "Save AI preferences", exact: true })
         .click();
       await expect(
-        page.getByLabel("OpenRouter API key", { exact: true }),
-      ).toHaveValue("");
-      await expect(
-        page.getByText("No key saved", { exact: true }),
+        page.getByText("AI preferences saved", { exact: true }),
       ).toBeVisible();
+      await page
+        .getByRole("radio", { name: "Claude Code", exact: true })
+        .check();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        "",
+      );
+      await page.getByLabel("AI model", { exact: true }).fill("haiku");
+      await page
+        .getByRole("button", { name: "Save AI preferences", exact: true })
+        .click();
       await expect(
-        page
-          .getByRole("status")
-          .filter({ hasText: "Encrypted key draft selected" }),
+        page.getByText("AI preferences saved", { exact: true }),
       ).toBeVisible();
-      const files = await readdir(join(data, "form-drafts"), {
-        recursive: true,
+      await page.getByRole("radio", { name: "Codex", exact: true }).check();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        "custom-model",
+      );
+      await expect(page.getByLabel("AI effort", { exact: true })).toHaveValue(
+        "high",
+      );
+      await page
+        .getByRole("button", { name: "Test agent connection", exact: true })
+        .scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: resolve(`../../.cache/ai-settings-${theme}.png`),
       });
-      for (const file of files.filter((file) => file.endsWith(".json")))
-        expect(
-          await readFile(join(data, "form-drafts", file), "utf8"),
-        ).not.toContain("pending-fixture-secret");
-      await page.getByRole("button", { name: "Save key", exact: true }).click();
-      await expect(page.getByText("Key saved", { exact: true })).toBeVisible();
-      await expect(
-        page.getByRole("button", {
-          name: "Unfinished OpenRouter key 1",
-          exact: true,
-        }),
-      ).toHaveCount(0);
     } finally {
       await app.close();
-      server.closeAllConnections();
-      await new Promise<void>((done) => server.close(() => done()));
       await rm(temp, { recursive: true, force: true });
     }
   });

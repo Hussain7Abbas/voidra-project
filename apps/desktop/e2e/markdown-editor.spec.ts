@@ -20,10 +20,13 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(p[0]),
       ),
     );
-    const app = await launchConfiguredApp({
-      args: [resolve("."), `--project=${root}`],
-      env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
-    });
+    const app = await launchConfiguredApp(
+      {
+        args: [resolve("."), `--project=${root}`],
+        env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
+      },
+      { theme },
+    );
     try {
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
@@ -34,10 +37,7 @@ for (const theme of ["light", "dark"] as const)
           failures.push(event.violatedDirective),
         );
       });
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
-      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
-      await page.keyboard.press("Escape");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await page.getByRole("button", { name: "Tasks", exact: true }).click();
       await page.getByRole("button", { name: "Add task", exact: true }).click();
       await page.getByRole("radio", { name: "Normal", exact: true }).check();

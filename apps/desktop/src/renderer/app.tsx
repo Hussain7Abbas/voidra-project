@@ -722,7 +722,7 @@ function Shell() {
       <Dialog
         open={settings}
         onClose={async () => {
-          await flushFormDrafts(["team-member", "credential"]);
+          await flushFormDrafts(["team-member", "ai-settings"]);
           setSettings(false);
           setTeamSettings(false);
         }}
@@ -733,7 +733,7 @@ function Shell() {
             data-dialog-close
             onClick={async () => {
               try {
-                await flushFormDrafts(["team-member", "credential"]);
+                await flushFormDrafts(["team-member", "ai-settings"]);
               } catch (cause) {
                 toast.error(String(cause));
                 return;
@@ -753,7 +753,7 @@ function Shell() {
           general={
             <>
               <CodingClientSetting />
-              <AiSettingsPanel />
+              <AiSettingsPanel active={settings} />
               <DraftRecovery />
               <SkillSettingsPanel />
               <UpdateSettings />

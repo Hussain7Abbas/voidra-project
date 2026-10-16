@@ -11,6 +11,7 @@ out/
 .next/
 release/
 playwright-report/
+blob-report/
 test-results/
 
 .agents/skills/

@@ -134,13 +134,21 @@ for (const theme of ["light", "dark"] as const)
         if (!task) throw Error("Missing task");
         return task;
       };
+      const startSettledRun = async () => {
+        // A watched column/answer can appear before its grouped write finishes.
+        // Wait at the read-only boundary; never retry a run-start side effect.
+        await expect
+          .poll(async () => (await checkProject(root)).diagnostics)
+          .toEqual([]);
+        return startRun(root, "codex", process.pid);
+      };
       const task = await getTask();
-      await page
-        .getByRole("button", {
-          name: `Move ${task.title}; use left or right arrow`,
-          exact: true,
-        })
-        .focus();
+      const firstGrip = page.getByRole("button", {
+        name: `Move ${task.title}; use left or right arrow`,
+        exact: true,
+      });
+      await expect(firstGrip).toBeEnabled();
+      await firstGrip.focus();
       await page.keyboard.press("ArrowRight");
       await expect.poll(async () => (await getTask()).column).toBe("planning");
       await expect(
@@ -151,7 +159,7 @@ for (const theme of ["light", "dark"] as const)
             exact: true,
           }),
       ).toBeEnabled();
-      const planning = await startRun(root, "codex", process.pid);
+      const planning = await startSettledRun();
       if (!planning) throw Error("Planning missing");
       await publishPlanning(root, planning.ownerToken, {
         action: task.id,
@@ -179,7 +187,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         waiting.getByRole("button", { name: "Save answer", exact: true }),
       ).toHaveCount(0);
-      const resumed = await startRun(root, "codex", process.pid);
+      const resumed = await startSettledRun();
       if (!resumed) throw Error("Answered planning missing");
       await publishPlanning(root, resumed.ownerToken, {
         action: task.id,
@@ -207,12 +215,14 @@ for (const theme of ["light", "dark"] as const)
         exact: true,
       });
       await grip.scrollIntoViewIfNeeded();
+      await expect(grip).toBeEnabled();
       await grip.focus();
       await page.keyboard.press("ArrowRight");
       await expect
         .poll(async () => (await getTask()).column)
         .toBe("in-progress");
-      const implement = await startRun(root, "codex", process.pid);
+      await expect(grip).toBeEnabled();
+      const implement = await startSettledRun();
       if (!implement) throw Error("Implementation missing");
       await writeFile(
         join(root, "docs/intro.md"),
@@ -225,7 +235,7 @@ for (const theme of ["light", "dark"] as const)
       });
       await commitResult(root, implement.ownerToken, "Document workflow");
       await finalizeResult(root, implement.ownerToken);
-      const qa = await startRun(root, "codex", process.pid);
+      const qa = await startSettledRun();
       if (!qa) throw Error("QA missing");
       const checks = {
         summary: "Read-only fixture verification",

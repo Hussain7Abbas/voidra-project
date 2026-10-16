@@ -40,7 +40,7 @@ async function launch() {
       width: Math.min(1000, area.width - 80),
       height: Math.min(700, area.height - 80),
     });
-    window.focus();
+    if (process.env.VOIDRA_TEST_BACKGROUND !== "1") window.focus();
   });
   await expect
     .poll(() =>
@@ -198,35 +198,8 @@ for (const theme of ["light", "dark"] as const) {
         return { controls: controls?.x ?? 0, settings: settings?.x ?? 0 };
       });
     expect(positions.controls).toBeLessThan(positions.settings);
-    await page.getByRole("button", { name: "Maximize window" }).click();
-    await expect
-      .poll(() =>
-        application.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows()[0]?.isMaximized(),
-        ),
-      )
-      .toBe(true);
-    await page.getByRole("button", { name: "Restore window" }).click();
-    await expect
-      .poll(() =>
-        application.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows()[0]?.isMaximized(),
-        ),
-      )
-      .toBe(false);
-    await page.getByRole("button", { name: "Minimize window" }).click();
-    await expect
-      .poll(() =>
-        application.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows()[0]?.isMinimized(),
-        ),
-      )
-      .toBe(true);
     await application.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      window?.restore();
-      window?.setBounds({ width: 1000, height: 550 });
-      window?.focus();
+      BrowserWindow.getAllWindows()[0]?.setBounds({ width: 1000, height: 550 });
     });
     // The reduced navigation fits at normal size; real magnification exercises
     // independent overflow without adding obsolete navigation entries.
@@ -309,3 +282,47 @@ for (const theme of ["light", "dark"] as const) {
     await closed;
   });
 }
+
+test.describe("Visible native window controls", () => {
+  test.skip(
+    process.env.VOIDRA_TEST_BACKGROUND === "1",
+    "Native minimize/maximize requires visible windows: VOIDRA_TEST_BACKGROUND=0 make e2e",
+  );
+  for (const theme of ["light", "dark"] as const)
+    test(`maximizes, restores and minimizes the native window in ${theme}`, async () => {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Maximize window" }).click();
+      await expect
+        .poll(() =>
+          application.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]?.isMaximized(),
+          ),
+        )
+        .toBe(true);
+      await page.getByRole("button", { name: "Restore window" }).click();
+      await expect
+        .poll(() =>
+          application.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]?.isMaximized(),
+          ),
+        )
+        .toBe(false);
+      await page.getByRole("button", { name: "Minimize window" }).click();
+      await expect
+        .poll(() =>
+          application.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]?.isMinimized(),
+          ),
+        )
+        .toBe(true);
+      await application.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0];
+        window?.restore();
+        window?.setBounds({ width: 1000, height: 550 });
+        window?.focus();
+      });
+    });
+});

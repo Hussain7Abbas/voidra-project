@@ -5,8 +5,12 @@ import {
   aiContextSchema,
   aiSuggestionSchema,
 } from "../shared/ai.ts";
-import type { ChatMessage } from "./openrouter.ts";
 import { PROMPT_VERSION, prompts } from "./prompts/v1.ts";
+
+export interface ChatMessage {
+  role: "system" | "user";
+  content: string;
+}
 
 export interface AiPrompt {
   version: number;

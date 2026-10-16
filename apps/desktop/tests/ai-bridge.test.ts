@@ -1,5 +1,13 @@
 import { once } from "node:events";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,8 +16,9 @@ import { expect, it } from "vitest";
 import { parseRecord, serializeRecord } from "voidra";
 import type { BridgeRequest, BridgeResponse } from "../src/shared/bridge.ts";
 import { nativeCoverageDirectory } from "./coverage-setup.ts";
+import { fixtureAgentCli } from "./helpers/headless-cli.ts";
 
-it("uses actual validated native AI commands with encrypted storage, isolated public context, editable results and no source/private outbound text", async () => {
+it("uses actual validated native AI commands with headless agent isolation, isolated public context, editable results and no source/private outbound text", async () => {
   const temp = await mkdtemp(join(tmpdir(), "voidra-ai-bridge-")),
     root = join(temp, "project"),
     bodies: string[] = [];
@@ -132,6 +141,19 @@ it("uses actual validated native AI commands with encrypted storage, isolated pu
   const address = host.address();
   if (!address || typeof address === "string")
     throw new Error("Missing server");
+  await mkdir(join(temp, "data/form-drafts/credentials"), { recursive: true });
+  await writeFile(
+    join(temp, "data/form-drafts/credentials", `${crypto.randomUUID()}.json`),
+    '{"obsolete":"encrypted-key-draft"}',
+  );
+  await writeFile(
+    join(temp, "data/ai-settings.json"),
+    JSON.stringify({
+      version: 1,
+      key: "b2xkLWNpcGhlcnRleHQ=",
+      model: "obsolete/provider-model",
+    }),
+  );
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (pair): pair is [string, string] =>
@@ -139,11 +161,15 @@ it("uses actual validated native AI commands with encrypted storage, isolated pu
     ),
   );
   const app = await _electron.launch({
-    args: [resolve("apps/desktop"), `--project=${root}`, "--use-mock-keychain"],
+    args: [resolve("apps/desktop"), `--project=${root}`],
     env: {
       ...env,
       VOIDRA_DATA_DIR: join(temp, "data"),
-      VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
+      VOIDRA_TEST_CLAUDE_CLI: join(temp, "agent.cjs"),
+      VOIDRA_TEST_CODEX_CLI: await fixtureAgentCli(
+        temp,
+        `http://127.0.0.1:${address.port}/complete`,
+      ),
       ...(nativeCoverageDirectory
         ? { NODE_V8_COVERAGE: nativeCoverageDirectory }
         : {}),
@@ -158,31 +184,33 @@ it("uses actual validated native AI commands with encrypted storage, isolated pu
         JSON.stringify(input),
       );
     expect((await invoke({ command: "ai-settings" })).ok).toBe(true);
+    expect(
+      await readFile(join(temp, "data/ai-settings.json"), "utf8"),
+    ).not.toMatch(/b2xk|obsolete/);
+    await expect(
+      access(join(temp, "data/form-drafts/credentials")),
+    ).rejects.toThrow();
+    const obsolete = await page.evaluate(() =>
+      window.voidra.invoke(
+        JSON.parse('{"command":"ai-set-key","key":"removed"}'),
+      ),
+    );
+    expect(obsolete.ok).toBe(false);
+
     const intent = {
       feature: "rewrite" as const,
       target: "idea" as const,
       notes: "Clarify this rough idea.",
     };
-    expect((await invoke({ command: "ai-preview", intent })).ok).toBe(false);
+    expect((await invoke({ command: "ai-preview", intent })).ok).toBe(true);
     expect(
       (
         await invoke({
-          command: "ai-set-key",
-          key: "native-fixture-private-key",
+          command: "ai-configure",
+          client: "codex",
+          configuration: { model: "test/model", effort: "high" },
         })
       ).ok,
-    ).toBe(true);
-    expect(
-      await readFile(join(temp, "data/ai-settings.json"), "utf8"),
-    ).not.toContain("native-fixture-private-key");
-    expect((await invoke({ command: "ai-models" })).ok).toBe(true);
-    expect((await invoke({ command: "ai-test" })).ok).toBe(true);
-    expect(
-      (await invoke({ command: "ai-set-model", model: "not-a-listed-model" }))
-        .ok,
-    ).toBe(false);
-    expect(
-      (await invoke({ command: "ai-set-model", model: "test/model" })).ok,
     ).toBe(true);
     for (const current of [
       intent,
@@ -232,13 +260,45 @@ it("uses actual validated native AI commands with encrypted storage, isolated pu
     expect(
       (await invoke({ command: "ai-cancel", id: crypto.randomUUID() })).ok,
     ).toBe(true);
-    expect((await invoke({ command: "ai-remove-key" })).ok).toBe(true);
-    const snapshot = await invoke({ command: "snapshot" });
     expect(
-      snapshot.ok &&
-        snapshot.data.kind === "snapshot" &&
-        snapshot.data.ai.configured,
-    ).toBe(false);
+      (await invoke({ command: "set-coding-client", client: "claude-code" }))
+        .ok,
+    ).toBe(true);
+    expect(
+      (
+        await invoke({
+          command: "ai-configure",
+          client: "claude-code",
+          configuration: { model: "haiku", effort: "medium" },
+        })
+      ).ok,
+    ).toBe(true);
+    const claudePreview = await invoke({ command: "ai-preview", intent });
+    if (!claudePreview.ok || claudePreview.data.kind !== "ai-preview")
+      throw Error("Missing Claude preview");
+    expect(
+      (
+        await invoke({
+          command: "ai-generate",
+          intent,
+          id: crypto.randomUUID(),
+          revision: claudePreview.data.revision,
+        })
+      ).ok,
+    ).toBe(true);
+    const claudeCall = JSON.parse(bodies.at(-1) ?? "{}");
+    expect(claudeCall).toMatchObject({
+      client: "claude-code",
+      model: "haiku",
+      effort: "medium",
+    });
+    expect(claudeCall.cwd).not.toBe(root);
+    const selected = await invoke({ command: "ai-settings" });
+    expect(
+      selected.ok &&
+        selected.data.kind === "ai-settings" &&
+        selected.data.preferences.client,
+    ).toBe("claude-code");
   } finally {
     await app.close();
     host.closeAllConnections();

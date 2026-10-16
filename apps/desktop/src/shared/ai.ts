@@ -131,31 +131,35 @@ export const aiSuggestionSchema = z.discriminatedUnion("feature", [
   ),
 ]);
 export type AiSuggestion = z.infer<typeof aiSuggestionSchema>;
-export const aiPreferencesSchema = z.strictObject({
+export const aiEfforts = {
+  codex: ["minimal", "low", "medium", "high", "xhigh", "max"],
+  "claude-code": ["low", "medium", "high", "xhigh", "max"],
+} as const;
+export const aiAgentConfigurationSchema = z.strictObject({
+  model: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/)
+    .nullable(),
+  effort: z.enum(["minimal", "low", "medium", "high", "xhigh", "max"]),
+});
+export type AiAgentConfiguration = z.infer<typeof aiAgentConfigurationSchema>;
+export const aiPreferencesSchema = aiAgentConfigurationSchema.extend({
+  client: z.enum(["codex", "claude-code"]),
   configured: z.boolean(),
   available: z.boolean(),
-  model: z.string().nullable(),
 });
-export const aiModelSchema = z.strictObject({
-  id: z.string(),
-  name: z.string(),
-  contextLength: z.number().nullable(),
-  promptPrice: z.string().nullable(),
-  completionPrice: z.string().nullable(),
-});
+export type AiPreferences = z.infer<typeof aiPreferencesSchema>;
 export const aiRequestSchemas = [
   z.strictObject({ command: z.literal("ai-settings") }),
   z.strictObject({
-    command: z.literal("ai-set-key"),
-    key: z.string().trim().min(1).max(4096),
+    command: z.literal("ai-configure"),
+    client: z.enum(["codex", "claude-code"]),
+    configuration: aiAgentConfigurationSchema,
   }),
-  z.strictObject({ command: z.literal("ai-remove-key") }),
-  z.strictObject({
-    command: z.literal("ai-set-model"),
-    model: z.string().min(1).max(200),
-  }),
-  z.strictObject({ command: z.literal("ai-models") }),
-  z.strictObject({ command: z.literal("ai-test") }),
+  z.strictObject({ command: z.literal("ai-test"), id: z.uuid() }),
   z.strictObject({ command: z.literal("ai-preview"), intent: aiIntentSchema }),
   z.strictObject({
     command: z.literal("ai-generate"),
@@ -175,10 +179,6 @@ export const aiReplySchemas = [
     preferences: aiPreferencesSchema,
   }),
   z.strictObject({
-    kind: z.literal("ai-models"),
-    models: z.array(aiModelSchema),
-  }),
-  z.strictObject({
     kind: z.literal("ai-connected"),
     connected: z.literal(true),
   }),
@@ -187,6 +187,8 @@ export const aiReplySchemas = [
     version: z.number().int(),
     revision: z.string(),
     model: z.string(),
+    client: z.enum(["codex", "claude-code"]),
+    effort: aiAgentConfigurationSchema.shape.effort,
     text: z.string(),
   }),
   z.strictObject({

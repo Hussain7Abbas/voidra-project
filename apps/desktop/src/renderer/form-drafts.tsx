@@ -8,17 +8,8 @@ import {
 import { request } from "./app.tsx";
 import { Button } from "./ui/button.tsx";
 
-type DraftScope = DraftInput["family"] | "credential";
+type DraftScope = DraftInput["family"];
 const flushers = new Map<() => Promise<void>, DraftScope>();
-export function registerDraftFlusher(
-  flush: () => Promise<void>,
-  scope: DraftScope = "credential",
-): () => void {
-  flushers.set(flush, scope);
-  return () => {
-    flushers.delete(flush);
-  };
-}
 export async function flushFormDrafts(
   scopes?: readonly DraftScope[],
 ): Promise<void> {

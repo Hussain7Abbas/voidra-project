@@ -2,7 +2,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { type CDPSession, expect, type Page, test } from "@playwright/test";
 import {
   checkProject,
   createAction,
@@ -18,16 +18,40 @@ const grip = (page: Page, title: string) =>
     name: `Move ${title}; use left or right arrow`,
     exact: true,
   });
+// Use a distinct pen pointer so the native desktop mouse cannot release its capture.
+// Input goes through Chromium, rather than dispatching synthetic DOM events.
+const pointers = new WeakMap<Page, CDPSession>();
+async function pointer(
+  page: Page,
+  type: "mouseMoved" | "mousePressed" | "mouseReleased",
+  x: number,
+  y: number,
+) {
+  let session = pointers.get(page);
+  if (!session) {
+    session = await page.context().newCDPSession(page);
+    pointers.set(page, session);
+  }
+  await session.send("Input.dispatchMouseEvent", {
+    type,
+    x,
+    y,
+    pointerType: "pen",
+    button: "left",
+    buttons: type === "mouseReleased" ? 0 : 1,
+    ...(type === "mouseMoved" ? {} : { clickCount: 1 }),
+  });
+}
 async function beginDrag(page: Page, title: string) {
   const handle = grip(page, title);
   await expect(handle).toBeEnabled();
   await handle.hover();
   const box = await handle.boundingBox();
   if (!box) throw Error("Missing drag handle bounds");
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 7, box.y + box.height / 2, {
-    steps: 2,
-  });
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  await pointer(page, "mousePressed", x, y);
+  await pointer(page, "mouseMoved", x + 7, y);
 }
 async function finishDrag(page: Page, column: string) {
   const heading = page
@@ -36,10 +60,10 @@ async function finishDrag(page: Page, column: string) {
   await heading.scrollIntoViewIfNeeded();
   const box = await heading.boundingBox();
   if (!box) throw Error("Missing column bounds");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
-    steps: 12,
-  });
-  await page.mouse.up();
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  await pointer(page, "mouseMoved", x, y);
+  await pointer(page, "mouseReleased", x, y);
 }
 for (const theme of ["light", "dark"] as const)
   test(`Kanban pointer, keyboard, release filters and stale moves in ${theme}`, async () => {
@@ -91,20 +115,17 @@ for (const theme of ["light", "dark"] as const)
           !["ELECTRON_RUN_AS_NODE", "NODE_V8_COVERAGE"].includes(entry[0]),
       ),
     );
-    const app = await launchConfiguredApp({
-      args: [resolve("."), `--project=${root}`],
-      env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
-    });
+    const app = await launchConfiguredApp(
+      {
+        args: [resolve("."), `--project=${root}`],
+        env: { ...env, VOIDRA_DATA_DIR: join(temp, "data") },
+      },
+      { theme },
+    );
     try {
       const page = await app.firstWindow();
       await page.locator('[data-app-ready="true"]').waitFor();
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("tab", { name: "Appearance", exact: true }).click();
-      await page.getByLabel("Theme", { exact: true }).selectOption(theme);
-      await page.keyboard.press("Escape");
-      await expect(
-        page.getByRole("dialog", { name: "Settings", exact: true }),
-      ).toBeHidden();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       const nav = page.getByRole("navigation", { name: "Project pages" });
       await expect(
         nav.getByRole("button", { name: "Backlog", exact: true }),
@@ -130,6 +151,9 @@ for (const theme of ["light", "dark"] as const)
           (task) => task.id === ready,
         );
       await beginDrag(page, "Pointer task");
+      // A separate mouse pointer must neither replace nor release the active pen gesture.
+      await page.mouse.down();
+      await page.mouse.up();
       await finishDrag(page, "TODO");
       await expect.poll(task).toMatchObject({
         column: "todo",

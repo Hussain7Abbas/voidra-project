@@ -70,6 +70,8 @@ export function TaskCapture({
     [preview, setPreview] = useState<{
       revision: string;
       model: string;
+      client: "codex" | "claude-code";
+      effort: string;
       text: string;
       intent: AiIntent;
       source: string;
@@ -429,11 +431,14 @@ export function TaskCapture({
         )}
         {preview && (
           <section
-            aria-label="Review text sent to OpenRouter"
+            aria-label="Review text sent to your agent"
             className="card p-4 space-y-3"
           >
-            <h3>Review text sent to OpenRouter</h3>
-            <p>Model: {preview.model}</p>
+            <h3>Review text sent to your agent</h3>
+            <p>
+              {preview.client === "codex" ? "Codex" : "Claude Code"} · Model:{" "}
+              {preview.model} · Effort: {preview.effort}
+            </p>
             <SafeMarkdown body={preview.text} />
             <Button disabled={busy} onClick={() => void generate()}>
               Generate suggestion

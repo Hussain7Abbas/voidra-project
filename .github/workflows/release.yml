@@ -14,7 +14,12 @@ concurrency:
   group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+    with:
+      source-ref: ${{ inputs.tag || github.ref_name }}
   stage:
+    needs: verify
     runs-on: macos-15
     timeout-minutes: 40
     env:
@@ -36,8 +41,11 @@ jobs:
         with:
           run_install: false
       - run: make install native
-      - run: make check
-      - run: make e2e
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: verified-build
+          path: .cache/
+      - run: tar -xf .cache/verified-build.tar
       - name: Restore exact staged bytes if available
         id: checkpoint
         run: node tools/release-engine/scripts/stage.ts restore

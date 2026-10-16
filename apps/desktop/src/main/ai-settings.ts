@@ -2,42 +2,44 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
+import {
+  type AiAgentConfiguration,
+  aiAgentConfigurationSchema,
+  aiEfforts,
+} from "../shared/ai.ts";
+import type { CodingClient } from "../shared/team.ts";
 
-export interface SecretEncryption {
-  available(): Promise<boolean>;
-  encrypt(value: string): Promise<Buffer>;
-  decrypt(value: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
-}
-const stored = z.looseObject({
-  version: z.literal(1),
-  key: z
-    .string()
-    .regex(/^[A-Za-z0-9+/]+={0,2}$/)
-    .nullable(),
-  model: z.string().trim().min(1).max(200).nullable(),
+const stored = z.strictObject({
+  version: z.literal(2),
+  codex: aiAgentConfigurationSchema,
+  "claude-code": aiAgentConfigurationSchema,
 });
 type Stored = z.infer<typeof stored>;
-export interface AiPreferences {
-  configured: boolean;
-  available: boolean;
-  model: string | null;
-}
+const defaults = (): Stored => ({
+  version: 2,
+  codex: { model: null, effort: "low" },
+  "claude-code": { model: null, effort: "low" },
+});
+/** Non-secret preferences. Agent authentication remains owned by the installed CLI. */
 export class AiSettings {
   readonly file: string;
-  private encryption: SecretEncryption;
   private queue: Promise<void> = Promise.resolve();
-  constructor(file: string, encryption: SecretEncryption) {
+  constructor(file: string) {
     this.file = file;
-    this.encryption = encryption;
   }
   private async read(): Promise<Stored> {
-    const raw = await readFile(this.file, "utf8").catch((error) => {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-      throw new Error("AI settings could not be read");
-    });
-    if (raw === null) return { version: 1, key: null, model: null };
+    const raw = await readFile(this.file, "utf8").catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw new Error("AI settings could not be read");
+      },
+    );
+    if (raw === null) return defaults();
     try {
-      return stored.parse(JSON.parse(raw));
+      const data = JSON.parse(raw);
+      // Discard the obsolete encrypted provider credential without unlocking it.
+      if (data.version === 1) return defaults();
+      return stored.parse(data);
     } catch {
       throw new Error(
         "Saved AI settings are invalid; the original file has been preserved",
@@ -73,76 +75,20 @@ export class AiSettings {
       });
     return this.queue;
   }
-  /** Startup reads metadata only; it must not initialize the Keychain for a user with no key. */
-  async configured(): Promise<{ configured: boolean; model: string | null }> {
-    const data = await this.read();
-    return { configured: data.key !== null, model: data.model };
+  async configuration(client: CodingClient): Promise<AiAgentConfiguration> {
+    return (await this.read())[client];
   }
-  async status(): Promise<AiPreferences> {
-    return {
-      ...(await this.configured()),
-      available: await this.encryption.available(),
-    };
-  }
-  async setKey(raw: string): Promise<void> {
-    const key = z.string().trim().min(1).max(4096).parse(raw);
-    if (!(await this.encryption.available()))
-      throw new Error(
-        "Secure Keychain encryption is unavailable; the key was not saved",
-      );
-    let bytes: Buffer;
-    try {
-      bytes = await this.encryption.encrypt(key);
-    } catch {
-      throw new Error("Secure encryption failed; the key was not saved");
-    }
-    if (!bytes.length || bytes.includes(Buffer.from(key)))
-      throw new Error("Encryption did not protect the key");
+  async set(client: CodingClient, raw: AiAgentConfiguration): Promise<void> {
+    const configuration = aiAgentConfigurationSchema.parse(raw);
+    if (
+      !(aiEfforts[client] as readonly string[]).includes(configuration.effort)
+    )
+      throw Error("Choose an effort supported by the selected coding agent");
     await this.change((data) => {
-      data.key = bytes.toString("base64");
+      data[client] = configuration;
     });
   }
-  async setModel(raw: string): Promise<void> {
-    const model = z.string().trim().min(1).max(200).parse(raw);
-    return this.change((data) => {
-      data.model = model;
-    });
-  }
-  async removeKey(): Promise<void> {
-    try {
-      await this.change((data) => {
-        data.key = null;
-      });
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !error.message.startsWith("Saved AI settings are invalid")
-      )
-        throw error;
-      // Explicit removal may discard an unreadable private credential file; startup never does.
-      await rm(this.file, { force: true });
-    }
-  }
-  async key(): Promise<string | null> {
-    const data = await this.read();
-    if (data.key === null) return null;
-    if (!(await this.encryption.available()))
-      throw new Error("Secure Keychain encryption is unavailable");
-    let result: Awaited<ReturnType<SecretEncryption["decrypt"]>>;
-    try {
-      result = await this.encryption.decrypt(Buffer.from(data.key, "base64"));
-    } catch {
-      throw new Error(
-        "The saved key could not be unlocked; re-enter it in Settings",
-      );
-    }
-    if (result.shouldReEncrypt) {
-      const encrypted = await this.encryption.encrypt(result.result);
-      await this.change((current) => {
-        if (current.key === data.key)
-          current.key = encrypted.toString("base64");
-      });
-    }
-    return result.result;
+  async migrate(): Promise<void> {
+    await this.change(() => {});
   }
 }

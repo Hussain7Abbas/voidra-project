@@ -13,7 +13,6 @@ import {
   nativeImage,
   nativeTheme,
   protocol,
-  safeStorage,
   session,
   shell,
 } from "electron";
@@ -36,7 +35,7 @@ import { AiService } from "./ai-service.ts";
 import { AiSettings } from "./ai-settings.ts";
 import { openCodingClient } from "./coding-client-launcher.ts";
 import { DraftStore } from "./form-drafts.ts";
-import { OpenRouterClient } from "./openrouter.ts";
+import { HeadlessAgentClient } from "./headless-agent.ts";
 import {
   APP_ORIGIN,
   contentPolicy,
@@ -65,6 +64,15 @@ app.setPath(
   process.env.VOIDRA_DATA_DIR ?? join(app.getPath("appData"), "voidra-project"),
 );
 app.setName("Voidra Project");
+// Test runners opt in; installed apps always retain normal native behavior.
+const backgroundTest =
+  !app.isPackaged && process.env.VOIDRA_TEST_BACKGROUND === "1";
+if (backgroundTest && process.platform === "darwin")
+  app.setActivationPolicy("accessory");
+function reportError(title: string, message: string): void {
+  if (backgroundTest) console.error(`${title}: ${message}`);
+  else dialog.showErrorBox(title, message);
+}
 const initialFolder = process.argv
   .find((arg) => arg.startsWith("--project="))
   ?.slice(10);
@@ -108,6 +116,11 @@ const services = new Map<number, ProjectService>();
 const projects = new Map<number, ProjectInfo>();
 const editing = new Map<number, WorkspaceSnapshot["editing"]>();
 const textEditing = new Set<number>();
+function menuWindow(window: { id: number } | undefined): BrowserWindow | null {
+  return window
+    ? BrowserWindow.fromId(window.id)
+    : BrowserWindow.getFocusedWindow();
+}
 function updateEditMenu(id: number): void {
   const focused = BrowserWindow.getFocusedWindow();
   if (focused ? focused.id !== id : registry.ids().length !== 1) return;
@@ -163,28 +176,22 @@ const skills = new SkillInstaller(
     ? process.env.VOIDRA_TEST_SKILLS_HOME
     : homedir(),
 );
-const encryption = {
-  available: () => safeStorage.isAsyncEncryptionAvailable(),
-  encrypt: (value: string) => safeStorage.encryptStringAsync(value),
-  decrypt: (value: Buffer) => safeStorage.decryptStringAsync(value),
-};
-const drafts = new DraftStore(
-  join(app.getPath("userData"), "form-drafts"),
-  encryption,
-);
+const drafts = new DraftStore(join(app.getPath("userData"), "form-drafts"));
 const aiSettings = new AiSettings(
   join(app.getPath("userData"), "ai-settings.json"),
-  encryption,
 );
-const aiEndpoint = !app.isPackaged
-  ? process.env.VOIDRA_TEST_OPENROUTER_URL
-  : undefined;
-if (
-  aiEndpoint &&
-  !["127.0.0.1", "localhost", "[::1]"].includes(new URL(aiEndpoint).hostname)
-)
-  throw new Error("The test OpenRouter endpoint must be local");
-const ai = new AiService(aiSettings, new OpenRouterClient(aiEndpoint));
+const ai = new AiService(
+  aiSettings,
+  new HeadlessAgentClient({
+    executables: !app.isPackaged
+      ? {
+          codex: process.env.VOIDRA_TEST_CODEX_CLI,
+          "claude-code": process.env.VOIDRA_TEST_CLAUDE_CLI,
+        }
+      : undefined,
+  }),
+  async () => (await store.read()).defaultClient,
+);
 async function aiContext(window: number, intent: AiIntent): Promise<AiContext> {
   if (
     intent.feature === "rewrite" ||
@@ -226,8 +233,10 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     if (existing !== undefined) {
       const window = BrowserWindow.fromId(existing);
       if (window) {
-        window.restore();
-        window.focus();
+        if (!backgroundTest) {
+          window.restore();
+          window.focus();
+        }
         return window;
       }
     }
@@ -249,6 +258,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
       nodeIntegration: false,
       webSecurity: true,
       webviewTag: false,
+      backgroundThrottling: !backgroundTest,
       preload: join(app.getAppPath(), "dist/preload.cjs"),
     },
   });
@@ -261,9 +271,7 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
         closeAuthorized = true;
         window.close();
       })
-      .catch((error) =>
-        dialog.showErrorBox("Draft could not be saved", error.message),
-      );
+      .catch((error) => reportError("Draft could not be saved", error.message));
   });
   registry.register(window.id, root);
   customTitlebars.set(window.id, customTitlebar);
@@ -293,7 +301,9 @@ async function createWindowOnce(root: string | null): Promise<BrowserWindow> {
     editing.delete(window.id);
     textEditing.delete(window.id);
   });
-  window.on("ready-to-show", () => window.show());
+  window.on("ready-to-show", () => {
+    if (!backgroundTest) window.show();
+  });
   if (root) {
     const service = new ProjectService(
       root,
@@ -324,6 +334,8 @@ async function chooseFolder(window: BrowserWindow): Promise<string | null> {
 }
 async function start(): Promise<void> {
   await app.whenReady();
+  await aiSettings.migrate().catch(() => {});
+  await drafts.removeLegacyCredentials().catch(() => {});
   nativeTheme.themeSource = (await store.read()).theme;
   const renderer = join(app.getAppPath(), "out");
   protocol.handle("app", async (request) => {
@@ -453,28 +465,6 @@ async function start(): Promise<void> {
           );
           notify(window.id, { type: "draft-deleted", id: request.id });
           response = { ok: true, data: { kind: "changed" } };
-        } else if (request.command === "secret-draft-list") {
-          response = {
-            ok: true,
-            data: { kind: "secret-drafts", ...(await drafts.listSecrets()) },
-          };
-        } else if (request.command === "secret-draft-put") {
-          response = {
-            ok: true,
-            data: {
-              kind: "secret-draft",
-              draft: await drafts.putSecret(request),
-            },
-          };
-        } else if (request.command === "secret-draft-delete") {
-          await drafts.delete(null, request.id, request.revision, true);
-          response = { ok: true, data: { kind: "changed" } };
-        } else if (request.command === "secret-draft-apply") {
-          await drafts.applySecret(request.id, request.revision, (key) =>
-            ai.setKey(key),
-          );
-          broadcast();
-          response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "text-edit-focus") {
           if (request.editing) textEditing.add(window.id);
           else textEditing.delete(window.id);
@@ -497,6 +487,7 @@ async function start(): Promise<void> {
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "set-coding-client") {
           await store.setClient(request.client);
+          ai.cancelAll();
           broadcast();
           response = { ok: true, data: { kind: "changed" } };
         } else if (request.command === "snapshot") {
@@ -528,8 +519,9 @@ async function start(): Promise<void> {
               project: projects.get(window.id) ?? null,
               recents: await store.list(),
               serviceState: service?.state ?? null,
-              ai: await aiSettings
-                .configured()
+              ai: await ai
+                .status()
+                .then(({ configured, model }) => ({ configured, model }))
                 .catch(() => ({ configured: false, model: null })),
             },
           };
@@ -586,33 +578,27 @@ async function start(): Promise<void> {
             ok: true,
             data: { kind: "ai-settings", preferences: await ai.status() },
           };
-        } else if (
-          request.command === "ai-set-key" ||
-          request.command === "ai-remove-key" ||
-          request.command === "ai-set-model"
-        ) {
-          if (request.command === "ai-set-key") await ai.setKey(request.key);
-          else if (request.command === "ai-remove-key") await ai.removeKey();
-          else {
-            if (
-              !(await ai.models()).some((model) => model.id === request.model)
-            )
-              throw new Error(
-                "Choose a model from the current OpenRouter list",
-              );
-            await ai.setModel(request.model);
-          }
+        } else if (request.command === "ai-configure") {
+          await ai.configure(request.client, request.configuration);
           broadcast();
           response = { ok: true, data: { kind: "changed" } };
-        } else if (request.command === "ai-models") {
-          response = {
-            ok: true,
-            data: { kind: "ai-models", models: await ai.models() },
-          };
         } else if (request.command === "ai-test") {
+          const context: AiContext = {
+            feature: "task-title",
+            notes: "Verify the AI connection",
+            sources: [],
+          };
+          const preview = await ai.preview(context);
+          await ai.generate(
+            window.id,
+            request.id,
+            context,
+            preview.revision,
+            () => {},
+          );
           response = {
             ok: true,
-            data: { kind: "ai-connected", ...(await ai.test()) },
+            data: { kind: "ai-connected", connected: true },
           };
         } else if (request.command === "ai-preview") {
           response = {
@@ -852,12 +838,12 @@ async function start(): Promise<void> {
       void canonicalFolder(folder)
         .then(createWindow)
         .catch(() =>
-          dialog.showErrorBox(
+          reportError(
             "Project unavailable",
             "The requested folder could not be opened.",
           ),
         );
-    else BrowserWindow.getAllWindows()[0]?.focus();
+    else if (!backgroundTest) BrowserWindow.getAllWindows()[0]?.focus();
   });
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -867,8 +853,8 @@ async function start(): Promise<void> {
           {
             label: "Settings…",
             accelerator: "CmdOrCtrl+,",
-            click: () => {
-              const focused = BrowserWindow.getFocusedWindow();
+            click: (_event, window) => {
+              const focused = menuWindow(window);
               if (focused) notify(focused.id, { type: "settings" });
             },
           },
@@ -882,13 +868,13 @@ async function start(): Promise<void> {
           {
             label: "Open project…",
             accelerator: "CmdOrCtrl+O",
-            click: () => {
-              const focused = BrowserWindow.getFocusedWindow();
+            click: (_event, window) => {
+              const focused = menuWindow(window);
               if (focused)
                 void chooseFolder(focused)
                   .then((root) => (root ? createWindow(root) : null))
                   .catch((error) =>
-                    dialog.showErrorBox(
+                    reportError(
                       "Couldn’t open project",
                       (error as Error).message,
                     ),
@@ -909,9 +895,7 @@ async function start(): Promise<void> {
               accelerator:
                 direction === "undo" ? "CmdOrCtrl+Z" : "CmdOrCtrl+Shift+Z",
               click: (_event, window) => {
-                const focused = window
-                  ? BrowserWindow.fromId(window.id)
-                  : BrowserWindow.getFocusedWindow();
+                const focused = menuWindow(window);
                 if (focused)
                   notify(focused.id, { type: "edit-history", direction });
               },
@@ -937,8 +921,8 @@ async function start(): Promise<void> {
                 ? "Toggle Actions"
                 : "Toggle Waiting for you",
           accelerator: `CmdOrCtrl+Alt+${index + 1}`,
-          click: () => {
-            const focused = BrowserWindow.getFocusedWindow();
+          click: (_event, window) => {
+            const focused = menuWindow(window);
             if (focused) notify(focused.id, { type: "workspace-panel", panel });
           },
         })),
@@ -960,9 +944,7 @@ async function start(): Promise<void> {
         ]);
         app.quit();
       })
-      .catch((error) =>
-        dialog.showErrorBox("Draft could not be saved", error.message),
-      );
+      .catch((error) => reportError("Draft could not be saved", error.message));
   });
   nativeTheme.on("updated", broadcast);
   app.dock?.setIcon(
@@ -977,6 +959,6 @@ async function start(): Promise<void> {
 }
 if (single)
   void start().catch((error) => {
-    dialog.showErrorBox("Voidra Project", (error as Error).message);
+    reportError("Voidra Project", (error as Error).message);
     app.quit();
   });

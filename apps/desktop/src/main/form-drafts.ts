@@ -16,9 +16,7 @@ import {
   type DraftView,
   draftFamilySchema,
   draftInputSchema,
-  secretDraftViewSchema,
 } from "../shared/form-drafts.ts";
-import type { SecretEncryption } from "./ai-settings.ts";
 
 const bodySchema = z.strictObject({
   version: z.literal(1),
@@ -29,49 +27,48 @@ const bodySchema = z.strictObject({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-const secretSchema = z.strictObject({
-  version: z.literal(1),
-  id: z.uuid(),
-  purpose: z.literal("openrouter-key"),
-  ciphertext: z.string().min(1),
-  hasValue: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
 const hash = (raw: string) => createHash("sha256").update(raw).digest("hex");
 const message = (error: unknown) =>
   error instanceof Error ? error.message : "Draft could not be read";
 /** Private app-data storage, independent of canonical history and disposable project indexes. */
 export class DraftStore {
   private directory: string;
-  private encryption: SecretEncryption | undefined;
   private checkpoint:
     | ((stage: "temporary-written" | "replaced", id: string) => Promise<void>)
     | undefined;
   private queue: Promise<unknown> = Promise.resolve();
   constructor(
     directory: string,
-    encryption?: SecretEncryption,
     checkpoint?: (
       stage: "temporary-written" | "replaced",
       id: string,
     ) => Promise<void>,
   ) {
     this.directory = directory;
-    this.encryption = encryption;
     this.checkpoint = checkpoint;
+  }
+  /** Retire the removed provider without unlocking keys or following linked directories. */
+  async removeLegacyCredentials(): Promise<void> {
+    await this.scope(null);
+    const directory = join(this.directory, "credentials");
+    const entry = await lstat(directory).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      },
+    );
+    if (!entry) return;
+    if (entry.isSymbolicLink() || !entry.isDirectory())
+      throw Error("Legacy credential directory must not be a link or file");
+    await rm(directory, { recursive: true, force: true });
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
     const pending = this.queue.catch(() => {}).then(operation);
     this.queue = pending;
     return pending;
   }
-  private async scope(project: string | null, secret = false): Promise<string> {
-    const scope = secret
-      ? "credentials"
-      : project === null
-        ? "global"
-        : hash(await realpath(project));
+  private async scope(project: string | null): Promise<string> {
+    const scope = project === null ? "global" : hash(await realpath(project));
     const directory = join(this.directory, scope);
     for (const path of [this.directory, directory]) {
       const entry = await lstat(path).catch((error: NodeJS.ErrnoException) => {
@@ -185,6 +182,7 @@ export class DraftStore {
       const candidate = [
         ...captureText,
         data.values.title,
+        data.values.model,
         data.values.prompt,
         data.values.description,
         data.values.name,
@@ -292,118 +290,12 @@ export class DraftStore {
       return this.view(raw, data.id);
     });
   }
-  delete(
-    project: string | null,
-    id: string,
-    revision: string,
-    secret = false,
-  ): Promise<void> {
+  delete(project: string | null, id: string, revision: string): Promise<void> {
     return this.serialize(async () => {
-      const directory = await this.scope(project, secret);
+      const directory = await this.scope(project);
       const raw = await this.raw(directory, id);
       if (raw === null) return;
       this.check(raw, revision);
-      await rm(this.path(directory, id));
-      const parent = await open(directory, "r");
-      try {
-        await parent.sync();
-      } finally {
-        await parent.close();
-      }
-    });
-  }
-  private secretView(raw: string, id: string) {
-    try {
-      const data = secretSchema.parse(JSON.parse(raw));
-      if (data.id !== id) throw Error("Identity");
-      return secretDraftViewSchema.parse({
-        id,
-        revision: hash(raw),
-        label: "Unfinished OpenRouter key",
-        hasValue: data.hasValue,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      });
-    } catch {
-      throw Error("Invalid encrypted draft; original file preserved");
-    }
-  }
-  async listSecrets() {
-    const directory = await this.scope(null, true),
-      drafts: z.infer<typeof secretDraftViewSchema>[] = [],
-      problems: { id: string; message: string }[] = [];
-    for (const name of await readdir(directory).catch(
-      (error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") return [];
-        throw error;
-      },
-    )) {
-      if (!name.endsWith(".json")) continue;
-      const id = name.slice(0, -5);
-      try {
-        const raw = await this.raw(directory, id);
-        if (raw) drafts.push(this.secretView(raw, id));
-      } catch (error) {
-        problems.push({ id, message: message(error) });
-      }
-    }
-    return { drafts, problems };
-  }
-  putSecret(input: { id: string; revision: string | null; value: string }) {
-    return this.serialize(async () => {
-      z.uuid().parse(input.id);
-      z.string().max(4096).parse(input.value);
-      const directory = await this.scope(null, true),
-        old = await this.raw(directory, input.id);
-      this.check(old, input.revision);
-      if (!this.encryption || !(await this.encryption.available()))
-        throw Error("Secure encryption is unavailable; keep the form open");
-      const protectedValue = JSON.stringify({
-          purpose: "openrouter-key",
-          id: input.id,
-          value: input.value,
-        }),
-        encrypted = await this.encryption.encrypt(protectedValue);
-      if (!encrypted.length || encrypted.includes(Buffer.from(protectedValue)))
-        throw Error("Encryption did not protect the draft");
-      const previous = old ? this.secretView(old, input.id) : null,
-        now = new Date().toISOString();
-      const raw = await this.write(directory, input.id, {
-        version: 1,
-        id: input.id,
-        purpose: "openrouter-key",
-        ciphertext: encrypted.toString("base64"),
-        hasValue: input.value.length > 0,
-        createdAt: previous?.createdAt ?? now,
-        updatedAt: now,
-      });
-      return this.secretView(raw, input.id);
-    });
-  }
-  applySecret(
-    id: string,
-    revision: string,
-    apply: (key: string) => Promise<void>,
-  ): Promise<void> {
-    return this.serialize(async () => {
-      const directory = await this.scope(null, true),
-        raw = await this.raw(directory, id);
-      this.check(raw, revision);
-      if (!raw || !this.encryption || !(await this.encryption.available()))
-        throw Error("Secure encryption unavailable");
-      this.secretView(raw, id);
-      const stored = secretSchema.parse(JSON.parse(raw)),
-        decoded = await this.encryption.decrypt(
-          Buffer.from(stored.ciphertext, "base64"),
-        );
-      const value = z
-        .strictObject({
-          purpose: z.literal("openrouter-key"),
-          id: z.literal(id),
-          value: z.string().max(4096),
-        })
-        .parse(JSON.parse(decoded.result));
-      await apply(value.value);
       await rm(this.path(directory, id));
       const parent = await open(directory, "r");
       try {

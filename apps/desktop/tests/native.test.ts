@@ -182,6 +182,18 @@ it("uses a real project service and focuses one window per canonical project", a
         ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
       ),
     ).toBe(2);
+    if (process.env.VOIDRA_TEST_BACKGROUND === "1")
+      expect(
+        await application.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().map((window) => ({
+            visible: window.isVisible(),
+            focused: window.isFocused(),
+          })),
+        ),
+      ).toEqual([
+        { visible: false, focused: false },
+        { visible: false, focused: false },
+      ]);
     const pid = await application.evaluate(
       ({ app }) =>
         app

@@ -21,7 +21,7 @@
 - [Backlog and actions](backlog-actions.md): editing, promotion, dependencies, aggregate completion and board views.
 - [Tasks](tasks.md): task projection, project release identity and the six-column agent workflow.
 - [Local Team and preferences](team-settings.md): private roster, project membership, Me and revision-guarded settings.
-- [Private form drafts](form-drafts.md): durable local sessions, encrypted credential drafts and close-time flush across forms.
+- [Private form drafts](form-drafts.md): durable local sessions, per-agent AI preference drafts and close-time flush across forms.
 - [Markdown editing](markdown-editing.md): safe GFM, active-line source reveal, exact source history and editor security.
 
 - [Questions, gates and inbox](questions-gates-inbox.md): saved rounds, assumptions, exact revisions and Waiting for you.
@@ -30,7 +30,7 @@
 
 - [Releases and outside work](releases-sync.md): Release selection/history, exact proposals, standalone commit/tag recovery and protected outside-work Sync.
 
-- [Optional AI](ai.md): encrypted settings, public-context privacy, streaming and editable suggestions.
+- [Optional AI](ai.md): selected headless agents, model/effort preferences, public-context privacy and editable suggestions.
 
 - [Skill installation and release copies](skills-distribution.md).
 

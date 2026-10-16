@@ -1,160 +1,210 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { request } from "./app.tsx";
-import { SecretDraftNavigation, useSecretDraft } from "./secret-drafts.tsx";
+import { useEffect, useRef, useState } from "react";
+import {
+  type AiAgentConfiguration,
+  aiAgentConfigurationSchema,
+  aiEfforts,
+} from "../shared/ai.ts";
+import type { CodingClient } from "../shared/team.ts";
+import { request, useSnapshot } from "./app.tsx";
+import { DraftNavigation, draftField, useFormDraft } from "./form-drafts.tsx";
 import { Button } from "./ui/button.tsx";
 import { Field } from "./ui/field.tsx";
 
-export function AiSettingsPanel() {
-  const draft = useSecretDraft();
-  const key = draft.value,
-    setKey = draft.change;
-  const query = useQueryClient(),
-    [active, setActive] = useState(false),
-    [busy, setBusy] = useState(false),
+export function AgentAiSettings({
+  client,
+  onBusyChange,
+}: {
+  client: CodingClient;
+  onBusyChange?: ((busy: boolean) => void) | undefined;
+}) {
+  const preferences = useQuery({
+    queryKey: ["ai-settings", client],
+    queryFn: async () => {
+      const response = await request({ command: "ai-settings" });
+      if (
+        response.kind !== "ai-settings" ||
+        response.preferences.client !== client
+      )
+        throw Error("The selected agent changed. Reopen settings.");
+      return response.preferences;
+    },
+  });
+  return preferences.data ? (
+    <AgentAiFields
+      key={client}
+      client={client}
+      saved={preferences.data}
+      onBusyChange={onBusyChange}
+    />
+  ) : (
+    <p role={preferences.error ? "alert" : "status"}>
+      {preferences.error?.message ?? "Loading AI preferences…"}
+    </p>
+  );
+}
+function AgentAiFields({
+  client,
+  saved,
+  onBusyChange,
+}: {
+  client: CodingClient;
+  saved: AiAgentConfiguration;
+  onBusyChange?: ((busy: boolean) => void) | undefined;
+}) {
+  const query = useQueryClient();
+  const form = useFormDraft<{
+    model: string;
+    effort: AiAgentConfiguration["effort"];
+  }>("ai-settings", client, () => ({
+    model: saved.model ?? "",
+    effort: saved.effort,
+  }));
+  const [model, setModel] = draftField(form, "model"),
+    [effort, setEffort] = draftField(form, "effort");
+  const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
-  const preferences = useQuery({
-    queryKey: ["ai-settings"],
-    enabled: active,
-    queryFn: async () => {
-      const value = await request({ command: "ai-settings" });
-      if (value.kind !== "ai-settings")
-        throw new Error("AI settings are unavailable");
-      return value.preferences;
+  const requestId = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (requestId.current)
+        void request({ command: "ai-cancel", id: requestId.current });
     },
-  });
-  const models = useQuery({
-    queryKey: ["ai-models"],
-    enabled: active && !!preferences.data?.configured,
-    queryFn: async () => {
-      const value = await request({ command: "ai-models" });
-      if (value.kind !== "ai-models") throw new Error("Models are unavailable");
-      return value.models;
-    },
-  });
-  async function perform(
-    command: Parameters<typeof request>[0],
-    success: string,
-  ) {
+    [],
+  );
+  const dirty = model.trim() !== (saved.model ?? "") || effort !== saved.effort;
+  useEffect(() => {
+    onBusyChange?.(busy || dirty);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, busy, dirty]);
+  async function save() {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      if (command.command === "ai-set-key") await draft.apply();
-      else await request(command);
-      setMessage(success);
+      const configuration = aiAgentConfigurationSchema.safeParse({
+        model: model.trim() || null,
+        effort,
+      });
+      if (!configuration.success)
+        throw Error(
+          "Enter a valid model ID or alias and choose a supported effort. Model IDs cannot contain spaces or shell expressions.",
+        );
+      await form.flush();
+      await request({
+        command: "ai-configure",
+        client,
+        configuration: configuration.data,
+      });
       await query.invalidateQueries();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      await form.submitted();
+      await form.fresh({ model: model.trim(), effort });
+      setMessage("AI preferences saved");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "AI preferences could not be saved",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function test() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      requestId.current = crypto.randomUUID();
+      await request({ command: "ai-test", id: requestId.current });
+      requestId.current = null;
+      setMessage("Agent connection works");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Agent connection failed",
+      );
     } finally {
       setBusy(false);
     }
   }
   return (
-    <details
-      className="mt-6 border-t border-line pt-4"
-      onToggle={(event) => setActive(event.currentTarget.open)}
-    >
-      <summary className="cursor-pointer font-semibold">
-        AI suggestions (optional)
-      </summary>
-      {active && (
-        <div className="space-y-4 mt-4">
-          <p className="text-muted">
-            Connect your OpenRouter key and choose a model. Suggestions are
-            drafts you review and edit. Your saved key stays encrypted on this
-            Mac.
-          </p>
-          <p>{preferences.data?.configured ? "Key saved" : "No key saved"}</p>
-          <SecretDraftNavigation draft={draft} disabled={busy} />
-          <Field
-            label="OpenRouter API key"
-            hint="Saved keys are never shown here."
-          >
-            <input
-              className="input"
-              type="password"
-              autoComplete="new-password"
-              value={key}
-              maxLength={4096}
-              onChange={(event) => setKey(event.target.value)}
-              disabled={busy}
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={
-                busy || !draft.canApply || preferences.data?.available === false
-              }
-              onClick={() =>
-                void perform(
-                  { command: "ai-set-key", key },
-                  "Key saved securely",
-                )
-              }
-            >
-              Save key
-            </Button>
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void perform({ command: "ai-remove-key" }, "Key removed")
-              }
-            >
-              Remove key
-            </Button>
-            <Button
-              disabled={busy || !preferences.data?.configured}
-              onClick={() =>
-                void perform({ command: "ai-test" }, "Connection works")
-              }
-            >
-              Test connection
-            </Button>
-          </div>
-          {preferences.data?.available === false && (
-            <p role="alert">
-              Secure Keychain storage is unavailable. Your key cannot be saved
-              right now.
-            </p>
-          )}
-          {preferences.data?.configured && (
-            <Field
-              label="AI model"
-              hint="Choose the model used for your suggestions."
-            >
-              <select
-                className="input"
-                value={preferences.data.model ?? ""}
-                disabled={busy || models.isPending}
-                onChange={(event) =>
-                  void perform(
-                    { command: "ai-set-model", model: event.target.value },
-                    "Model saved",
-                  )
-                }
-              >
-                <option value="" disabled>
-                  Choose a model
-                </option>
-                {models.data?.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name} · {model.id}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-          {message && <p role="status">{message}</p>}
-          {(error || preferences.error || models.error) && (
-            <p role="alert">
-              {error || preferences.error?.message || models.error?.message}
-            </p>
-          )}
-        </div>
+    <fieldset className="space-y-3 mt-4" disabled={busy}>
+      <legend className="field-label">
+        AI suggestions · {client === "codex" ? "Codex" : "Claude Code"}
+      </legend>
+      <DraftNavigation form={form} disabled={busy} />
+      <p className="field-hint">
+        Internal prompts use this agent’s signed-in CLI. Review the selected
+        text before sending; suggestions remain editable drafts.
+      </p>
+      <Field
+        label="AI model"
+        hint="Enter a model ID or alias available to your agent account. Leave blank for the agent’s default model."
+      >
+        <input
+          className="input"
+          name="ai-model"
+          value={model}
+          onChange={(event) => {
+            setModel(event.target.value);
+            setMessage("");
+          }}
+          maxLength={200}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder={
+            client === "codex" ? "Agent default" : "e.g. haiku, sonnet, opus"
+          }
+        />
+      </Field>
+      <Field
+        label="AI effort"
+        hint="Higher effort may take longer. Model support depends on your installed agent."
+      >
+        <select
+          className="input"
+          name="ai-effort"
+          value={effort}
+          onChange={(event) => {
+            setEffort(event.target.value as AiAgentConfiguration["effort"]);
+            setMessage("");
+          }}
+        >
+          {aiEfforts[client].map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={!dirty} onClick={() => void save()}>
+          Save AI preferences
+        </Button>
+        <Button
+          disabled={dirty}
+          title="Sends a small test prompt using your saved model and effort"
+          onClick={() => void test()}
+        >
+          Test agent connection
+        </Button>
+      </div>
+      {dirty && (
+        <p className="field-hint">
+          Save your AI preferences to use these choices.
+        </p>
       )}
-    </details>
+      {message && <p role="status">{message}</p>}
+      {error && <p role="alert">{error}</p>}
+    </fieldset>
   );
+}
+export function AiSettingsPanel({ active }: { active: boolean }) {
+  const snapshot = useSnapshot();
+  return active ? (
+    <AgentAiSettings client={snapshot.data?.defaultClient ?? "codex"} />
+  ) : null;
 }

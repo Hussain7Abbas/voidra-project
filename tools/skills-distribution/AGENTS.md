@@ -4,6 +4,7 @@ Extends [root instructions](../../AGENTS.md). This Node-only tool copies checked
 
 - Prevalidate the immutable staged release before any push. Preserve unrelated skills/catalog fields and refuse dirty, diverged or changed destinations. Never force-push, rewrite existing commits or change the active GitHub account.
 - Invoke the destination's own make validate, skills-config and single-skill make publish. Each outgoing skill commit contains only that skill; publish shared templates/catalog/docs separately afterward. Stop at the first failure and report prior completed publication honestly.
+- The genuine publishing integration tests belong to the root Vitest exclusive group: their nested setup/validation/publishing toolchain exceeds the existing bounded test deadline under parallel load. Preserve the 30-second per-test limit.
 - Dry runs use an isolated temporary clone, show the actual binary-capable diff and change paths, and never write the requested destination or its remote. Tests use real temporary repositories and the pinned genuine publishing fixture, never authenticated CI writes.
 - Preserve AGPL-3.0-or-later and each skill's self-contained assets. Keep fixture provenance and the distribution architecture/evidence current.
 

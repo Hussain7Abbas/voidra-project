@@ -71,6 +71,16 @@ for (const [theme, client, name, parent] of [
       await expect(
         page.getByRole("radio", { name: "System", exact: true }),
       ).toBeEnabled();
+      await page
+        .getByLabel("AI model", { exact: true })
+        .fill(client === "codex" ? "custom-codex" : "haiku");
+      await page.getByLabel("AI effort", { exact: true }).selectOption("high");
+      await page
+        .getByRole("button", { name: "Save AI preferences", exact: true })
+        .click();
+      await expect(
+        page.getByText("AI preferences saved", { exact: true }),
+      ).toBeVisible();
       await app.close();
       app = await launch();
       page = await app.firstWindow();
@@ -86,6 +96,12 @@ for (const [theme, client, name, parent] of [
           exact: true,
         }),
       ).toBeChecked();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        client === "codex" ? "custom-codex" : "haiku",
+      );
+      await expect(page.getByLabel("AI effort", { exact: true })).toHaveValue(
+        "high",
+      );
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect(
         page.getByRole("button", { name: /^Install .* Skill/ }),
@@ -190,6 +206,17 @@ for (const [theme, client, name, parent] of [
       await expect(
         page.getByRole("heading", { name: "Make Voidra yours." }),
       ).toHaveCount(0);
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await expect(page.getByLabel("AI model", { exact: true })).toHaveValue(
+        client === "codex" ? "custom-codex" : "haiku",
+      );
+      await expect(page.getByLabel("AI effort", { exact: true })).toHaveValue(
+        "high",
+      );
+      await expect(
+        page.getByRole("button", { name: "Save AI preferences", exact: true }),
+      ).toBeDisabled();
+      await page.keyboard.press("Escape");
       // The shell host survives setup so the existing ResizeObserver stays attached.
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0]?.setSize(1000, 700),

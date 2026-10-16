@@ -1,12 +1,10 @@
-import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { AiService } from "../src/main/ai-service.ts";
 import { AiSettings } from "../src/main/ai-settings.ts";
-import { OpenRouterClient } from "../src/main/openrouter.ts";
+import type { CodingClient } from "../src/shared/team.ts";
 
 const context = {
   feature: "rewrite" as const,
@@ -14,146 +12,146 @@ const context = {
   target: "idea" as const,
   sources: [],
 };
-it("binds preview bytes, returns editable drafts with numeric-only progress and refuses provider key echoes", async () => {
+it("binds exact context, client, model and effort, rechecks completion and validates editable suggestions", async () => {
   const root = await mkdtemp(join(tmpdir(), "voidra-ai-service-"));
-  let echo = false;
-  const host = createServer((request, response) => {
-    request.resume();
-    request.on("end", () => {
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      response.end(
-        `data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify({ title: echo ? "fixture-private-key" : "Clear title", description: "A useful outcome" }) } }] })}\n\ndata: [DONE]\n\n`,
-      );
-    });
-  });
-  host.listen(0, "127.0.0.1");
-  await once(host, "listening");
+  let selected: CodingClient = "codex",
+    invalid = false;
   try {
-    const address = host.address();
-    if (!address || typeof address === "string")
-      throw new Error("Missing server");
-    const encryption = {
-      async available() {
-        return true;
+    const settings = new AiSettings(join(root, "ai.json"));
+    const service = new AiService(
+      settings,
+      {
+        async complete({ onText, preferences }) {
+          expect(preferences.client).toBe(selected);
+          const result = invalid
+            ? "{}"
+            : '{"title":"Clear title","description":"A useful outcome"}';
+          onText(result);
+          return result;
+        },
       },
-      async encrypt(value: string) {
-        return Buffer.from(value.split("").reverse().join(""));
-      },
-      async decrypt(bytes: Buffer) {
-        return {
-          result: bytes.toString().split("").reverse().join(""),
-          shouldReEncrypt: false,
-        };
-      },
-    };
-    const settings = new AiSettings(join(root, "ai.json"), encryption),
-      service = new AiService(
-        settings,
-        new OpenRouterClient(`http://127.0.0.1:${address.port}/api/v1`, 1000),
-      );
-    await expect(service.preview(context)).rejects.toThrow(/key/i);
-    await service.setKey("fixture-private-key");
-    await expect(service.preview(context)).rejects.toThrow(/model/i);
-    await service.setModel("test/model");
-    const preview = await service.preview(context),
-      progress: number[] = [];
+      async () => selected,
+    );
+    const preview = await service.preview(context);
     await expect(
       service.generate(
         1,
-        "request",
+        "stale",
         { ...context, notes: "Changed" },
         preview.revision,
         () => {},
       ),
-    ).rejects.toThrow(/changed/i);
-    await service.setModel("test/other-model");
+    ).rejects.toThrow(/changed/);
+    for (const configuration of [
+      { model: "test", effort: "low" as const },
+      { model: null, effort: "high" as const },
+    ]) {
+      await service.configure("codex", configuration);
+      await expect(
+        service.generate(1, "stale", context, preview.revision, () => {}),
+      ).rejects.toThrow(/changed/);
+    }
+    selected = "claude-code";
     await expect(
-      service.generate(1, "stale-model", context, preview.revision, () => {}),
-    ).rejects.toThrow(/model changed/);
-    await service.setModel("test/model");
+      service.generate(1, "stale", context, preview.revision, () => {}),
+    ).rejects.toThrow(/changed/);
+    await expect(
+      service.configure("codex", { model: null, effort: "low" }),
+    ).rejects.toThrow(/agent changed/);
+    const current = await service.preview(context),
+      progress: number[] = [];
     expect(
-      await service.generate(
-        1,
-        "request",
-        context,
-        preview.revision,
-        (count) => {
-          progress.push(count);
-        },
+      await service.generate(1, "request", context, current.revision, (count) =>
+        progress.push(count),
       ),
     ).toEqual({
       feature: "rewrite",
       title: "Clear title",
       description: "A useful outcome",
     });
-    expect(progress.every((count) => typeof count === "number")).toBe(true);
-    expect(JSON.stringify(await service.status())).not.toContain(
-      "fixture-private-key",
-    );
-    echo = true;
+    expect(progress).toHaveLength(1);
+    expect(progress[0]).toBeTypeOf("number");
+    invalid = true;
     await expect(
-      service.generate(1, "echo", context, preview.revision, () => {}),
-    ).rejects.toThrow(/unsafe|invalid/i);
+      service.generate(1, "invalid", context, current.revision, () => {}),
+    ).rejects.toThrow(/invalid/);
   } finally {
-    host.closeAllConnections();
-    await new Promise<void>((done) => host.close(() => done()));
+    await rm(root, { recursive: true, force: true });
+  }
+});
+it("cancels by sender window, close and settings changes while refusing concurrent calls", async () => {
+  const root = await mkdtemp(join(tmpdir(), "voidra-ai-service-"));
+  try {
+    let ready = () => {};
+    let started = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const service = new AiService(
+      new AiSettings(join(root, "ai.json")),
+      {
+        complete({ signal }) {
+          ready();
+          return new Promise((_resolve, reject) =>
+            signal.addEventListener("abort", () => reject(Error("cancelled")), {
+              once: true,
+            }),
+          );
+        },
+      },
+      async () => "codex",
+    );
+    const preview = await service.preview(context);
+    for (const stop of [
+      () => service.cancel(1, "id"),
+      () => service.close(1),
+      () => service.configure("codex", { model: null, effort: "low" }),
+    ]) {
+      const request = service.generate(
+        1,
+        "id",
+        context,
+        preview.revision,
+        () => {},
+      );
+      const rejected = expect(request).rejects.toThrow(/cancel/);
+      await started;
+      expect(service.cancel(2, "id")).toBe(false);
+      await expect(
+        service.generate(1, "other", context, preview.revision, () => {}),
+      ).rejects.toThrow(/running/);
+      await stop();
+      await rejected;
+      started = new Promise<void>((resolve) => {
+        ready = resolve;
+      });
+    }
+    expect(service.cancel(1, "missing")).toBe(false);
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-it("keeps cancellation window-scoped and aborts existing calls when the key is removed", async () => {
-  const root = await mkdtemp(join(tmpdir(), "voidra-ai-cancel-")),
-    host = createServer((_request, response) => {
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write(": wait\n\n");
-    });
-  host.listen(0, "127.0.0.1");
-  await once(host, "listening");
+it("rejects cancellation arriving during the final configuration recheck", async () => {
+  const root = await mkdtemp(join(tmpdir(), "voidra-ai-race-"));
   try {
-    const address = host.address();
-    if (!address || typeof address === "string")
-      throw new Error("Missing server");
-    const settings = new AiSettings(join(root, "ai.json"), {
-        async available() {
-          return true;
+    let reads = 0;
+    const service = new AiService(
+      new AiSettings(join(root, "ai.json")),
+      {
+        async complete() {
+          return '{"title":"Draft","description":"Editable"}';
         },
-        async encrypt(value) {
-          return Buffer.from(value.split("").reverse().join(""));
-        },
-        async decrypt(bytes) {
-          return {
-            result: bytes.toString().split("").reverse().join(""),
-            shouldReEncrypt: false,
-          };
-        },
-      }),
-      service = new AiService(
-        settings,
-        new OpenRouterClient(`http://127.0.0.1:${address.port}/api/v1`, 1000),
-      );
-    await service.setKey("fixture-private-key");
-    await service.setModel("test/model");
-    const preview = await service.preview(context);
-    const request = service.generate(
-      1,
-      "request",
-      context,
-      preview.revision,
-      () => {},
+      },
+      async () => {
+        if (++reads === 3) service.cancelAll();
+        return "codex";
+      },
     );
-    await once(host, "request");
-    expect(service.cancel(2, "request")).toBe(false);
+    const preview = await service.preview(context);
     await expect(
-      service.generate(1, "second", context, preview.revision, () => {}),
-    ).rejects.toThrow(/running/i);
-    const rejected = expect(request).rejects.toThrow(/cancel/i);
-    await service.removeKey();
-    await rejected;
-    expect((await service.status()).configured).toBe(false);
-    expect(service.cancel(1, "missing")).toBe(false);
+      service.generate(1, "race", context, preview.revision, () => {}),
+    ).rejects.toThrow(/cancelled/);
   } finally {
-    host.closeAllConnections();
-    await new Promise<void>((done) => host.close(() => done()));
     await rm(root, { recursive: true, force: true });
   }
 });

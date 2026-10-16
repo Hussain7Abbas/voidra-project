@@ -54,7 +54,8 @@ export function CodingClientSetting() {
         ))}
       </div>
       <p id={`${id}-hint`} className="field-hint">
-        Commands use this client. Running work keeps its recorded client.
+        Commands and internal AI prompts use this client. Running work keeps its
+        recorded client.
       </p>
       {error && (
         <p role="alert" className="text-danger">

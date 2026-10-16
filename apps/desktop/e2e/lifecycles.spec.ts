@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { expect, test } from "@playwright/test";
-import { checkProject } from "voidra";
+import { approvalCurrent, checkProject, readPlan, schemas } from "voidra";
 import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 const execute = promisify(execFile);
@@ -67,9 +67,25 @@ for (const type of [
       });
       await expect(queue).toBeEnabled();
       await queue.click();
-      await expect(
-        page.getByText("Action queued", { exact: true }),
-      ).toBeVisible();
+      await expect
+        .poll(
+          async () => {
+            const project = await checkProject(root);
+            const id = [...project.records.values()].find(
+              (record) =>
+                record.kind === "action" &&
+                record.document.data.title === `Lifecycle ${type}`,
+            )?.document.data.id;
+            return Boolean(
+              id &&
+                project.records
+                  .get(".voidra/local/pending-actions.md")
+                  ?.document.body.includes(String(id)),
+            );
+          },
+          { timeout: 30000 },
+        )
+        .toBe(true);
       await execute(
         process.execPath,
         [
@@ -86,26 +102,49 @@ for (const type of [
         });
         await expect(approve).toBeEnabled();
         await approve.click();
-        await expect(
-          page.getByText("Plan approved", { exact: true }),
-        ).toBeVisible();
+        await expect
+          .poll(
+            async () => {
+              const checked = await checkProject(root);
+              const record = [...checked.records.values()].find(
+                (record) =>
+                  record.kind === "action" &&
+                  record.document.data.title === `Lifecycle ${type}`,
+              );
+              if (!record) return null;
+              const action = schemas.action.parse(record.document.data);
+              return {
+                stage: action.stage,
+                status: action.status,
+                approved: approvalCurrent(
+                  action.planApproval,
+                  readPlan(checked.files, action.id, checked.records),
+                ),
+              };
+            },
+            { timeout: 30000 },
+          )
+          .toEqual({ stage: "implement", status: "ready", approved: true });
         await expect(queue).toBeEnabled();
         await queue.click();
         await expect
-          .poll(async () => {
-            const project = await checkProject(root);
-            const id = [...project.records.values()].find(
-              (record) =>
-                record.kind === "action" &&
-                record.document.data.title === `Lifecycle ${type}`,
-            )?.document.data.id;
-            return Boolean(
-              id &&
-                project.records
-                  .get(".voidra/local/pending-actions.md")
-                  ?.document.body.includes(String(id)),
-            );
-          })
+          .poll(
+            async () => {
+              const project = await checkProject(root);
+              const id = [...project.records.values()].find(
+                (record) =>
+                  record.kind === "action" &&
+                  record.document.data.title === `Lifecycle ${type}`,
+              )?.document.data.id;
+              return Boolean(
+                id &&
+                  project.records
+                    .get(".voidra/local/pending-actions.md")
+                    ?.document.body.includes(String(id)),
+              );
+            },
+            { timeout: 30000 },
+          )
           .toBe(true);
         await execute(
           process.execPath,

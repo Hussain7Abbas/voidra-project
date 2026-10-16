@@ -206,7 +206,7 @@ test("a real draft-storage failure keeps capture open and retry preserves the la
     ).toContainText("Latest");
     await app.evaluate(({ Menu, BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows()[0];
-      window?.focus();
+      if (process.env.VOIDRA_TEST_BACKGROUND !== "1") window?.focus();
       const item = Menu.getApplicationMenu()
         ?.items.flatMap((item) => item.submenu?.items ?? [])
         .find((item) => item.label === "Settings…");

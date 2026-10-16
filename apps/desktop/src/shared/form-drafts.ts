@@ -10,6 +10,7 @@ export const draftFamilySchema = z.enum([
   "profile-answer",
   "release-source",
   "ai-review",
+  "ai-settings",
   "profile-followup",
   "planning-commit",
   "question-answer",
@@ -35,14 +36,6 @@ export const draftViewSchema = draftInputSchema
   });
 export type DraftInput = z.infer<typeof draftInputSchema>;
 export type DraftView = z.infer<typeof draftViewSchema>;
-export const secretDraftViewSchema = z.strictObject({
-  id: z.uuid(),
-  revision: draftRevisionSchema,
-  label: z.literal("Unfinished OpenRouter key"),
-  hasValue: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
 export const draftRequestSchemas = [
   z.strictObject({
     command: z.literal("draft-list"),
@@ -61,23 +54,6 @@ export const draftRequestSchemas = [
     id: z.uuid(),
     revision: draftRevisionSchema,
   }),
-  z.strictObject({ command: z.literal("secret-draft-list") }),
-  z.strictObject({
-    command: z.literal("secret-draft-put"),
-    id: z.uuid(),
-    revision: draftRevisionSchema.nullable(),
-    value: z.string().max(4096),
-  }),
-  z.strictObject({
-    command: z.literal("secret-draft-delete"),
-    id: z.uuid(),
-    revision: draftRevisionSchema,
-  }),
-  z.strictObject({
-    command: z.literal("secret-draft-apply"),
-    id: z.uuid(),
-    revision: draftRevisionSchema,
-  }),
 ] as const;
 const problem = z.strictObject({ id: z.string(), message: z.string() });
 export const draftReplySchemas = [
@@ -87,15 +63,6 @@ export const draftReplySchemas = [
     problems: z.array(problem),
   }),
   z.strictObject({ kind: z.literal("draft"), draft: draftViewSchema }),
-  z.strictObject({
-    kind: z.literal("secret-drafts"),
-    drafts: z.array(secretDraftViewSchema),
-    problems: z.array(problem),
-  }),
-  z.strictObject({
-    kind: z.literal("secret-draft"),
-    draft: secretDraftViewSchema,
-  }),
 ] as const;
 
 const textFields = [
@@ -113,6 +80,8 @@ const textFields = [
   "email",
   "path",
   "projectName",
+  "model",
+  "effort",
 ];
 export function draftRecoveryText(values: DraftView["values"]): string {
   const result: string[] = [];

@@ -20,7 +20,7 @@ When a project's rules, decisions and definition of "done" live only in chat his
 4. **You decide at three gates:** answering questions, approving a plan and accepting the result.
 5. **Facts and guesses look different.** Every profile answer and assumption shows whether you confirmed it, the agent inferred it from code, or the agent decided it for you.
 6. **Safe for teams.** One file per record, random IDs and a personal run queue keep merge conflicts rare and small.
-7. **AI inside the app is optional.** Without an OpenRouter key, every feature still works by hand.
+7. **AI inside the app is optional.** Every feature still works by hand; optional internal prompts use your selected coding agent’s signed-in CLI.
 
 ## 4. How it maps to the 120x method
 
@@ -56,7 +56,7 @@ When a project's rules, decisions and definition of "done" live only in chat his
 **New project** (the folder has no code and no `.voidra/`)
 
 1. Open the folder in Voidra and pick a template.
-2. Fill in the project profile. If you have an OpenRouter key, Voidra can suggest answers and follow-up questions.
+2. Fill in the project profile. Your selected coding agent can suggest answers and follow-up questions.
 3. Voidra creates `.voidra/` and a first **Bootstrap** action.
 4. Run `/voidra-go`. The architecture skill asks its questions, writes the plan and, after you approve it, sets up the project.
 
@@ -176,7 +176,7 @@ Xeploy calculates patch/minor/major release bumps, with a read-only preview befo
 
 ## 11. AI inside the app
 
-Voidra uses OpenRouter with your own API key. The key is encrypted with the macOS Keychain, and you choose the model in Settings. The model is used to:
+Voidra runs internal prompts headlessly through your selected Claude Code or Codex CLI, using its existing sign-in. Settings and first-launch onboarding let you specify the model and effort, saved separately for each agent; a blank model uses the agent’s default. The model is used to:
 
 - turn rough notes into clear ideas or actions;
 - suggest profile answers;
@@ -184,7 +184,7 @@ Voidra uses OpenRouter with your own API key. The key is encrypted with the macO
 - summarise run results;
 - draft release notes.
 
-Voidra sends only the text a feature needs: your notes, the profile and action text. It never sends source code. Without a key these features are hidden.
+Voidra sends only the text a feature needs: your notes, the profile and action text. It never sends source code. Requests use a temporary directory with restricted tool access, and require an explicit text preview. Suggestions remain editable drafts. Agent, model or effort changes invalidate old previews; sign-in/model failures preserve your form. Manual planning does not require an AI account.
 
 ## 12. The app in v1
 
@@ -199,7 +199,7 @@ Voidra sends only the text a feature needs: your notes, the profile and action t
 - **Releases.** Past releases and the button to start a new one.
 - **Decisions and assumptions.** One searchable index of answered questions, approved plans, ADRs and assumptions, each linked to where it lives.
 - **Glossary.** A read-only view of `GLOSSARY.md`. Terms change through actions.
-- **Settings.** General contains the OpenRouter key and model, skill installation and update settings, and the app version. Appearance contains the theme and a custom titlebar switch, on by default. The custom titlebar has styled close, minimize and maximize/restore controls, with a Settings icon at the opposite end. Titlebar changes apply to newly opened windows.
+- **Settings.** General contains the selected coding agent’s AI model and effort, skill installation and update settings, and the app version. Appearance contains the theme and a custom titlebar switch, on by default. The custom titlebar has styled close, minimize and maximize/restore controls, with a Settings icon at the opposite end. Titlebar changes apply to newly opened windows.
 - **Window layout.** The main area and sidebar scroll independently, with scrollbars when their contents overflow; the titlebar and workspace toolbar stay in view.
 
 ## 13. `.voidra/` layout (draft)
@@ -267,7 +267,7 @@ docs/adr/        # decisions that meet the ADR bar
 | Language | TypeScript, React |
 | Styling | Tailwind CSS with the storylens dashboard's **Ink & Iris** system: light, dark and system themes, Inter, Lucide icons, radii, spacing and focus rings. Screens are designed as they are built, using the `ui-ux-pro-max` skill. English only in v1. |
 | Local data | SQLite (`better-sqlite3`) for the rebuildable index and undo history |
-| Secrets | OpenRouter key encrypted with Electron `safeStorage` (macOS Keychain) |
+| AI access | Installed Claude Code or Codex CLI sign-in; Voidra stores only per-agent model/effort preferences |
 | Package manager | pnpm |
 | Lint and format | Biome |
 | Tests | Vitest for unit and integration tests, Playwright for Electron end-to-end tests. A scripted fake agent drives the end-to-end tests; there are no automated tests with real agents. |
@@ -293,7 +293,7 @@ The user requested the following on 2026-10-15. These requirements change the pr
 
 - **Tasks is the main work surface.** Replace the separate Backlog and Actions pages with a Kanban board of draggable task cards. The user confirmed one task per executable action, with linked child tasks for larger work. Columns are **Backlog → TODO → In progress → Review → Done**; detailed agent stages appear within cards/details. The right **Actions** sidebar lists the intended implementation sequence; moving a task to **TODO** adds it by default. Sequence entries can be dragged. Dependency-order problems show a nonmodal warning with **Rearrange**; the user may leave the warning/order alone. This does not authorize blocked execution or bypass human gates.
 - **Markdown is the default prose experience.** The requested “WAYSWING” behavior renders Markdown in the input, reveals the cursor's single line as editable Markdown source, and reveals all selected lines for multiline selections. Use shared safe rendering throughout descriptions, questions and knowledge views, including Decisions cards and Glossary. Existing read-only sources and approved records retain their permissions.
-- **Capture supports Normal and Agentic input.** Create-action/feature and create-backlog forms, including their replacements in Tasks, have an **Agentic / Normal** segmented switch. Every fresh form starts in Agentic regardless of the last-used mode; restored drafts keep their own saved mode. Normal shows Title and Markdown Description. Title is optional input; a null/blank title is generated using OpenRouter. Agentic shows one Markdown content input and generates hidden fields including Title and Action Type. The user confirmed **generate a draft → review → explicitly Save** before creating a ticket. Preserve the draft on failure; users can still complete work manually without an AI key by supplying a title/type.
+- **Capture supports Normal and Agentic input.** Create-action/feature and create-backlog forms, including their replacements in Tasks, have an **Agentic / Normal** segmented switch. Every fresh form starts in Agentic regardless of the last-used mode; restored drafts keep their own saved mode. Normal shows Title and Markdown Description. Title is optional input; a null/blank title is generated using the selected coding agent. Agentic shows one Markdown content input and generates hidden fields including Title and Action Type. The user confirmed **generate a draft → review → explicitly Save** before creating a ticket. Preserve the draft on failure; users can still complete work manually without AI access by supplying a title/type.
 - **Every unfinished form is recoverable.** Exiting any data-entry form saves its values as a private local draft by default, surviving app restarts and project reopening. Reopening shows one badge per unfinished draft, labeled by title or short excerpt, in a navigation bar at the top. Selecting a badge restores that whole form. This applies throughout the app, including creation/editing, setup/profile, Team/settings entry, questions/feedback and release preparation. Drafts are not shared through the repository; persisting a draft does not submit it or approve work. [The cross-cutting draft contract](plan-v1.1.0/form-drafts.md) records lifecycle, recovery and coverage.
 - **Team and client preferences simplify forms.** Assignee is a dropdown backed by a new Settings **Team** tab. The user confirmed one local roster, with each project selecting its members; **Me** remains personal and preselects forms where eligible. Remove **Who does the work** from forms; existing human blockers/checklists remain supported. A **Claude Code / Codex** segmented preference selects the default coding AI client; operational command choices show that client only. General's skill-installation choices are exactly **Install Claude skills** and **Install Codex skills**, each covering the whole bundled set without per-skill selection.
 - **Panels support the working loop.** Left navigation and right Actions toggle independently. **Waiting for you** moves into a toggleable bottom panel that opens when an answer is needed and renders Markdown questions. Every sidebar and bottom panel resizes, including the Documentation directory panel. Undo/Redo move into the titlebar. Remove the workspace topbar and **Local project** text while retaining accessible project/settings/recovery controls and native shortcuts.

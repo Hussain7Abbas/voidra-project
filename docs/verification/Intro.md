@@ -66,3 +66,7 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [Titlebar and skill settings refinement](titlebar-skills-refinement.md): counted installer buttons, filled panel icons and grouped controls with an independently centered title; post-release renderer checks.
 
 - [Agentic task workflow](task-workflow.md): six-column routing, owned QA/security, selected-client opening and integration evidence.
+
+- [Test parallelism](test-parallelism.md): bounded parallel quality tests, exclusive native checks and independent CI/Release desktop shards.
+
+- [Headless internal AI](headless-ai.md): selected-agent model/effort controls, restricted subprocess execution and actual-client checks.

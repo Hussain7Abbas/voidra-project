@@ -56,9 +56,10 @@ function scrollWhileDragging(
   drag: { current: Drag | null },
   onHover: (column: Column | null) => void,
 ) {
+  const gesture = drag.current;
   const tick = () => {
     const current = drag.current;
-    if (!current) return;
+    if (!current || current !== gesture) return;
     if (current.moved) {
       const direction =
         current.latestX < current.bounds.left + 32
@@ -575,7 +576,7 @@ const TaskCard = memo(function TaskCard({
           className="task-drag-handle"
           data-task-grip={task.id}
           onPointerDown={(event) => {
-            if (event.button !== 0 || disabled) return;
+            if (event.button !== 0 || disabled || drag.current) return;
             const board =
               event.currentTarget.closest<HTMLElement>(".tasks-board");
             if (!board) return;
@@ -595,7 +596,12 @@ const TaskCard = memo(function TaskCard({
           }}
           onPointerMove={(event) => {
             const current = drag.current;
-            if (!current || current.pointer !== event.pointerId) return;
+            if (
+              !current ||
+              current.pointer !== event.pointerId ||
+              current.task.id !== task.id
+            )
+              return;
             current.latestX = event.clientX;
             current.latestY = event.clientY;
             if (
@@ -610,22 +616,34 @@ const TaskCard = memo(function TaskCard({
           }}
           onPointerUp={(event) => {
             const current = drag.current;
-            drag.current = null;
-            onHover(null);
             if (
               !current ||
               current.pointer !== event.pointerId ||
-              !current.moved
+              current.task.id !== task.id
             )
               return;
+            drag.current = null;
+            onHover(null);
+            if (!current.moved) return;
             const column = destination(event.clientX, event.clientY);
             if (column) void onMove(current.task, column);
           }}
-          onPointerCancel={() => {
+          onPointerCancel={(event) => {
+            if (
+              drag.current?.pointer !== event.pointerId ||
+              drag.current.task.id !== task.id
+            )
+              return;
             drag.current = null;
             onHover(null);
           }}
-          onLostPointerCapture={() => {
+          onLostPointerCapture={(event) => {
+            if (
+              drag.current?.pointer !== event.pointerId ||
+              drag.current.task.id !== task.id ||
+              event.currentTarget.hasPointerCapture(event.pointerId)
+            )
+              return;
             drag.current = null;
             onHover(null);
           }}

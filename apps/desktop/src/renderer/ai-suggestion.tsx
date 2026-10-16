@@ -62,6 +62,8 @@ export function AiSuggestionButton({
     [preview, setPreview] = useState<{
       revision: string;
       model: string;
+      client: "codex" | "claude-code";
+      effort: string;
       text: string;
     } | null>(null),
     [error, setError] = useState(""),
@@ -246,7 +248,7 @@ export function AiSuggestionButton({
           current.revision !== draft.values.generationRevision
         )
           throw Error(
-            "The source or model changed. Regenerate the suggestion before using it.",
+            "The source or AI settings changed. Regenerate the suggestion before using it.",
           );
       }
       if (draft.identity() !== origin)
@@ -279,7 +281,7 @@ export function AiSuggestionButton({
       <Dialog
         open={open}
         onClose={close}
-        title={result ? "Review suggestion" : "Review text sent to OpenRouter"}
+        title={result ? "Review suggestion" : "Review text sent to your agent"}
         description="Only the selected planning text and your notes are sent. Source code and private files are excluded. Nothing is saved automatically."
         size="lg"
         footer={
@@ -327,7 +329,10 @@ export function AiSuggestionButton({
         <div className="space-y-4">
           {!result && preview && (
             <>
-              <p className="text-muted">Model: {preview.model}</p>
+              <p className="text-muted">
+                {preview.client === "codex" ? "Codex" : "Claude Code"} · Model:{" "}
+                {preview.model} · Effort: {preview.effort}
+              </p>
               <div className="whitespace-pre-wrap rounded-lg border border-line p-3 text-sm">
                 {preview.text}
               </div>

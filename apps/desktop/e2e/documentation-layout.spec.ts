@@ -62,11 +62,16 @@ for (const theme of ["light", "dark"] as const)
         page.getByLabel("Search documentation", { exact: true }),
       ).toBeFocused();
       await page.getByLabel("Search documentation", { exact: true }).fill("ΟΣ");
+      await expect(
+        page.getByLabel("Search documentation", { exact: true }),
+      ).toHaveValue("ΟΣ");
       const result = directory.getByRole("button", {
         name: "unicode.md 3 matches",
         exact: true,
       });
+      await expect(result).toBeVisible();
       await result.focus();
+      await expect(result).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(directory).toBeHidden();
       await expect(article).toBeFocused();

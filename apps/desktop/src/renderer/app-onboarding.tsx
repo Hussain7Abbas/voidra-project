@@ -15,6 +15,7 @@ import { useState } from "react";
 import type { Snapshot, ThemePreference } from "../shared/bridge.ts";
 import { installedSkillCount, skillBundleInstalled } from "../shared/skills.ts";
 import type { CodingClient } from "../shared/team.ts";
+import { AgentAiSettings } from "./ai-settings.tsx";
 import { request } from "./app.tsx";
 import { SkillSettingsPanel, useSkillStatus } from "./skill-settings.tsx";
 import { Button } from "./ui/button.tsx";
@@ -34,6 +35,7 @@ export function AppOnboarding({ data }: { data: Snapshot }) {
     status = useSkillStatus();
   const [saving, setSaving] = useState(false),
     [installing, setInstalling] = useState(false),
+    [aiPending, setAiPending] = useState(false),
     [error, setError] = useState("");
   const [pendingChoice, setPendingChoice] = useState<{
     theme: ThemePreference;
@@ -76,7 +78,7 @@ export function AppOnboarding({ data }: { data: Snapshot }) {
     }
   }
   async function finish() {
-    if (busy || !ready) return;
+    if (busy || !ready || aiPending) return;
     setSaving(true);
     setError("");
     try {
@@ -173,7 +175,8 @@ export function AppOnboarding({ data }: { data: Snapshot }) {
             <div className="setup-section-body">
               <h2 id="setup-agent">Choose your coding agent</h2>
               <p id="setup-agent-hint">
-                Voidra will open this agent when your work is ready.
+                Voidra will open this agent when your work is ready and use it
+                for internal AI prompts.
               </p>
               <fieldset disabled={busy} aria-describedby="setup-agent-hint">
                 <legend className="sr-only">Coding agent</legend>
@@ -208,6 +211,11 @@ export function AppOnboarding({ data }: { data: Snapshot }) {
                   ))}
                 </div>
               </fieldset>
+              <AgentAiSettings
+                key={selectedClient}
+                client={selectedClient}
+                onBusyChange={setAiPending}
+              />
             </div>
           </section>
           <section className="setup-section" aria-labelledby="setup-skills">
@@ -259,7 +267,7 @@ export function AppOnboarding({ data }: { data: Snapshot }) {
           <Button
             type="submit"
             variant="primary"
-            disabled={busy || !ready}
+            disabled={busy || !ready || aiPending}
             loading={saving}
             aria-describedby="setup-continue-hint"
             icon={<ArrowRight size={17} aria-hidden />}

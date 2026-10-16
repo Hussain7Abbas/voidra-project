@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { checkProject } from "voidra";
+import { fixtureAgentCli } from "../tests/helpers/headless-cli.ts";
 import { launchConfiguredApp } from "./helpers/configured-app.ts";
 
 for (const theme of ["light", "dark"] as const)
@@ -73,7 +74,10 @@ for (const theme of ["light", "dark"] as const)
       env: {
         ...env,
         VOIDRA_DATA_DIR: join(temp, "data"),
-        VOIDRA_TEST_OPENROUTER_URL: `http://127.0.0.1:${address.port}/api/v1`,
+        VOIDRA_TEST_CODEX_CLI: await fixtureAgentCli(
+          temp,
+          `http://127.0.0.1:${address.port}/complete`,
+        ),
       },
     });
     try {
@@ -100,23 +104,21 @@ for (const theme of ["light", "dark"] as const)
       await dialog
         .getByRole("button", { name: "Review AI request", exact: true })
         .click();
-      await expect(dialog.getByRole("alert")).toContainText("OpenRouter key");
       expect(await count()).toBe(originalCount);
       expect(requests).toEqual([]);
       await page.evaluate(async () => {
-        for (const command of [
-          { command: "ai-set-key", key: "fixture-private-key" },
-          { command: "ai-set-model", model: "test/model" },
-        ] as const) {
-          const reply = await window.voidra.invoke(command);
-          if (!reply.ok) throw Error(reply.error.message);
-        }
+        const reply = await window.voidra.invoke({
+          command: "ai-configure",
+          client: "codex",
+          configuration: { model: "test/model", effort: "low" },
+        });
+        if (!reply.ok) throw Error(reply.error.message);
       });
       await dialog
         .getByRole("button", { name: "Review AI request", exact: true })
         .click();
       await expect(
-        dialog.getByRole("region", { name: "Review text sent to OpenRouter" }),
+        dialog.getByRole("region", { name: "Review text sent to your agent" }),
       ).toContainText("Exact description");
       await dialog
         .getByRole("button", { name: "Generate suggestion", exact: true })

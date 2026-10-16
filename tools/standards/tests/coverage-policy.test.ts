@@ -90,7 +90,7 @@ function createProbe(sourcePath: string): string {
   );
   writeFileSync(
     join(folder, "vitest.config.ts"),
-    `import base from ${JSON.stringify(join(repository, "vitest.config.ts"))};\nexport default { ...base, test: { ...base.test, include: ["probe.test.ts"], coverage: { ...base.test.coverage, thresholds: ${JSON.stringify(coveragePolicy)}, reporter: ["text-summary"], reportsDirectory: ${JSON.stringify(join(folder, "coverage"))} } } };\n`,
+    `import base from ${JSON.stringify(join(repository, "vitest.config.ts"))};\nexport default { ...base, test: { ...base.test, projects: undefined, include: ["probe.test.ts"], coverage: { ...base.test.coverage, thresholds: ${JSON.stringify(coveragePolicy)}, reporter: ["text-summary"], reportsDirectory: ${JSON.stringify(join(folder, "coverage"))} } } };\n`,
   );
   return folder;
 }

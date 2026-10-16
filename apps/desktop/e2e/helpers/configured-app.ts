@@ -1,10 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { _electron } from "@playwright/test";
+import type { ThemePreference } from "../../src/shared/bridge.ts";
 
 /** Workspace scenarios start after setup; onboarding tests launch Electron directly. */
 export async function launchConfiguredApp(
   options: Parameters<typeof _electron.launch>[0],
+  initial: { theme?: ThemePreference } = {},
 ) {
   const directory = options?.env?.VOIDRA_DATA_DIR;
   if (!directory) throw Error("A disposable app-data directory is required.");
@@ -16,7 +18,7 @@ export async function launchConfiguredApp(
     if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     settings = {
       version: 1,
-      theme: "system",
+      theme: initial.theme ?? "system",
       recents: [],
       skillsOfferSeen: true,
     };

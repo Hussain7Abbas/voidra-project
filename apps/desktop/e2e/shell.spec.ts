@@ -129,9 +129,15 @@ for (const theme of ["light", "dark"] as const)
       },
       join(root, "relocated"),
     );
-    const located = application.waitForEvent("window");
-    await first.getByRole("button", { name: "Locate", exact: true }).click();
-    await ready(await located);
+    const locate = first
+      .getByRole("region", { name: "Recent projects" })
+      .getByRole("button", { name: "Locate", exact: true });
+    await expect(locate).toBeVisible();
+    const [located] = await Promise.all([
+      application.waitForEvent("window"),
+      locate.click(),
+    ]);
+    await ready(located);
     const saved = JSON.parse(
       await readFile(join(root, "settings.json"), "utf8"),
     );
