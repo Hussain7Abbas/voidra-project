@@ -23,7 +23,7 @@ Install the matching [voidra 1.0.0 library and CLI](https://www.npmjs.com/packag
 
 ## Development
 
-The [v1.1.0 plan](plan-v1.1.0/main.md) tracks the Tasks-centered workspace redesign. The development candidate includes release-aware draggable Tasks, shared Markdown editing, Team/client settings and reviewed capture with durable private form drafts. The right Actions sequence separates ordered work from safe execution requests; persistent resizable panes and bottom human gates are complete; Documentation directory/search and Xeploy-guided release preparation are complete; final compatibility and delivery checks are in progress. The published download remains 1.0.0.
+The [v1.1.0 plan](plan-v1.1.0/main.md) tracks the Tasks-centered workspace redesign. The 1.1.1 development candidate includes release-aware draggable Tasks, shared Markdown editing, Team/client settings and reviewed capture with durable private form drafts. The right Actions sequence separates ordered work from safe execution requests; persistent resizable panes and bottom human gates are complete; Documentation directory/search and Xeploy-guided release preparation are complete; final compatibility and delivery checks are in progress. The published download remains 1.0.0; the initial 1.1.0 tag is retained unpublished after hosted shortcut-readiness checks.
 
 Use Node 24.13.0 and pnpm 10.30.3, then:
 

@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "requiredVoidra": "1.1.0",
+  "requiredVoidra": "1.1.1",
   "taskTracking": 1,
   "project": {
     "id": "prj-000000",
@@ -10,6 +10,6 @@
     "id": "general",
     "version": "1.0.0"
   },
-  "createdWith": "voidra/1.1.0",
+  "createdWith": "voidra/1.1.1",
   "lifecycleOverrides": {}
 }

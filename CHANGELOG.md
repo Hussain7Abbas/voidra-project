@@ -1,6 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+Completes the Tasks workspace described below with an explicit readiness/focus check in hosted shortcut verification and current CLI documentation. App, library and all six skills share 1.1.1.
+
 ## 1.1.0
+
+Retained unpublished candidate tag: both hosted runs exposed a keyboard-shortcut readiness race in the Kanban harness before packaging/publication. The tag remains immutable; the corrected candidate is 1.1.1.
 
 Voidra becomes a Tasks workspace with a draggable Kanban board, release filters, an ordered Actions sidebar with dependency warnings, and a bottom Waiting for you panel. All panels toggle and resize; Undo/Redo and panel controls live in the titlebar.
 

@@ -40,3 +40,5 @@ Update the corresponding [format page](../../docs/format/Intro.md), API docs and
 - `documents.ts` owns contained read-only UTF-8 Markdown reads and the bounded public docs/glossary inventory. Refuse linked paths, retain per-file diagnostics and never broaden to private planning or arbitrary source files. The desktop owns disposable visible-text search; no index copies belong in planning files.
 
 - `release-preparation-schema.ts` is the Node-free canonical Release preparation boundary, exposed as `voidra/release-preparation` for browser/preload consumers. `release-preparation.ts` rechecks the contained package snapshot, forward version and exact selected current-version Done subset. Bind preparation to structured Review and validate both approval APIs; preserve legacy proposals and historical target assignments.
+
+- Keep version-specific README CLI examples aligned when preparing a release; retained historical tags/archives remain immutable. New initialization checks compare the advertised current reader with PACKAGE_VERSION, while explicit feature minimums retain their introduction version.

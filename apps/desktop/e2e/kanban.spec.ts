@@ -110,6 +110,13 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         nav.getByRole("button", { name: "Actions", exact: true }),
       ).toHaveCount(0);
+      const create = page.getByRole("button", {
+        name: "Add task",
+        exact: true,
+      });
+      await expect(create).toBeEnabled();
+      await create.focus();
+      await expect(create).toBeFocused();
       await page.keyboard.press("ControlOrMeta+n");
       await expect(
         page.getByRole("dialog", { name: "Create action", exact: true }),

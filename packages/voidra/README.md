@@ -3,9 +3,9 @@
 The shared file-format package for [Voidra Project](https://github.com/Hussain7Abbas/voidra-project). It reads and validates `.voidra/` records, enforces lifecycle gates, and provides recoverable writes. It runs without Electron or the desktop app. Requires Node 24.13.0 or later; licensed AGPL-3.0-or-later.
 
 ```sh
-npx voidra@1.0.0 check ./project
-npx voidra@1.0.0 check ./project --json
-npx voidra@1.0.0 --help
+bunx voidra@1.1.1 check ./project
+bunx voidra@1.1.1 check ./project --json
+bunx voidra@1.1.1 --help
 ```
 
 Exit codes: 0 for success, 1 for project/I/O/conflict problems, 2 for usage errors. A folder without `.voidra/voidra.json` is reported as missing a Voidra project. Checks never edit or repair files.
@@ -30,4 +30,4 @@ Format 1 requires voidra 0.1.0. Newer formats are refused. `migrateProject` and 
 
 See the [format specification](https://github.com/Hussain7Abbas/voidra-project/tree/main/docs/format), [API contract](https://github.com/Hussain7Abbas/voidra-project/blob/main/docs/format/api.md) and [verification evidence](https://github.com/Hussain7Abbas/voidra-project/blob/main/docs/verification/p01.md).
 
-The 0.2.0 candidate also exports guarded Release selection and `applySyncReport` for planning-only inferred updates/proposals. Sync records preserve confirmed answers and bind examined commits and record consumption; the Node adapter verifies actual Git history. Public registry publication remains separate from this local candidate.
+Voidra 1.1.1 includes release-aware Tasks, guarded Backlog/TODO movement, ordered Actions intent and exact release preparation. Existing projects enable task tracking through an exact migration preview; new projects enable it atomically. Task-tracked projects require reader 1.1.0 or newer, while fresh initialization advertises the matching installed reader. A missing package version permits Backlog capture but cannot authorize TODO work. Sync preserves confirmed answers and binds examined commits and consumption. Browser/preload consumers use the Node-free `voidra/release-preparation` subpath.

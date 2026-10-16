@@ -9,6 +9,7 @@ import {
   initializeProject,
   loadTemplate,
   moveTask,
+  PACKAGE_VERSION,
   projectTasks,
   queueDecision,
   readActionSequence,
@@ -47,7 +48,7 @@ for (const grouped of [false, true]) {
     expect(project.diagnostics).toEqual([]);
     expect(project.metadata).toMatchObject({
       taskTracking: 1,
-      requiredVoidra: "1.1.0",
+      requiredVoidra: PACKAGE_VERSION,
     });
     expect(projectTasks(project).find((task) => task.id === id)).toMatchObject({
       column: "todo",
