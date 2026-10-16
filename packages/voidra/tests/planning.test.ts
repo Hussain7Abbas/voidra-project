@@ -10,6 +10,7 @@ import {
   editIdea,
   hash,
   lifecycles,
+  PACKAGE_VERSION,
   parseRecord,
   promoteIdea,
   serializeRecord,
@@ -377,7 +378,9 @@ it("retains Backlog assignment and proposed type through editing and promotion w
       assignee: "Ada <ada@example.test>",
       type: "bug",
     });
-    expect((await checkProject(root)).metadata?.requiredVoidra).toBe("1.1.0");
+    expect((await checkProject(root)).metadata?.requiredVoidra).toBe(
+      PACKAGE_VERSION,
+    );
     const metadata = await readFile(join(root, ".voidra/voidra.json"));
     await writeFile(
       join(root, ".voidra/voidra.json"),
