@@ -46,6 +46,18 @@ import {
 import { readGitIdentity } from "./git.ts";
 import { inspectLock, processIdentity } from "./lock.ts";
 import { pendingPlanning } from "./planning-commit.ts";
+import {
+  assertSubmoduleEdit,
+  assertSubmoduleReady,
+  assertSubmodules,
+  changedRepositoryPaths,
+  parentCommitPaths,
+  planSubmoduleCommits,
+  readSubmodules,
+  submoduleCommitPaths,
+  submoduleCommitSchema,
+  submoduleSnapshotSchema,
+} from "./submodules.ts";
 
 const execute = promisify(execFile);
 const checkpointSchema = z.looseObject({
@@ -75,6 +87,8 @@ const checkpointSchema = z.looseObject({
   mode: z.enum(["go", "plan"]).optional(),
   taskRunKind: z.enum(["planning", "implementation", "quality"]).optional(),
   sourceSnapshot: z.record(z.string(), z.string().nullable()).optional(),
+  submodules: z.record(z.string(), submoduleSnapshotSchema).optional(),
+  submoduleCommits: z.array(submoduleCommitSchema).optional(),
   inputHashes: z.record(z.string(), z.string()).optional(),
   priorWork: z.record(z.string(), z.string().nullable()).optional(),
   baseTags: z.string().optional(),
@@ -418,6 +432,14 @@ async function finalizeRelease(
     runBytes = serializeRecord(parseRecord(ctx.runPath, runRaw), {
       ...parseRecord(ctx.runPath, runRaw).data,
       commit: ctx.commit,
+      ...(ctx.submoduleCommits?.length
+        ? {
+            submoduleCommits: ctx.submoduleCommits.map((module) => ({
+              path: module.path,
+              commit: module.commit,
+            })),
+          }
+        : {}),
       outcome: "advanced",
       toStage: "released",
       endedAt,
@@ -552,6 +574,7 @@ async function unchangedPlanningGit(
     (await tags(root)) !== ctx.baseTags
   )
     throw new Error("Git repository, HEAD or tags changed during planning");
+  await assertSubmodules(root, ctx.submodules);
 }
 export async function runContext(
   root: string,
@@ -582,6 +605,31 @@ export async function runContext(
       path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : "")
     )
       throw new Error("Run checkpoint contains another action's files");
+  }
+  for (const [path, module] of Object.entries(ctx.submodules ?? {})) {
+    if (path.split("/").includes(".voidra"))
+      throw Error("Submodule checkpoint cannot target planning files");
+    await safeGitPath(root, path, true);
+    if (
+      module.parent &&
+      (!Object.hasOwn(ctx.submodules ?? {}, module.parent) ||
+        !path.startsWith(`${module.parent}/`))
+    )
+      throw Error("Invalid submodule parent in run checkpoint");
+  }
+  if (ctx.submoduleCommits !== undefined) {
+    const expected = submoduleCommitPaths(ctx.paths, ctx.submodules ?? {});
+    const actual = ctx.submoduleCommits.map((module) => ({
+      path: module.path,
+      paths: module.paths,
+    }));
+    if (
+      JSON.stringify(expected) !== JSON.stringify(actual) ||
+      ctx.submoduleCommits.some(
+        (module) => module.baseCommit !== ctx.submodules?.[module.path]?.head,
+      )
+    )
+      throw Error("Submodule commit scope changed in the run checkpoint");
   }
   return ctx;
 }
@@ -849,6 +897,7 @@ export async function startRun(
       status: "running",
       resumedAfterQuestions: true,
     };
+  const submodules = repository ? await readSubmodules(root) : {};
   const sourceSnapshot = await snapshotSources(root);
   const bootstrapFiles = bootstrapGit
     ? Object.fromEntries(
@@ -975,6 +1024,7 @@ export async function startRun(
     ...(stale || boundary ? { indexReconciled: true } : {}),
     mode,
     sourceSnapshot,
+    submodules,
     priorWork,
     inputHashes: Object.fromEntries(
       [...checked.files]
@@ -1002,22 +1052,7 @@ export async function startRun(
     startingChanges: repository
       ? Object.fromEntries(
           await Promise.all(
-            [
-              ...new Set(
-                (
-                  await Promise.all([
-                    git(root, ["diff", "--name-only", "-z"]),
-                    git(root, ["diff", "--cached", "--name-only", "-z"]),
-                    git(root, [
-                      "ls-files",
-                      "--others",
-                      "--exclude-standard",
-                      "-z",
-                    ]),
-                  ])
-                ).flatMap((list) => list.split("\0").filter(Boolean)),
-              ),
-            ]
+            (await changedRepositoryPaths(root, submodules))
               .filter((path) => !path.startsWith(".voidra/"))
               .map(async (path) => [path, await fileHash(root, path)]),
           ),
@@ -1108,15 +1143,18 @@ export async function heartbeat(root: string, token: string): Promise<void> {
     ],
   });
 }
-async function safeGitPath(root: string, path: string): Promise<void> {
+async function safeGitPath(
+  root: string,
+  path: string,
+  allowDirectory = false,
+): Promise<void> {
   if (
     !path ||
     isAbsolute(path) ||
     path.includes("\0") ||
     path.includes("\\") ||
     path.split("/").some((p) => p === ".." || p === ".git") ||
-    path.startsWith(".voidra/local/") ||
-    path === ".voidra/local"
+    /(?:^|\/)\.voidra\/local(?:\/|$)/.test(path)
   )
     throw new Error("Invalid implementation commit path");
   const absoluteRoot = resolve(root);
@@ -1133,6 +1171,12 @@ async function safeGitPath(root: string, path: string): Promise<void> {
     }
     parent = dirname(parent);
   }
+  const leaf = await lstat(join(root, path)).catch((error) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  });
+  if (!allowDirectory && leaf?.isDirectory())
+    throw Error("Commit paths must name exact files, not directories");
   const canonical = await realpath(root);
   if (relative(canonical, join(canonical, path)).startsWith(".."))
     throw new Error("Commit path escapes project");
@@ -1251,6 +1295,18 @@ export async function prepareResult(
       const path = `.voidra/actions/${member}/action.md`;
       fileHashes[path] = await fileHash(root, path);
     }
+  const submoduleCommits = await planSubmoduleCommits(
+    root,
+    paths,
+    ctx.submodules ?? {},
+  );
+  for (const module of submoduleCommits) {
+    const identity = await readGitIdentity(join(root, module.path));
+    if (!identity.value)
+      throw Error(
+        `Configure Git name and email in submodule ${module.path} before preparing`,
+      );
+  }
   await save(
     root,
     {
@@ -1258,6 +1314,7 @@ export async function prepareResult(
       phase: "prepared",
       paths,
       fileHashes,
+      submoduleCommits,
       actionHash: hash(preparedAction),
       runHash: hash(preparedRun),
       ...(release ? { release, message: release.message } : {}),
@@ -1297,8 +1354,12 @@ async function findCommit(
 }
 async function fileHash(root: string, path: string): Promise<string | null> {
   try {
-    if ((await lstat(join(root, path))).isSymbolicLink())
+    const info = await lstat(join(root, path));
+    if (info.isSymbolicLink())
       return hash(`link:${await readlink(join(root, path))}`);
+    // An untracked embedded repository can be reported as one directory entry.
+    // Its descendants are protected by the pre-existing-edit prefix guard.
+    if (info.isDirectory()) return hash("directory");
     return hash(await readFile(join(root, path)));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -1310,6 +1371,7 @@ async function checkPreparedFiles(
   ctx: RunContext,
 ): Promise<void> {
   await current(root, ctx);
+  await assertSubmodules(root, ctx.submodules, ctx.submoduleCommits);
   if (ctx.release) {
     const project = await checkProject(root),
       action = schemas.action.parse(
@@ -1329,50 +1391,133 @@ async function checkPreparedFiles(
       throw new Error(`Prepared file changed: ${path}`);
   }
 }
+async function selectedIndex(root: string, paths: string[]): Promise<string> {
+  return git(root, ["ls-files", "--stage", "-z", "--", ...paths]);
+}
+function moduleIndex(root: string, run: string, path: string): string {
+  return join(
+    root,
+    `.voidra/local/commit-index-${run}-${hash(path).slice(0, 16)}`,
+  );
+}
+async function reconcileModuleReceipts(
+  root: string,
+  ctx: RunContext,
+): Promise<RunContext> {
+  let result = ctx;
+  for (const module of result.submoduleCommits ?? []) {
+    const repository = join(root, module.path);
+    const existing = await findCommit(repository, result);
+    if (module.commit && existing !== module.commit)
+      throw Error(`Submodule commit receipt changed: ${module.path}`);
+    if (!existing) continue;
+    if (
+      (await head(repository)) !== existing ||
+      (await git(repository, ["rev-parse", `${existing}^`])) !==
+        module.baseCommit
+    )
+      throw Error(
+        `Submodule commit history changed outside this run: ${module.path}`,
+      );
+    if (!module.commit) {
+      if (result.phase !== "commit-pending" && result.phase !== "committed")
+        throw Error("Submodule commit has no persisted intent");
+      result = {
+        ...result,
+        submoduleCommits: result.submoduleCommits?.map((plan) =>
+          plan.path === module.path ? { ...plan, commit: existing } : plan,
+        ),
+      };
+      await save(root, result);
+    }
+  }
+  return result;
+}
 export async function commitResult(
   root: string,
   token: string,
   message: string,
   options: RunOptions = {},
 ): Promise<string> {
-  const { ctx } = await owned(root, token);
+  let { ctx } = await owned(root, token);
   if (ctx.release && message !== ctx.release.message)
-    throw new Error(
-      "Commit message differs from the accepted release proposal",
-    );
-  if (ctx.mode === "plan") throw new Error("Planning-only runs cannot commit");
+    throw Error("Commit message differs from the accepted release proposal");
+  if (ctx.mode === "plan") throw Error("Planning-only runs cannot commit");
   if (/^Voidra-(Action|Run):/m.test(message))
-    throw new Error("The runtime owns commit trailers");
+    throw Error("The runtime owns commit trailers");
   if (!["prepared", "commit-pending", "committed"].includes(ctx.phase))
-    throw new Error("Prepare the result before committing");
+    throw Error("Prepare the result before committing");
+  if (ctx.submoduleCommits?.length && ctx.message && ctx.message !== message)
+    throw Error("Commit message changed after submodule commit intent");
+  ctx = await reconcileModuleReceipts(root, ctx);
   const existing = await findCommit(root, ctx);
   if (existing) {
     await checkPreparedFiles(root, ctx);
+    if (ctx.submoduleCommits?.length && (await head(root)) !== existing)
+      throw Error("Git HEAD changed outside this run");
     await save(root, { ...ctx, phase: "committed", commit: existing });
     return existing;
   }
   await checkPreparedFiles(root, ctx);
   if ((await head(root)) !== ctx.baseCommit)
-    throw new Error("Git HEAD changed outside this run");
-  const indexBefore = await git(root, [
-    "ls-files",
-    "--stage",
-    "-z",
-    "--",
-    ...ctx.paths,
-  ]);
+    throw Error("Git HEAD changed outside this run");
+  const rootPaths = parentCommitPaths(ctx.paths, ctx.submoduleCommits ?? []);
+  const indexBefore = await selectedIndex(root, rootPaths);
   if (ctx.indexBefore !== undefined && ctx.indexBefore !== indexBefore)
-    throw new Error("Git index changed outside the run");
-  const pending = {
+    throw Error("Git index changed outside the run");
+  // Refuse every selected index conflict before creating the first child commit.
+  for (const module of ctx.submoduleCommits ?? []) {
+    await assertSubmoduleReady(root, module.path);
+    if (
+      (await selectedIndex(join(root, module.path), module.paths)) !==
+      module.indexBefore
+    )
+      throw Error(
+        `Submodule Git index changed outside this run: ${module.path}`,
+      );
+  }
+  let pending: RunContext = {
     ...ctx,
-    phase: "commit-pending" as const,
+    phase: "commit-pending",
     message,
     indexBefore,
   };
   await save(root, pending);
   await options.checkpoint?.("before-commit");
+  const body = `${message}\n\nVoidra-Action: ${ctx.action}\nVoidra-Run: ${ctx.run}`;
+  for (const module of pending.submoduleCommits ?? []) {
+    if (module.commit) continue;
+    await owned(root, token);
+    await checkPreparedFiles(root, pending);
+    await assertSubmoduleReady(root, module.path);
+    const repository = join(root, module.path),
+      env = { GIT_INDEX_FILE: moduleIndex(root, ctx.run, module.path) };
+    if ((await selectedIndex(repository, module.paths)) !== module.indexBefore)
+      throw Error(
+        `Submodule Git index changed outside this run: ${module.path}`,
+      );
+    await git(repository, ["read-tree", module.baseCommit], env);
+    await git(repository, ["add", "--", ...module.paths], env);
+    await git(repository, ["commit", "-m", body], env);
+    await options.checkpoint?.(`after-submodule-commit:${module.path}`);
+    const commit = await findCommit(repository, pending);
+    if (!commit)
+      throw Error(`Submodule commit trailer was not found: ${module.path}`);
+    pending = {
+      ...pending,
+      submoduleCommits: pending.submoduleCommits?.map((plan) =>
+        plan.path === module.path ? { ...plan, commit } : plan,
+      ),
+    };
+    await save(root, pending);
+  }
   await owned(root, token);
   await checkPreparedFiles(root, pending);
+  if (
+    (await head(root)) !== pending.baseCommit ||
+    (await selectedIndex(root, rootPaths)) !== indexBefore
+  )
+    throw Error("Parent HEAD or Git index changed outside this run");
   const index = join(root, `.voidra/local/commit-index-${ctx.run}`),
     env = { GIT_INDEX_FILE: index };
   await git(
@@ -1380,60 +1525,73 @@ export async function commitResult(
     ["read-tree", ...(ctx.baseCommit ? [ctx.baseCommit] : ["--empty"])],
     env,
   );
-  await git(root, ["add", "--", ...ctx.paths], env);
-  await git(
-    root,
-    [
-      "commit",
-      "-m",
-      `${message}\n\nVoidra-Action: ${ctx.action}\nVoidra-Run: ${ctx.run}`,
-    ],
-    env,
-  );
+  await git(root, ["add", "--", ...rootPaths], env);
+  await git(root, ["commit", "-m", body], env);
   await options.checkpoint?.("after-commit");
-  const commit = await findCommit(root, ctx);
-  if (!commit) throw new Error("Commit trailer was not found");
+  const commit = await findCommit(root, pending);
+  if (!commit) throw Error("Commit trailer was not found");
   await save(root, { ...pending, phase: "committed", commit });
   return commit;
 }
-async function reconcileIndex(
+async function reconcileSelectedIndex(
   root: string,
-  ctx: RunContext,
-  token: string,
+  paths: string[],
+  before: string | undefined,
+  commit: string,
 ): Promise<void> {
-  if (!ctx.commit) throw new Error("Missing commit for index reconciliation");
-  await checkPreparedFiles(root, ctx);
-  if ((await head(root)) !== ctx.commit)
-    throw new Error("Git HEAD changed before index reconciliation");
-  const staged = await git(root, [
-    "ls-files",
-    "--stage",
-    "-z",
-    "--",
-    ...ctx.paths,
-  ]);
-  const tree = await git(root, [
-    "ls-tree",
-    "-z",
-    ctx.commit,
-    "--",
-    ...ctx.paths,
-  ]);
+  if ((await head(root)) !== commit)
+    throw Error("Git HEAD changed before index reconciliation");
+  const staged = await selectedIndex(root, paths),
+    tree = await git(root, ["ls-tree", "-z", commit, "--", ...paths]);
   const after =
     tree
       .split("\0")
       .filter(Boolean)
       .map((row) => row.replace(/^(\d+) \w+ ([a-f0-9]+)\t/, "$1 $2 0\t"))
       .join("\0") + (tree ? "\0" : "");
-  if (staged !== ctx.indexBefore && staged !== after)
-    throw new Error("Git index changed outside the run; preserved");
+  if (staged !== before && staged !== after)
+    throw Error("Git index changed outside the run; preserved");
+  await git(root, ["reset", "-q", "HEAD", "--", ...paths]);
+}
+async function reconcileIndex(
+  root: string,
+  ctx: RunContext,
+  token: string,
+): Promise<void> {
+  if (!ctx.commit) throw Error("Missing commit for index reconciliation");
+  await checkPreparedFiles(root, ctx);
+  let current = ctx;
+  for (const module of current.submoduleCommits ?? []) {
+    if (!module.commit)
+      throw Error(`Missing submodule commit receipt: ${module.path}`);
+    await owned(root, token);
+    await reconcileSelectedIndex(
+      join(root, module.path),
+      module.paths,
+      module.indexBefore,
+      module.commit,
+    );
+    await rm(moduleIndex(root, ctx.run, module.path), { force: true });
+    current = {
+      ...current,
+      submoduleCommits: current.submoduleCommits?.map((plan) =>
+        plan.path === module.path ? { ...plan, indexReconciled: true } : plan,
+      ),
+    };
+    await save(root, current);
+  }
   await owned(root, token);
-  await git(root, ["reset", "-q", "HEAD", "--", ...ctx.paths]);
+  await reconcileSelectedIndex(
+    root,
+    parentCommitPaths(ctx.paths, ctx.submoduleCommits ?? []),
+    ctx.indexBefore,
+    ctx.commit,
+  );
   await rm(join(root, `.voidra/local/commit-index-${ctx.run}`), {
     force: true,
   });
   const { lockRaw } = await owned(root, token);
-  await save(root, { ...ctx, indexReconciled: true }, [
+  await save(root, { ...current, indexReconciled: true }, [
     {
       path: ".voidra/local/run.lock",
       expectedHash: hash(lockRaw),
@@ -1465,6 +1623,14 @@ export async function finalizeResult(
   const finalRun = serializeRecord(parseRecord(ctx.runPath, runRaw), {
     ...parseRecord(ctx.runPath, runRaw).data,
     commit: ctx.commit,
+    ...(ctx.submoduleCommits?.length
+      ? {
+          submoduleCommits: ctx.submoduleCommits.map((module) => ({
+            path: module.path,
+            commit: module.commit,
+          })),
+        }
+      : {}),
   }).toString();
   const final = {
     ...ctx,
@@ -1541,6 +1707,14 @@ export async function failRun(
   token: string,
   summary: string,
 ): Promise<void> {
+  const { ctx } = await owned(root, token);
+  if (
+    ["commit-pending", "committed", "finalized"].includes(ctx.phase) &&
+    ctx.submoduleCommits?.length
+  )
+    throw Error(
+      "Submodule commit intent must be recovered before abandoning this run; preserve the checkpoint and stop the owner",
+    );
   await endWithoutCommit(root, token, summary, "failed");
 }
 export async function recoverRun(
@@ -1643,7 +1817,8 @@ export async function recoverRun(
     await save(root, { ...ctx, phase: "committed", commit: existing });
     await finalizeResult(root, ctx.ownerToken);
   } else if (
-    ctx.release &&
+    (ctx.release ||
+      (ctx.phase === "commit-pending" && ctx.submoduleCommits?.length)) &&
     ctx.message &&
     ["prepared", "commit-pending"].includes(ctx.phase)
   ) {
@@ -1781,12 +1956,14 @@ async function snapshotSources(
   const result: Record<string, string | null> = {};
   const walk = async (path: string) => {
     if (
-      path === ".git" ||
       path === ".voidra" ||
-      path.split("/").includes("node_modules") ||
-      path === ".agents/skills" ||
-      path === ".claude/skills" ||
-      path === ".agent-verification"
+      path
+        .split("/")
+        .some((part) =>
+          [".git", "node_modules", ".agent-verification"].includes(part),
+        ) ||
+      /(?:^|\/)(?:\.agents|\.claude)\/skills(?:\/|$)/.test(path) ||
+      /(?:^|\/)\.voidra\/local(?:\/|$)/.test(path)
     )
       return;
     const info = await lstat(join(root, path));
@@ -1860,10 +2037,38 @@ export async function guardRun(
     throw new Error(
       "Plan changed; stop and obtain fresh approval before any code work",
     );
+  await assertSubmodules(root, ctx.submodules);
   for (const path of paths) {
     await safeGitPath(root, path);
+    assertSubmoduleEdit(path, ctx.submodules ?? {});
+    if (path.includes("/.voidra/"))
+      throw Error(
+        "Do not edit a submodule's planning files from its parent task",
+      );
+    const info = await lstat(join(root, path)).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    });
+    if (info?.isDirectory())
+      throw Error("List exact implementation files, not directories");
+    let ancestor = dirname(path);
+    while (ancestor !== ".") {
+      const marker = await lstat(join(root, ancestor, ".git")).catch(
+        (error) => {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+          throw error;
+        },
+      );
+      if (marker && !Object.hasOwn(ctx.submodules ?? {}, ancestor))
+        throw Error(
+          `Register the embedded repository as a submodule before editing: ${ancestor}`,
+        );
+      ancestor = dirname(ancestor);
+    }
     if (
-      Object.hasOwn(ctx.startingChanges ?? {}, path) &&
+      Object.keys(ctx.startingChanges ?? {}).some(
+        (existing) => path === existing || path.startsWith(`${existing}/`),
+      ) &&
       !Object.hasOwn(ctx.priorWork ?? {}, path)
     )
       throw new Error(

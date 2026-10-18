@@ -29928,7 +29928,7 @@ async function initializeProject(root, input4, options, writer) {
       ".voidra/README.md",
       `# Project planning
 
-Read the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run \`npx voidra@${PACKAGE_VERSION} check\` after writing planning records.
+Read the profile and actions before work. Use the Voidra skills and preserve human approval gates. Validate after writing planning records with the matching installed skill\u2019s bundled checker (Voidra ${PACKAGE_VERSION}): \`node <skill-folder>/scripts/voidra.mjs check .\`. Registry installation is not required.
 `
     ],
     [".voidra/.gitignore", "local/\n"]
@@ -30103,7 +30103,7 @@ var section = `
 <!-- Voidra planning -->
 ## Voidra planning
 
-Read [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and run \`npx voidra@${PACKAGE_VERSION} check\` after planning writes.
+Read [.voidra/README.md](.voidra/README.md), the project profile and action before work. Respect the question, exact-content plan and review gates. Use the Voidra skills for tracked work, and validate after planning writes with the matching installed skill\u2019s bundled checker (Voidra ${PACKAGE_VERSION}): \`node <skill-folder>/scripts/voidra.mjs check .\`. Registry installation is not required.
 `;
 async function readInstruction(root, name) {
   try {

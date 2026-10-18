@@ -313,7 +313,7 @@ export async function initializeProject(
     ],
     [
       ".voidra/README.md",
-      `# Project planning\n\nRead the profile and actions before work. Use the Voidra skills and preserve human approval gates. Run \`npx voidra@${PACKAGE_VERSION} check\` after writing planning records.\n`,
+      `# Project planning\n\nRead the profile and actions before work. Use the Voidra skills and preserve human approval gates. Validate after writing planning records with the matching installed skill’s bundled checker (Voidra ${PACKAGE_VERSION}): \`node <skill-folder>/scripts/voidra.mjs check .\`. Registry installation is not required.\n`,
     ],
     [".voidra/.gitignore", "local/\n"],
   ]);

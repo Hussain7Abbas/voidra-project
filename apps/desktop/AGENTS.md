@@ -94,3 +94,5 @@ Keep [desktop architecture](../../docs/architecture/desktop.md), [design system]
 - Native menu callbacks target the BrowserWindow supplied by the event before falling back to OS focus. Do not focus/show a window to invoke Settings, history or panel commands in a test; invoke the genuine menu item with its window argument.
 
 - Project navigation order is Tasks, Documentation, Releases, Profile. Release-source selection supports a native contained-folder picker and explicit package mode; keep mode/path/original revision in the existing private draft. Default/folder discovery chooses the highest numeric version. The utility watches competing manifests in the selected scope; main never opens a new project window for this chooser. Keep contents local and preserve exact source/approval checks. See [Tasks architecture](../../docs/architecture/tasks.md).
+
+- Newly created planning READMEs direct validation to the installed skill’s matching offline `scripts/voidra.mjs` checker. Do not require an unpublished registry version; keep workspace creation and shared/intake template guidance aligned.

@@ -35,6 +35,24 @@ for (const [skill, entry, script] of [
       js: "// Generated from tools/run-engine. AGPL-3.0-or-later; bundled dependency notices are in references/third-party-notices.txt.\nimport { createRequire as __voidraCreateRequire } from 'node:module'; import { fileURLToPath as __voidraFileURL } from 'node:url'; const require = __voidraCreateRequire(import.meta.url); const __voidraProcessHelper=__voidraFileURL(new URL('./process-info',import.meta.url)); const __voidraIntakeTemplates=__voidraFileURL(new URL('../references/templates/',import.meta.url));",
     },
   });
+  const validatorPath = resolve(root, `skills/${skill}/scripts/voidra.mjs`);
+  const validator = await build({
+    absWorkingDir: root,
+    entryPoints: ["tools/run-engine/src/validation-cli.ts"],
+    outfile: validatorPath,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+    write: false,
+    alias: { voidra: resolve(root, "packages/voidra/src/index.ts") },
+    banner: {
+      js: "// Generated matching offline validator. AGPL-3.0-or-later; see references/third-party-notices.txt.\nimport { createRequire as __voidraCreateRequire } from 'node:module'; const require = __voidraCreateRequire(import.meta.url);",
+    },
+  });
+  const validatorBytes = validator.outputFiles?.[0]?.contents;
+  if (!validatorBytes) throw new Error("No bundled validator");
+  files.push({ path: validatorPath, bytes: Buffer.from(validatorBytes) });
   const bytes = result.outputFiles?.[0]?.contents;
   if (!bytes) throw new Error("No skill bundle");
   files.push(

@@ -29846,7 +29846,7 @@ var moveInput = external_exports.strictObject({
 });
 
 // tools/run-engine/src/run.ts
-import { execFile as execFile4 } from "node:child_process";
+import { execFile as execFile5 } from "node:child_process";
 import {
   lstat as lstat4,
   readdir as readdir2,
@@ -29857,7 +29857,7 @@ import {
 } from "node:fs/promises";
 import { hostname as hostname3 } from "node:os";
 import { dirname as dirname2, isAbsolute as isAbsolute2, join as join4, relative, resolve } from "node:path";
-import { promisify as promisify4 } from "node:util";
+import { promisify as promisify5 } from "node:util";
 
 // tools/run-engine/src/git.ts
 import { execFile } from "node:child_process";
@@ -29957,8 +29957,72 @@ var journalSchema = external_exports.strictObject({
   commit: external_exports.string().optional()
 });
 
-// tools/run-engine/src/run.ts
+// tools/run-engine/src/submodules.ts
+import { execFile as execFile4 } from "node:child_process";
+import { promisify as promisify4 } from "node:util";
 var execute4 = promisify4(execFile4);
+var objectId = external_exports.string().regex(/^[a-f0-9]{40,64}$/);
+var submoduleSnapshotSchema = external_exports.looseObject({
+  parent: external_exports.string(),
+  head: objectId.nullable(),
+  tags: external_exports.string(),
+  indexObject: objectId,
+  recordedObject: objectId.nullable(),
+  initialized: external_exports.boolean()
+});
+var submoduleCommitSchema = external_exports.looseObject({
+  path: external_exports.string(),
+  paths: external_exports.array(external_exports.string()),
+  baseCommit: objectId,
+  indexBefore: external_exports.string(),
+  commit: objectId.optional(),
+  indexReconciled: external_exports.boolean().optional()
+});
+function submoduleOwner(path, modules) {
+  return Object.keys(modules).filter((module) => path === module || path.startsWith(`${module}/`)).sort((a, b) => b.length - a.length)[0] ?? null;
+}
+function assertSubmoduleEdit(path, modules) {
+  let owner = submoduleOwner(path, modules);
+  if (owner === path)
+    throw Error("List exact files inside a submodule, not its directory");
+  while (owner) {
+    const module = modules[owner];
+    if (!module?.initialized)
+      throw Error(
+        `Initialize the submodule before editing its files: ${owner}`
+      );
+    if (module.head !== module.recordedObject || module.indexObject !== module.recordedObject)
+      throw Error(
+        `Record existing submodule pointer changes in its parent before editing: ${owner}`
+      );
+    owner = module.parent || null;
+  }
+}
+function submoduleCommitPaths(paths, modules) {
+  const groups = /* @__PURE__ */ new Map();
+  const add = (owner, path) => {
+    const selected = groups.get(owner) ?? /* @__PURE__ */ new Set();
+    selected.add(path);
+    groups.set(owner, selected);
+  };
+  for (const path of paths) {
+    assertSubmoduleEdit(path, modules);
+    let owner = submoduleOwner(path, modules);
+    if (!owner) continue;
+    add(owner, path.slice(owner.length + 1));
+    while (modules[owner]?.parent) {
+      const parent = modules[owner]?.parent;
+      add(parent, owner.slice(parent.length + 1));
+      owner = parent;
+    }
+  }
+  return [...groups].sort(
+    ([a], [b]) => b.split("/").length - a.split("/").length || a.localeCompare(b)
+  ).map(([path, selected]) => ({ path, paths: [...selected].sort() }));
+}
+
+// tools/run-engine/src/run.ts
+var execute5 = promisify5(execFile5);
 var checkpointSchema = external_exports.looseObject({
   schema: external_exports.literal(1),
   run: schemas.run.shape.id,
@@ -29986,6 +30050,8 @@ var checkpointSchema = external_exports.looseObject({
   mode: external_exports.enum(["go", "plan"]).optional(),
   taskRunKind: external_exports.enum(["planning", "implementation", "quality"]).optional(),
   sourceSnapshot: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
+  submodules: external_exports.record(external_exports.string(), submoduleSnapshotSchema).optional(),
+  submoduleCommits: external_exports.array(submoduleCommitSchema).optional(),
   inputHashes: external_exports.record(external_exports.string(), external_exports.string()).optional(),
   priorWork: external_exports.record(external_exports.string(), external_exports.string().nullable()).optional(),
   baseTags: external_exports.string().optional(),
@@ -30074,6 +30140,24 @@ async function runContext(root, run) {
     if (path.startsWith(".voidra/") && !path.startsWith(`.voidra/actions/${ctx.action}/`) && !(ctx.bootstrapGit && ctx.baseCommit === null && Object.hasOwn(ctx.bootstrapFiles ?? {}, path)) && path !== (ctx.release ? `.voidra/releases/${ctx.release.version}.md` : ""))
       throw new Error("Run checkpoint contains another action's files");
   }
+  for (const [path, module] of Object.entries(ctx.submodules ?? {})) {
+    if (path.split("/").includes(".voidra"))
+      throw Error("Submodule checkpoint cannot target planning files");
+    await safeGitPath(root, path, true);
+    if (module.parent && (!Object.hasOwn(ctx.submodules ?? {}, module.parent) || !path.startsWith(`${module.parent}/`)))
+      throw Error("Invalid submodule parent in run checkpoint");
+  }
+  if (ctx.submoduleCommits !== void 0) {
+    const expected = submoduleCommitPaths(ctx.paths, ctx.submodules ?? {});
+    const actual = ctx.submoduleCommits.map((module) => ({
+      path: module.path,
+      paths: module.paths
+    }));
+    if (JSON.stringify(expected) !== JSON.stringify(actual) || ctx.submoduleCommits.some(
+      (module) => module.baseCommit !== ctx.submodules?.[module.path]?.head
+    ))
+      throw Error("Submodule commit scope changed in the run checkpoint");
+  }
   return ctx;
 }
 async function owned(root, token) {
@@ -30110,8 +30194,8 @@ async function inspectOwnedRun(root, token) {
   await current(root, result2.ctx);
   return result2;
 }
-async function safeGitPath(root, path) {
-  if (!path || isAbsolute2(path) || path.includes("\0") || path.includes("\\") || path.split("/").some((p) => p === ".." || p === ".git") || path.startsWith(".voidra/local/") || path === ".voidra/local")
+async function safeGitPath(root, path, allowDirectory = false) {
+  if (!path || isAbsolute2(path) || path.includes("\0") || path.includes("\\") || path.split("/").some((p) => p === ".." || p === ".git") || /(?:^|\/)\.voidra\/local(?:\/|$)/.test(path))
     throw new Error("Invalid implementation commit path");
   const absoluteRoot = resolve(root);
   let parent = resolve(root, path);
@@ -30127,6 +30211,12 @@ async function safeGitPath(root, path) {
     }
     parent = dirname2(parent);
   }
+  const leaf = await lstat4(join4(root, path)).catch((error62) => {
+    if (error62.code === "ENOENT") return null;
+    throw error62;
+  });
+  if (!allowDirectory && leaf?.isDirectory())
+    throw Error("Commit paths must name exact files, not directories");
   const canonical = await realpath3(root);
   if (relative(canonical, join4(canonical, path)).startsWith(".."))
     throw new Error("Commit path escapes project");

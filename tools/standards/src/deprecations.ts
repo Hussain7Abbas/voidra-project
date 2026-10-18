@@ -160,6 +160,7 @@ export async function scanDeprecations(
         await visit(path);
       else if (
         entry.isFile() &&
+        !/^skills\/voidra-[^/]+\/scripts\/voidra\.mjs$/.test(relativePath) &&
         relativePath !== "skills/voidra-go/scripts/runtime.mjs" &&
         relativePath !== "skills/voidra-plan/scripts/runtime.mjs" &&
         relativePath !== "skills/voidra-init/scripts/init.mjs" &&

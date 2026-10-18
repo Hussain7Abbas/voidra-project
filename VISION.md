@@ -318,3 +318,9 @@ Use one Add task button. Actions owns execution/recovery and replaces Run naviga
 ## 19. First-launch app setup
 
 Requested 2026-10-16: an unconfigured app starts with a full-page onboarding surface where the user selects a theme and coding agent, installs that agent’s skills, and then continues into the main window. Use the established titlebar conventions and design system. Save choices immediately for restart continuity; require the selected complete bundle before first completion, retaining exact replacement review and retry behavior. Respect existing acknowledged setup and keep ongoing preferences/installers accessible in Settings. This app-level setup is distinct from each project’s template/profile initialization.
+
+## 20. Meta repositories and offline skill validation
+
+Requested 2026-10-18 after a helper startup failure in a repository containing Git submodules. Keep planning and run ownership in the selected parent worktree. Initialized submodules, including nested ones, are separate Git repositories: inspect their actual files, preserve existing edits/staging, and commit only the task's exact selected files before recording child commit pointers in their parents. Journal each repository's commit so explicit recovery resumes an interrupted chain without duplicates. Preserve read-only source/HEAD/tag restrictions during Planning and QA. Uninitialized submodules and pre-existing pointer changes receive actionable guidance; do not initialize, fetch or push automatically.
+
+Every installed skill carries the validator compiled from its matching format package. Validation and operation recovery work offline without requiring an unpublished package version from the registry. Updating the app's bundled skills updates this checker with the same exact-copy protection as the runtime. [Source tracker](plan-v1.2.0/main.md).

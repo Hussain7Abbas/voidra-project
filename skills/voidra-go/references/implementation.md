@@ -13,3 +13,11 @@ After project checks, review twice: (1) repository standards and AGENTS.md, (2) 
 ```
 
 `prepare` persists the Verify result at Review; `commit` makes one commit for this action or slice, using its message style and both trailers; `finalize` records the hash and releases the lock. The helper preserves unrelated staged entries. Do not stage, commit, amend or push yourself. After Review rejection, implement the saved feedback and create a follow-up commit with the same action trailer and a new run trailer. Never repeat a checkpointed commit after interruption.
+
+## Meta-repositories and submodules
+
+Keep `.voidra/` and the run owner at the selected meta-repository root. Report exact parent-relative files such as `components/extension/src/title.ts`; do not report a submodule directory, move planning into the child or run Git commits yourself. The helper recognizes initialized registered Git submodules, guards existing child edits, commits selected files in deepest children first, then records their gitlinks in their parents. It preserves unrelated files and staging in each repository. Every child commit carries the same action/run trailers, and the final run records the child receipts.
+
+Missing checkouts are not initialized or fetched automatically. If a selected child has existing pointer changes, ask for those to be recorded separately before editing; disjoint ordinary dirty files remain protected and can coexist with the task. Finish any existing child merge/rebase/cherry-pick before preparing. Local child commits and parent pointers are not pushed automatically; publish child commits before the parent when the person requests publication.
+
+A failure after submodule commit intent must keep the owner/checkpoint intact. Stop the agent process and use explicit runtime recovery; it resumes/reconciles matching child and parent commits without duplicating them. Never delete the lock/checkpoint, reset a child, hand-edit a receipt or discard an existing user's staging to make recovery pass. Planning and QA preserve child source, HEADs and tags as well as the parent.

@@ -31,3 +31,5 @@ The desktop build and `make lint typecheck deprecations gen-check` pass (`.cache
 - Release settings draft storage failure, keyboard disclosure close refusal, recovery and restart restoration on its new Releases page.
 
 Axe reports no violations for the new release-source scenarios and the retained Tasks/wizard checks. Narrow 1000×700 light/dark screenshots and normal restarted-window screenshots were inspected (`/tmp/voidra-release-source-{light,dark}[-narrow].png`): the source controls retain independent main-area scrolling, the winning package is visible, Release settings is on Releases, and Profile is last. The OS chooser alone is substituted; files, IPC, undo, utility processes and persistence are real. Manual VoiceOver, visible native-window controls and a fresh packaged-app build are not newly claimed.
+
+Subsequent [meta-repository verification](meta-repos.md) passes the complete 525-test quality suite, including these release/navigation source tests and the corrected creator-label behavior. The earlier partial-run results above remain the historical record of this follow-up.

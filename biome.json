@@ -14,7 +14,8 @@
       "!skills/voidra-init/scripts/init.mjs",
       "!skills/voidra-release/scripts/release.mjs",
       "!skills/voidra-sync/scripts/sync.mjs",
-      "!skills/voidra-architect-general/scripts/architecture.mjs"
+      "!skills/voidra-architect-general/scripts/architecture.mjs",
+      "!skills/*/scripts/voidra.mjs"
     ]
   },
   "formatter": {

@@ -325,3 +325,45 @@ it("reviews real read-only Research findings without fabricating an implementati
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("keeps initialized submodule source, HEAD and tags read-only during owned QA", async () => {
+  const { root, implement } = await ready();
+  const child = join(root, "components/extension");
+  const git = (cwd: string, args: string[]) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  try {
+    git(root, [
+      "-c",
+      "protocol.file.allow=always",
+      "submodule",
+      "add",
+      "-q",
+      root,
+      "components/extension",
+    ]);
+    git(child, ["config", "user.name", "Voidra Verification"]);
+    git(child, ["config", "user.email", "verification@example.test"]);
+    git(root, ["commit", "-qm", "Record child baseline"]);
+    const qa = await implement("# Fixture\n\nInstallation.\n");
+    await writeFile(join(child, "README.md"), "Outside child edit\n");
+    await expect(publishQuality(root, qa.ownerToken, quality)).rejects.toThrow(
+      /Source changed/,
+    );
+    git(child, ["restore", "README.md"]);
+    git(child, ["tag", "outside-tag"]);
+    await expect(publishQuality(root, qa.ownerToken, quality)).rejects.toThrow(
+      /Submodule.*changed/,
+    );
+    git(child, ["tag", "-d", "outside-tag"]);
+    const head = git(child, ["rev-parse", "HEAD"]);
+    git(child, ["commit", "--allow-empty", "-qm", "Outside child commit"]);
+    await expect(publishQuality(root, qa.ownerToken, quality)).rejects.toThrow(
+      /Submodule.*changed/,
+    );
+    git(child, ["reset", "--hard", head]);
+    await publishQuality(root, qa.ownerToken, quality);
+    expect((await checkProject(root)).diagnostics).toEqual([]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

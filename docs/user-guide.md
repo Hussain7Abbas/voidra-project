@@ -22,7 +22,11 @@ For an empty folder, choose **General software**, answer the profile questions, 
 
 For a folder with code, follow the app’s `voidra-init` instructions in your coding agent, or enter the profile manually. Init reads the existing project, creates planning files, marks observed answers **inferred**, and adds instruction pointers. For an existing-code folder without Git, have your coding agent set up the local repository before implementation. Review inferred answers in the inbox. Inferred, assumed and open values are distinguishable from values you confirmed.
 
+For a meta repository containing Git submodules, open the parent Git worktree that owns the tasks. Go can edit initialized child repositories, including nested submodules, and commits selected child files before recording their pointers in each parent. Unrelated staged changes are preserved. Initialize a needed submodule and record any existing changed pointer separately before running its task. No fetch or push runs automatically; publish child commits before the parent through your normal workflow. Interrupted child commits use the existing explicit run recovery command.
+
 ## Install the agent skills
+
+Each skill includes a matching offline validator: `node <skill-folder>/scripts/voidra.mjs check .`. A development format version need not exist in the package registry. Update the installed complete bundle in Settings after updating the app to receive runtime/checker fixes; existing copied installations do not change automatically.
 
 First-launch setup shows the installer for your selected agent. Later, use **Settings → General**. **Install Claude Skill 0/6** and **Install Codex Skill 0/6** each install the complete bundled set for that client, offline. Each button shows the number of current bundled skills installed, such as **6/6** after installation. Edited or unmanaged copies open an exact bundle review before replacement. If a file changes during review, review the updated preview and confirm again. A stopped installation lists completed and remaining copies; selecting Install again checks the current files before retrying. Installation does not start an agent.
 

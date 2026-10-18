@@ -19,6 +19,6 @@ Keep the sibling CLAUDE.md containing only `@AGENTS.md` and a trailing newline.
 
 - Every distributable Voidra skill declares metadata.version and metadata.format-version in SKILL.md and retains the full AGPL LICENSE. The app builds hash markers from complete payloads. Release copies remain owned here; make skills-sync prevalidates and uses the distribution repository’s own single-skill publishing rules.
 
-- Validation commands pin the exact declared library version. The release alignment helper updates skill/ref commands; intake/app-created planning READMEs derive the current package version. Regenerate standalone assets after changing that guidance.
+- Validation uses each skill’s bundled `scripts/voidra.mjs`, compiled from the exact declared library version, with `check`, operation `recover` and `version`. Never require registry publication for installed-skill validation. Intake/app-created planning READMEs point to that matching checker. Regenerate standalone runtime/checker assets after changing this guidance.
 
 - Workflow Go uses the runtime's `taskRunKind`: Planning asks edge-case questions and publishes an exact plan/subtasks, TODO is idle, In progress implements, Review performs separate read-only QA and security. Keep `references/quality.md` bundled in Go/Plan; Plan mode cannot publish a QA result. Real-client verification must exercise the new owned routes rather than treating an implementation's self-check as QA. Go/Sync UI launch only opens the selected app with a copied invocation; no skill is submitted automatically.
