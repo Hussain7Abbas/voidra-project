@@ -38,12 +38,7 @@ export async function newTaskFields(
   }
   const release =
     input.targetRelease === undefined
-      ? (
-          await readProjectRelease(
-            root,
-            project.metadata.releasePackage ?? "package.json",
-          )
-        ).version
+      ? (await readProjectRelease(root)).version
       : input.targetRelease;
   if (kind === "idea") return { targetRelease: release };
   const column =

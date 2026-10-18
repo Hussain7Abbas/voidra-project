@@ -1,11 +1,15 @@
 import { execFileSync } from "node:child_process";
-import { copyFile, cp } from "node:fs/promises";
+import { copyFile, cp, readFile } from "node:fs/promises";
 import { build } from "esbuild";
 import { prepareSkillBundle } from "../src/main/skill-installer.ts";
 
 execFileSync(process.execPath, ["../../tools/run-engine/scripts/native.ts"], {
   stdio: "inherit",
 });
+
+const { version: appVersion } = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 const common = {
   bundle: true,
@@ -33,6 +37,7 @@ await build({
 await build({
   ...common,
   entryPoints: ["src/project-service/index.ts"],
+  define: { ...common.define, __voidraAppVersion: JSON.stringify(appVersion) },
   outfile: "dist/project-service.cjs",
 });
 

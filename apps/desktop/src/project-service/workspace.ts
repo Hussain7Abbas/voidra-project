@@ -1,5 +1,5 @@
 import { existsSync, unlinkSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   projectReleaseOptions,
@@ -42,6 +42,7 @@ import {
   FORMAT_VERSION,
   hash,
   initializeProject,
+  isReleaseSearchDirectory,
   lifecycles,
   listProjectAdrs,
   moveTask,
@@ -57,6 +58,7 @@ import {
   readProjectRelease,
   readTemplates,
   releaseCandidates,
+  releaseSearchDepth,
   replaceActionQueue,
   replaceActionSequence,
   requestPlanChanges,
@@ -87,6 +89,7 @@ import { KnowledgeIndex } from "./knowledge.ts";
 import { UndoHistory } from "./undo.ts";
 
 declare const __voidraTemplatesRoot: string | undefined;
+declare const __voidraAppVersion: string | undefined;
 const INDEX_VERSION = 8;
 export class ProjectWorkspace {
   private database: Database.Database;
@@ -97,6 +100,7 @@ export class ProjectWorkspace {
   private documentVersion = 0;
   private knowledgeProblems: { path: string; message: string }[] = [];
   private watcher: FSWatcher | null = null;
+  private packageWatcher: FSWatcher | null = null;
   private packageWatch = "";
   private timer: ReturnType<typeof setTimeout> | undefined;
   private delivered = "";
@@ -359,6 +363,7 @@ export class ProjectWorkspace {
         );
       await setReleasePackage(this.root, {
         path: request.path,
+        directory: request.directory,
         revision: request.revision,
       });
       await this.publish();
@@ -730,7 +735,7 @@ export class ProjectWorkspace {
       requiredVoidra: PACKAGE_VERSION,
       project: { id: createId("prj"), name: basename(this.root) },
       template: null,
-      createdWith: `voidra-project/${PACKAGE_VERSION}`,
+      createdWith: `voidra-project/${typeof __voidraAppVersion !== "undefined" ? __voidraAppVersion : PACKAGE_VERSION}`,
     });
     await applyOperation(this.root, {
       changes: [
@@ -758,14 +763,46 @@ export class ProjectWorkspace {
       this.knowledgeReady = false;
     }
     const project = await checkProject(this.root);
-    const releasePackage = project.metadata?.releasePackage ?? "package.json";
-    const projectRelease = await readProjectRelease(this.root, releasePackage);
-    if (this.watcher && releasePackage !== this.packageWatch) {
-      if (this.packageWatch && this.packageWatch !== "package.json")
-        await this.watcher.unwatch(join(this.root, this.packageWatch));
-      this.watcher.add(join(this.root, releasePackage));
-      this.packageWatch = releasePackage;
+    const projectRelease = await readProjectRelease(this.root);
+    const directory =
+      project.metadata?.releaseDirectory ??
+      (project.metadata?.releasePackage ? null : ".");
+    const watchKey =
+      directory === null
+        ? `package:${projectRelease.path}`
+        : `folder:${directory}`;
+    if (watchKey !== this.packageWatch) {
+      await this.packageWatcher?.close();
+      const base = join(this.root, directory ?? projectRelease.path);
+      this.packageWatcher = watch(base, {
+        ignoreInitial: true,
+        followSymlinks: false,
+        depth: releaseSearchDepth + 1,
+        ignored: (path, stats) => {
+          if (directory === null) return false;
+          const parts = relative(base, path).split(sep);
+          return (
+            parts.some((part) => !isReleaseSearchDirectory(part)) ||
+            (!!stats?.isFile() && parts.at(-1) !== "package.json")
+          );
+        },
+        atomic: 75,
+        awaitWriteFinish: { stabilityThreshold: 120, pollInterval: 25 },
+      });
+      this.packageWatcher.on("all", () => {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+          void this.publish().catch(() => this.notify());
+        }, 100);
+      });
+      this.packageWatcher.on("error", () => this.notify());
+      this.packageWatch = watchKey;
+      await new Promise<void>((resolve, reject) => {
+        this.packageWatcher?.once("ready", resolve);
+        this.packageWatcher?.once("error", reject);
+      });
     }
+
     const hasVoidra = [...project.files.keys()].some(
       (path) => !path.startsWith(".voidra/local/"),
     );
@@ -1137,6 +1174,9 @@ export class ProjectWorkspace {
         ? hash(project.files.get(".voidra/voidra.json") as Buffer)
         : null,
       projectRelease,
+      releaseDirectory:
+        project.metadata?.releaseDirectory ??
+        (project.metadata?.releasePackage ? null : "."),
       tasks: (
         this.database.prepare("select value from tasks order by id").all() as {
           value: string;
@@ -1248,6 +1288,7 @@ export class ProjectWorkspace {
     clearTimeout(this.timer);
     clearInterval(this.heartbeatTimer);
     await this.watcher?.close();
+    await this.packageWatcher?.close();
     await this.publishQueue;
     this.database.close();
   }

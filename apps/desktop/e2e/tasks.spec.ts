@@ -38,13 +38,20 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByRole("heading", { name: "Tasks", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.locator("summary").filter({ hasText: "Release settings" }),
+      ).toHaveCount(0);
+      await page.getByRole("button", { name: "Releases", exact: true }).click();
       await page
         .locator("summary")
         .filter({ hasText: "Release settings" })
         .click();
       await expect(
-        page.getByText("Current release 0.0.0", { exact: true }),
+        page.getByText("Current release 2.3.4", { exact: true }),
       ).toBeVisible();
+      await page
+        .getByLabel("Version source", { exact: true })
+        .selectOption("package");
       await page
         .getByLabel("Release package", { exact: true })
         .fill("apps/web/package.json");
@@ -61,6 +68,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("Current release 2.4.0", { exact: true }),
       ).toBeVisible({ timeout: 5000 });
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       for (const name of [
         "Backlog",
         "Planning",
@@ -75,6 +83,11 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("From idea-000000", { exact: true }),
       ).toHaveCount(1);
+      await page.getByRole("button", { name: "Releases", exact: true }).click();
+      await page
+        .locator("summary")
+        .filter({ hasText: "Release settings" })
+        .click();
       const beforeUpgrade = await readFile(join(root, ".voidra/voidra.json"));
       await page
         .getByRole("button", {
@@ -138,6 +151,7 @@ for (const theme of ["light", "dark"] as const)
       await expect(
         page.getByText("Release-aware task tracking enabled", { exact: true }),
       ).toBeVisible();
+      await page.getByRole("button", { name: "Tasks", exact: true }).click();
       const created = await page.evaluate(async () =>
         window.voidra.invoke({
           command: "create-action",
@@ -178,8 +192,10 @@ for (const theme of ["light", "dark"] as const)
         '{"version":"2.5.0"}',
       );
       await expect(
-        page.getByText("Current release 2.5.0", { exact: true }),
-      ).toBeVisible();
+        page.locator(
+          'select[data-task-release-filter] option[value="current"]',
+        ),
+      ).toHaveText("Current · 2.5.0");
       await page
         .getByRole("button", {
           name: "Move Release aware addition to Planning",

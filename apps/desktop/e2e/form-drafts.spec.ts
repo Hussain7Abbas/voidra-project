@@ -266,10 +266,14 @@ test("release settings keeps unfinished text open on storage failure and restore
   try {
     let page = await app.firstWindow();
     await page.locator('[data-app-ready="true"]').waitFor();
+    await page.getByRole("button", { name: "Releases", exact: true }).click();
     let summary = page
       .locator("summary")
       .filter({ hasText: "Release settings" });
     await summary.click();
+    await page
+      .getByLabel("Version source", { exact: true })
+      .selectOption("package");
     await page
       .getByLabel("Release package", { exact: true })
       .fill("apps/unfinished/package.json");
@@ -311,6 +315,7 @@ test("release settings keeps unfinished text open on storage failure and restore
     app = await launch();
     page = await app.firstWindow();
     await page.locator('[data-app-ready="true"]').waitFor();
+    await page.getByRole("button", { name: "Releases", exact: true }).click();
     summary = page.locator("summary").filter({ hasText: "Release settings" });
     await summary.click();
     await page

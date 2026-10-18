@@ -271,9 +271,9 @@ function Shell() {
   }, []);
   const navigation = [
     { label: "Tasks", icon: ListChecks },
-    { label: "Profile", icon: BookOpen },
     { label: "Documentation", icon: BookOpen },
     { label: "Releases", icon: Package },
+    { label: "Profile", icon: BookOpen },
   ];
   const hideWaiting = useCallback(() => {
     void panels.toggle("waiting");

@@ -38,3 +38,5 @@ P00 supplies repository tooling and policies. P01 publishes the format package a
 - [Test parallelism verification](verification/test-parallelism.md): isolated worker groups, exclusive native checks and shared CI/Release desktop shards.
 
 - [Headless internal AI](verification/headless-ai.md): selected-agent model/effort controls, restricted subprocess execution and actual-client checks.
+
+- [Monorepo releases and navigation](verification/monorepo-releases.md): highest-version discovery, native folder selection, Releases settings and Profile ordering.

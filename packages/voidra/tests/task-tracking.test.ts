@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { minimalFiles } from "../scripts/fixtures.ts";
@@ -314,4 +314,30 @@ it("defaults new tracked work to current release, permits unversioned Backlog ca
     allowed: false,
     reason: expect.stringMatching(/TODO/),
   });
+});
+
+it("uses discovered subproject versions for migration and newly captured work", async () => {
+  const root = await materialize(minimalFiles());
+  await mkdir(join(root, "app/web"), { recursive: true });
+  await writeFile(join(root, "app/web/package.json"), '{"version":"2.9.0"}');
+  const preview = await previewTaskTracking(root);
+  expect(preview).toMatchObject({
+    path: "app/web/package.json",
+    version: "2.9.0",
+  });
+  await enableTaskTracking(root, { revision: preview.revision });
+  await mkdir(join(root, "products/api"), { recursive: true });
+  await writeFile(
+    join(root, "products/api/package.json"),
+    '{"version":"2.10.0"}',
+  );
+  const id = await createIdea(root, {
+    title: "Monorepo task",
+    description: "Keep the current release",
+    by: "You",
+  });
+  expect(
+    (await checkProject(root)).records.get(`.voidra/backlog/${id}.md`)?.document
+      .data.targetRelease,
+  ).toBe("2.10.0");
 });

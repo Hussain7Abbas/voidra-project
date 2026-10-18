@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { extname, join } from "node:path";
+import { extname, join, relative } from "node:path";
 import {
   app,
   BrowserWindow,
@@ -17,6 +17,7 @@ import {
   shell,
 } from "electron";
 import { projectDocumentPath } from "voidra";
+import { releaseDirectorySchema } from "voidra/release-preparation";
 import type { AiContext, AiIntent } from "../shared/ai.ts";
 import {
   type BridgeEvent,
@@ -760,6 +761,27 @@ async function start(): Promise<void> {
           projects.set(window.id, project);
           broadcast();
           response = { ok: true, data: { kind: "service", project } };
+        } else if (request.command === "choose-release-folder") {
+          const project = projects.get(window.id);
+          if (!project)
+            throw Error("Open a project before choosing a release folder");
+          const selected = await dialog.showOpenDialog(window, {
+            title: "Choose release folder",
+            defaultPath: project.path,
+            properties: ["openDirectory", "noResolveAliases"],
+          });
+          const path =
+            selected.canceled || !selected.filePaths[0]
+              ? null
+              : relative(
+                  project.path,
+                  await canonicalFolder(selected.filePaths[0]),
+                )
+                  .split("\\")
+                  .join("/") || ".";
+          if (path !== null && !releaseDirectorySchema.safeParse(path).success)
+            throw Error("Choose a folder inside the open project");
+          response = { ok: true, data: { kind: "release-folder", path } };
         } else if (request.command === "choose-folder") {
           const folder = await chooseFolder(window);
           if (folder) {

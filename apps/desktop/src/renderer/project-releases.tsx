@@ -6,10 +6,16 @@ import {
   releasePreparationSchema,
 } from "voidra/release-preparation";
 import { request, useSnapshot } from "./app.tsx";
-import { DraftNavigation, useFormDraft } from "./form-drafts.tsx";
+import {
+  DraftNavigation,
+  flushFormDrafts,
+  useFormDraft,
+} from "./form-drafts.tsx";
 import { SafeMarkdown } from "./markdown.tsx";
 import { MarkdownEditor } from "./markdown-editor.tsx";
 import { useWorkspace } from "./project-profile.tsx";
+import { ProjectReleaseSource } from "./project-release-source.tsx";
+import { TaskTrackingUpgrade } from "./task-tracking-upgrade.tsx";
 import { Button } from "./ui/button.tsx";
 import { Dialog } from "./ui/dialog.tsx";
 import { ErrorState, PageHeader } from "./ui/page.tsx";
@@ -218,6 +224,35 @@ export function ProjectReleases({
           </Button>
         }
       />
+      <details className="mb-5">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: Native summary already supports pointer and keyboard activation; closing must await draft durability. */}
+        <summary
+          className="cursor-pointer font-medium"
+          onClick={(event) => {
+            const details = event.currentTarget.parentElement;
+            if (!(details instanceof HTMLDetailsElement) || !details.open)
+              return;
+            event.preventDefault();
+            void flushFormDrafts(["release-source"])
+              .then(() => {
+                details.open = false;
+              })
+              .catch((cause) =>
+                toast.error(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Draft could not be saved",
+                ),
+              );
+          }}
+        >
+          Release settings · {data.projectRelease.version ?? "Choose a package"}
+        </summary>
+        <div className="mt-3">
+          <ProjectReleaseSource data={data} />
+          <TaskTrackingUpgrade data={data} />
+        </div>
+      </details>
       {!data.releases.length && (
         <section className="card action-detail">
           <h2>No releases yet</h2>
@@ -380,7 +415,7 @@ export function ProjectReleases({
           ) : !sourceReady ? (
             <p role="alert" className="field-error">
               {source?.message ??
-                "Choose a valid package version in Tasks release settings."}
+                "Choose a valid package version in Release settings."}
             </p>
           ) : null}
           {stale && (

@@ -1,11 +1,13 @@
 import { z } from "zod";
 import {
+  releaseDirectorySchema,
   releasePackageSchema,
   releasePreparationSchema,
 } from "./release-preparation-schema.ts";
 
 export type { ReleasePreparation } from "./release-preparation-schema.ts";
 export {
+  releaseDirectorySchema,
   releasePackageSchema,
   releasePreparationSchema,
   stableReleaseVersionSchema,
@@ -179,6 +181,7 @@ export const schemas = {
     template: object({ id: slug, version }).nullable(),
     createdWith: text,
     releasePackage: releasePackageSchema.optional(),
+    releaseDirectory: releaseDirectorySchema.optional(),
     taskTracking: z.literal(1).optional(),
     taskWorkflow: z.literal(1).optional(),
     lifecycleOverrides: z.json().optional(),

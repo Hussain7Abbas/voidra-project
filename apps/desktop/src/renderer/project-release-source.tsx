@@ -10,10 +10,12 @@ import { useToast } from "./ui/toast.tsx";
 
 export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
   const draft = useFormDraft("release-source", "", () => ({
-    path: data.projectRelease.path,
+    path: data.releaseDirectory ?? data.projectRelease.path,
+    directory: data.releaseDirectory !== null,
     revision: data.metadataRevision ?? "",
   }));
   const path = draft.values.path;
+  const directory = draft.values.directory ?? false;
   const setPath = (path: string) =>
     draft.set((previous) => ({ ...previous, path }));
   const [busy, setBusy] = useState(false);
@@ -34,12 +36,16 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
       const result = await request({
         command: "set-release-package",
         path,
+        directory,
         revision: draft.values.revision,
       });
       await draft.submitted();
       if (result.kind === "workspace")
         await draft.fresh({
-          path: result.workspace.projectRelease.path,
+          path:
+            result.workspace.releaseDirectory ??
+            result.workspace.projectRelease.path,
+          directory: result.workspace.releaseDirectory !== null,
           revision: result.workspace.metadataRevision ?? "",
         });
       await query.invalidateQueries({ queryKey: ["workspace"] });
@@ -47,6 +53,24 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not select the package",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function chooseFolder() {
+    setBusy(true);
+    try {
+      const result = await request({ command: "choose-release-folder" });
+      if (result.kind === "release-folder" && result.path !== null)
+        draft.set((previous) => ({
+          ...previous,
+          path: result.path ?? ".",
+          directory: true,
+        }));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not choose a folder",
       );
     } finally {
       setBusy(false);
@@ -68,6 +92,13 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
           tasks need a release before leaving Backlog.
         </p>
       )}
+      <p className="text-sm text-muted mb-3">
+        {data.releaseDirectory !== null
+          ? `Search folder: ${data.releaseDirectory} · Highest package version`
+          : "Selected package"}
+        {" · "}
+        {data.projectRelease.path}
+      </p>
       <DraftNavigation form={draft} disabled={busy} />
       <form
         className="flex flex-wrap items-end gap-3"
@@ -76,21 +107,55 @@ export function ProjectReleaseSource({ data }: { data: WorkspaceSnapshot }) {
           void save();
         }}
       >
+        <Field label="Version source">
+          <select
+            className="input"
+            disabled={busy}
+            value={directory ? "folder" : "package"}
+            onChange={(event) =>
+              draft.set((previous) => ({
+                ...previous,
+                directory: event.target.value === "folder",
+                path:
+                  event.target.value === "folder"
+                    ? (data.releaseDirectory ?? ".")
+                    : data.projectRelease.path,
+              }))
+            }
+          >
+            <option value="folder">Highest version in folder</option>
+            <option value="package">One package</option>
+          </select>
+        </Field>
         <Field
-          label="Release package"
-          hint="Project-relative package.json path. Choose the app package in a monorepo; package contents stay local."
+          label={directory ? "Release folder" : "Release package"}
+          hint={
+            directory
+              ? "Search this project-relative folder and its subfolders, including app, apps and packages. Use . for the whole project."
+              : "Project-relative package.json path. Package contents stay local."
+          }
           className="grow"
         >
           <input
             className="input"
+            name="release-source"
+            spellCheck={false}
+            autoCapitalize="off"
             value={path}
             onChange={(event) => setPath(event.target.value)}
             disabled={busy}
             required
           />
         </Field>
+        <Button
+          type="button"
+          disabled={disabled}
+          onClick={() => void chooseFolder()}
+        >
+          Choose folder…
+        </Button>
         <Button type="submit" loading={busy} disabled={disabled}>
-          Use package
+          {directory ? "Use folder" : "Use package"}
         </Button>
       </form>
     </section>

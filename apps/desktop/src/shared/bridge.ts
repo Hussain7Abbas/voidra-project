@@ -1,4 +1,7 @@
-import { releasePreparationSchema } from "voidra/release-preparation";
+import {
+  releaseDirectorySchema,
+  releasePreparationSchema,
+} from "voidra/release-preparation";
 import { z } from "zod";
 import {
   actionSequenceRequestSchemas,
@@ -252,6 +255,7 @@ export const workspaceSchema = z.strictObject({
     .nullable()
     .default(null),
   metadataRevision: z.string().nullable().default(null),
+  releaseDirectory: releaseDirectorySchema.nullable().default(null),
   projectRelease: z
     .strictObject({
       path: z.string(),
@@ -594,6 +598,7 @@ export const workspaceRequestSchema = z.discriminatedUnion("command", [
   z.strictObject({
     command: z.literal("set-release-package"),
     path: z.string().min(1).max(4096),
+    directory: z.boolean().optional(),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
   }),
   z.strictObject({
@@ -864,6 +869,7 @@ export const requestSchema = z.discriminatedUnion("command", [
   }),
   z.strictObject({ command: z.literal("snapshot") }),
   z.strictObject({ command: z.literal("choose-folder") }),
+  z.strictObject({ command: z.literal("choose-release-folder") }),
   z.strictObject({
     command: z.literal("copy-recovery-command"),
     kind: z.enum(["run", "operation"]),
@@ -980,6 +986,10 @@ export const responseSchema = z.discriminatedUnion("ok", [
         project: projectSchema.nullable(),
       }),
       z.strictObject({ kind: z.literal("changed") }),
+      z.strictObject({
+        kind: z.literal("release-folder"),
+        path: releaseDirectorySchema.nullable(),
+      }),
       z.strictObject({
         kind: z.literal("service"),
         project: projectSchema.nullable(),

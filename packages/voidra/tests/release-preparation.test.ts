@@ -110,3 +110,32 @@ it("binds the source and exact current-version Done subset while preserving all 
     ),
   ).rejects.toThrow(/source changed/);
 });
+
+it("invalidates a prepared release when a different monorepo package becomes the highest version", async () => {
+  const root = await materialize();
+  await mkdir(join(root, "app/web"), { recursive: true });
+  await writeFile(join(root, "app/web/package.json"), '{"version":"2.9.0"}');
+  const source = await readProjectRelease(root);
+  if (!source.version || !source.revision) throw Error("Missing source");
+  const preparation = {
+    source: {
+      path: source.path,
+      version: source.version,
+      revision: source.revision,
+    },
+    version: "3.0.0",
+    bump: "major" as const,
+    ticketChoice: "keep" as const,
+    tickets: [],
+  };
+  const project = await checkProject(root);
+  await checkReleasePreparation(root, project, preparation, []);
+  await mkdir(join(root, "products/api"), { recursive: true });
+  await writeFile(
+    join(root, "products/api/package.json"),
+    '{"version":"2.10.0"}',
+  );
+  await expect(
+    checkReleasePreparation(root, project, preparation, []),
+  ).rejects.toThrow(/source changed/);
+});

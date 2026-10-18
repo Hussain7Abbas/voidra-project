@@ -305,7 +305,7 @@ export async function initializeProject(
       });
   if (!writer && (await exists()))
     throw new Error("Planning directory already exists");
-  const release = await readProjectRelease(root, "package.json");
+  const release = await readProjectRelease(root);
   const files = new Map<string, string | Buffer>([
     [
       ".voidra/voidra.json",

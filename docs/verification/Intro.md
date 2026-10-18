@@ -70,3 +70,5 @@ Each implemented phase records actual checks, results, remaining limitations and
 - [Test parallelism](test-parallelism.md): bounded parallel quality tests, exclusive native checks and independent CI/Release desktop shards.
 
 - [Headless internal AI](headless-ai.md): selected-agent model/effort controls, restricted subprocess execution and actual-client checks.
+
+- [Monorepo releases and navigation](monorepo-releases.md): highest-version discovery, native folder selection, Releases settings and Profile ordering.

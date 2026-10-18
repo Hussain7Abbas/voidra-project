@@ -19,3 +19,5 @@ The board and Actions/Waiting content have stable memoized boundaries. Per-frame
 ## Agentic workflow follow-up
 
 The Actions sidebar includes run ordering, explicit retries, planning commits and recovery; there is no separate Run page. Splitter layout occupies exactly the 1px resize line, with wider pointer hit targets positioned over adjacent panes. The yellow outside-change notification spans the app above workspace panes.
+
+The project navigation order is Tasks, Documentation, Releases, Profile. Release settings and the release-aware task-tracking upgrade are on Releases; the Tasks board retains its release filter. Release-source drafts keep the same stable identity across this navigation change and still flush before closing the disclosure or leaving the page.

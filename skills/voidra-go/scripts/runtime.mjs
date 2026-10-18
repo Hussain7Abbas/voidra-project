@@ -27185,6 +27185,10 @@ var releasePackageSchema = external_exports.string().max(4096).refine(
   ),
   "Choose a contained project package.json path"
 );
+var releaseDirectorySchema = external_exports.string().max(4096).refine(
+  (path) => path === "." || releasePackageSchema.safeParse(`${path}/package.json`).success,
+  "Choose a contained project folder"
+);
 var stableReleaseVersionSchema = external_exports.string().max(64).regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/).refine(
   (value) => value.split(".").every((part) => Number.isSafeInteger(Number(part))),
   "Release components must be safe integers"
@@ -27513,6 +27517,7 @@ var schemas = {
     template: object2({ id: slug, version: version2 }).nullable(),
     createdWith: text,
     releasePackage: releasePackageSchema.optional(),
+    releaseDirectory: releaseDirectorySchema.optional(),
     taskTracking: external_exports.literal(1).optional(),
     taskWorkflow: external_exports.literal(1).optional(),
     lifecycleOverrides: external_exports.json().optional()
@@ -29607,7 +29612,7 @@ var replaceInput = external_exports.strictObject({
 
 // packages/voidra/src/project-release.ts
 import { constants } from "node:fs";
-import { lstat as lstat3, open as open3, realpath as realpath2 } from "node:fs/promises";
+import { lstat as lstat3, open as open3, opendir, realpath as realpath2 } from "node:fs/promises";
 import { join as join3 } from "node:path";
 var limit = 256 * 1024;
 async function packagePath(root, path) {
@@ -29626,6 +29631,11 @@ async function packagePath(root, path) {
   return cursor3;
 }
 async function readProjectRelease(root, selected) {
+  if (selected === void 0) {
+    const metadata = (await checkProject(root)).metadata;
+    if (metadata?.releaseDirectory !== void 0 || !metadata?.releasePackage)
+      return discoverProjectRelease(root, metadata?.releaseDirectory ?? ".");
+  }
   const path = selected ?? (await checkProject(root)).metadata?.releasePackage ?? "package.json";
   const result2 = {
     path,
@@ -29680,8 +29690,108 @@ async function readProjectRelease(root, selected) {
   }
   return result2;
 }
+var releaseIgnoredDirectories = /* @__PURE__ */ new Set([
+  "node_modules",
+  "fixtures",
+  "test",
+  "tests",
+  "e2e",
+  ".git",
+  ".voidra",
+  ".next",
+  ".cache",
+  "dist",
+  "out",
+  "build",
+  "coverage",
+  "vendor",
+  "target",
+  ".turbo"
+]);
+var releaseSearchDepth = 8;
+function isReleaseSearchDirectory(name) {
+  return !name.startsWith(".") && !name.toLowerCase().endsWith(".app") && !releaseIgnoredDirectories.has(name.toLowerCase());
+}
+async function discoverProjectRelease(root, directory = ".") {
+  releaseDirectorySchema.parse(directory);
+  const base2 = directory === "." ? "" : directory;
+  let best = null;
+  let entries = 0;
+  const scan = async (path, depth) => {
+    let folder = await realpath2(root);
+    if (path)
+      for (const part of path.split("/")) {
+        folder = join3(folder, part);
+        const info = await lstat3(folder);
+        if (info.isSymbolicLink() || !info.isDirectory())
+          throw Error("Release folder must contain only real directories");
+      }
+    const handle = await opendir(folder);
+    const children = [];
+    let hasPackage = false;
+    for await (const entry of handle) {
+      if (++entries > 1e4)
+        throw Error(
+          "Release search exceeds 10000 entries; choose a smaller folder"
+        );
+      if (entry.name === "package.json" && entry.isFile()) hasPackage = true;
+      if (entry.isDirectory() && isReleaseSearchDirectory(entry.name))
+        children.push(entry.name);
+    }
+    if (hasPackage) {
+      const candidate = await readProjectRelease(
+        root,
+        path ? `${path}/package.json` : "package.json"
+      );
+      if (candidate.version && (!best?.version || compareVersions(candidate.version, best.version) > 0))
+        best = candidate;
+    }
+    if (depth >= releaseSearchDepth && children.length)
+      throw Error("Release search exceeds 8 levels; choose a smaller folder");
+    for (const child of children.sort())
+      await scan(path ? `${path}/${child}` : child, depth + 1);
+  };
+  try {
+    await scan(base2, 0);
+    return best ?? await readProjectRelease(
+      root,
+      base2 ? `${base2}/package.json` : "package.json"
+    );
+  } catch (error62) {
+    return {
+      path: base2 ? `${base2}/package.json` : "package.json",
+      version: null,
+      revision: null,
+      message: error62.code ? "Release folder is unavailable" : error62 instanceof Error ? error62.message : "Release search unavailable"
+    };
+  }
+}
+function compareVersions(a2, b) {
+  const [coreA = "", ...suffixA] = a2.split("-"), [coreB = "", ...suffixB] = b.split("-");
+  const left = coreA.split(".").map(BigInt), right = coreB.split(".").map(BigInt);
+  for (let i2 = 0; i2 < 3; i2++)
+    if (left[i2] !== right[i2])
+      return (left[i2] ?? 0n) > (right[i2] ?? 0n) ? 1 : -1;
+  if (!suffixA.length || !suffixB.length)
+    return suffixA.length ? -1 : suffixB.length ? 1 : 0;
+  const preA = suffixA.join("-").split("."), preB = suffixB.join("-").split(".");
+  for (let i2 = 0; i2 < Math.max(preA.length, preB.length); i2++) {
+    const a3 = preA[i2], b2 = preB[i2];
+    if (a3 === b2) continue;
+    if (a3 === void 0 || b2 === void 0) return a3 === void 0 ? -1 : 1;
+    const numericA = /^\d+$/.test(a3), numericB = /^\d+$/.test(b2);
+    if (numericA && numericB) {
+      if (BigInt(a3) !== BigInt(b2)) return BigInt(a3) > BigInt(b2) ? 1 : -1;
+      continue;
+    }
+    if (numericA !== numericB) return numericA ? -1 : 1;
+    return a3 > b2 ? 1 : -1;
+  }
+  return 0;
+}
 var selectionSchema = external_exports.strictObject({
-  path: releasePackageSchema,
+  path: external_exports.string().min(1).max(4096),
+  directory: external_exports.boolean().optional(),
   revision: hashSchema
 });
 
@@ -29694,10 +29804,7 @@ function releaseVersionTickets(project, ids, version3) {
   }).sort((a2, b) => a2.id.localeCompare(b.id));
 }
 async function checkReleasePreparation(root, project, preparation, ids) {
-  const input2 = releasePreparationSchema.parse(preparation), source = await readProjectRelease(
-    root,
-    project.metadata?.releasePackage ?? "package.json"
-  );
+  const input2 = releasePreparationSchema.parse(preparation), source = await readProjectRelease(root);
   if (source.path !== input2.source.path || source.version !== input2.source.version || source.revision !== input2.source.revision)
     throw Error("Release version source changed; refresh the release proposal");
   const before = input2.source.version.split(".").map(BigInt), after = input2.version.split(".").map(BigInt);
@@ -29779,10 +29886,7 @@ async function newTaskFields(root, project, kind, requested = {}, inheritWorkflo
       throw Error("Enable task tracking before using task release fields");
     return {};
   }
-  const release = input2.targetRelease === void 0 ? (await readProjectRelease(
-    root,
-    project.metadata.releasePackage ?? "package.json"
-  )).version : input2.targetRelease;
+  const release = input2.targetRelease === void 0 ? (await readProjectRelease(root)).version : input2.targetRelease;
   if (kind === "idea") return { targetRelease: release };
   const column = input2.taskColumn ?? (input2.taskWorkflow === 1 ? release ? "planning" : "backlog" : release ? "todo" : "backlog");
   if (column !== "backlog" && !release)

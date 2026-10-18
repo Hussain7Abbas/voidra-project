@@ -140,7 +140,7 @@ export const ActionsSidebar = memo(function ActionsSidebar({
           <p>
             {data.taskTracking
               ? "Enable the saved sequence for this project. Existing requests are preserved; unstarted TODO work joins once."
-              : "Enable task tracking in Tasks → Release settings to enroll TODO work automatically."}
+              : "Enable task tracking in Releases → Release settings to enroll TODO work automatically."}
           </p>
           {sequence.preview && (
             <>

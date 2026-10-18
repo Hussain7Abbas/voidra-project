@@ -162,6 +162,10 @@ Use `voidra apply <manifest.json> --project <folder> --json`. A manifest has opt
       "type": "string",
       "maxLength": 4096
     },
+    "releaseDirectory": {
+      "type": "string",
+      "maxLength": 4096
+    },
     "taskTracking": {
       "type": "number",
       "const": 1

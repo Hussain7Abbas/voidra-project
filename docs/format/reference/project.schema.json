@@ -62,6 +62,10 @@
       "type": "string",
       "maxLength": 4096
     },
+    "releaseDirectory": {
+      "type": "string",
+      "maxLength": 4096
+    },
     "taskTracking": {
       "type": "number",
       "const": 1

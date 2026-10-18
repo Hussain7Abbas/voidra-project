@@ -42,7 +42,7 @@ All rows have adapters accepted under P04 on 2026-10-15. The [evidence](../docs/
 | Review rejection | `action-editor.tsx` | Action/review context and revision, feedback | P04/P07 |
 | Profile setup | `project-profile.tsx` | Project name, template/version, every partial answer, inference/confirmation choices | P04 |
 | Profile answer edit | `project-profile.tsx` | Block/answer ID, original block revision, partial value and status | P04 |
-| Release package source | `project-release-source.tsx` | Partial path and original metadata revision | P04 |
+| Release source (Releases page) | `project-release-source.tsx` | Partial package/folder path, selection mode and original metadata revision | P04; monorepo follow-up |
 | Team member entry | `team-settings.tsx` | Partial name/email or identity; selected edit target and original roster context | P04 |
 | AI preferences (2026-10-16 follow-up) | `ai-settings.tsx` | Per-client model and effort; restoring never applies settings | P04 boundary, updated in v1.2 follow-up |
 | AI request/review | `ai-suggestion.tsx` | Original intent/context, notes, generated result and edited fields; no pending request replay | P04 |

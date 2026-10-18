@@ -5,18 +5,15 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { actionTypeSchema, type WorkspaceSnapshot } from "../shared/bridge.ts";
 import { actionLabels } from "./action-labels.ts";
 import { request } from "./app.tsx";
-import { flushFormDrafts } from "./form-drafts.tsx";
 import { ProjectActions } from "./project-actions.tsx";
 import { ProjectBacklog } from "./project-backlog.tsx";
 import { useWorkspace } from "./project-profile.tsx";
-import { ProjectReleaseSource } from "./project-release-source.tsx";
 import { TaskCapture } from "./task-capture.tsx";
 import {
   filterTasks,
   type TaskFilters,
   taskReleaseOptions,
 } from "./task-filters.ts";
-import { TaskTrackingUpgrade } from "./task-tracking-upgrade.tsx";
 import { Button } from "./ui/button.tsx";
 import { Field } from "./ui/field.tsx";
 import { ErrorState, PageHeader } from "./ui/page.tsx";
@@ -282,36 +279,6 @@ export function ProjectTasks({
             </div>
           }
         />
-        <details className="mb-5">
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: Native summary already supports pointer and keyboard activation; closing must await draft durability. */}
-          <summary
-            className="cursor-pointer font-medium"
-            onClick={(event) => {
-              const details = event.currentTarget.parentElement;
-              if (!(details instanceof HTMLDetailsElement) || !details.open)
-                return;
-              event.preventDefault();
-              void flushFormDrafts(["release-source"])
-                .then(() => {
-                  details.open = false;
-                })
-                .catch((cause) =>
-                  toast.error(
-                    cause instanceof Error
-                      ? cause.message
-                      : "Draft could not be saved",
-                  ),
-                );
-            }}
-          >
-            Release settings ·{" "}
-            {data.projectRelease.version ?? "Choose a package"}
-          </summary>
-          <div className="mt-3">
-            <ProjectReleaseSource data={data} />
-            <TaskTrackingUpgrade data={data} />
-          </div>
-        </details>
         {data.lock.state !== "none" && (
           <p role="status" className="service-notice mb-5">
             {data.lock.message}

@@ -28,10 +28,7 @@ export async function checkReleasePreparation(
   ids: string[],
 ): Promise<void> {
   const input = releasePreparationSchema.parse(preparation),
-    source = await readProjectRelease(
-      root,
-      project.metadata?.releasePackage ?? "package.json",
-    );
+    source = await readProjectRelease(root);
   if (
     source.path !== input.source.path ||
     source.version !== input.source.version ||

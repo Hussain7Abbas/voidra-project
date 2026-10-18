@@ -18,6 +18,16 @@ export const releasePackageSchema = z
         ),
     "Choose a contained project package.json path",
   );
+export const releaseDirectorySchema = z
+  .string()
+  .max(4096)
+  .refine(
+    (path) =>
+      path === "." ||
+      releasePackageSchema.safeParse(`${path}/package.json`).success,
+    "Choose a contained project folder",
+  );
+
 export const stableReleaseVersionSchema = z
   .string()
   .max(64)

@@ -138,13 +138,7 @@ export async function previewTaskTracking(
   root: string,
 ): Promise<TaskTrackingPreview> {
   const project = await checkProject(root);
-  return taskTrackingPreview(
-    project,
-    await readProjectRelease(
-      root,
-      project.metadata?.releasePackage ?? "package.json",
-    ),
-  );
+  return taskTrackingPreview(project, await readProjectRelease(root));
 }
 const enableInput = z.strictObject({ revision: hashSchema });
 export async function enableTaskTracking(
@@ -154,10 +148,7 @@ export async function enableTaskTracking(
 ): Promise<void> {
   const input = enableInput.parse(raw),
     project = await checkProject(root);
-  const release = await readProjectRelease(
-    root,
-    project.metadata?.releasePackage ?? "package.json",
-  );
+  const release = await readProjectRelease(root);
   const { preview, changes } = migration(project, release);
   if (input.revision !== preview.revision)
     throw Error("Task upgrade preview changed; refresh before applying");
@@ -180,8 +171,9 @@ export async function enableTaskTracking(
       checkpoint: async (point, path) => {
         await options.checkpoint?.(point, path);
         if (point === "lock-acquired") {
-          const current = await readProjectRelease(root, release.path);
+          const current = await readProjectRelease(root);
           if (
+            current.path !== release.path ||
             current.revision !== release.revision ||
             current.version !== release.version
           )
