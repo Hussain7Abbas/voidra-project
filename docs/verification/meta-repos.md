@@ -16,7 +16,7 @@ The serial runtime regression pass completed 30/30 tests across meta-repository,
 
 A later defensive tightening also refuses `fail` after a committed submodule chain until reconciliation. A focused run overlapping the full suite exceeded the unchanged 30-second nested-repository test deadline (9/10 passed); it is retained as `.cache/meta-final-guard.log`, not counted as a pass. The final isolated rerun passed **10/10** in 63.43 seconds with the original deadlines (`.cache/meta-final-guard-serial.log`). The desktop process/skill build was refreshed afterward (`.cache/meta-final-build.log`), followed by passing lint, strict TypeScript, deprecations and generated-asset checks (`.cache/meta-final-static.log`). No deadlines, coverage thresholds or retries were relaxed. Generated checker files are narrowly excluded from Biome/deprecation source scanning just like existing generated runtimes; the scanner regression proves all six exclusions while authored scripts remain scanned.
 
-No release/tag/publication or installation into the user's global skills has been performed. The user's Story Lens repository and this repository's own `.voidra/` are untouched. Existing copied skill installations require the updated complete bundle; editing source does not update those copies automatically.
+During the source verification above, no release/tag/publication or installation into the user's global skills was performed. The user's Story Lens repository and this repository's own `.voidra/` are untouched. Existing copied skill installations require the updated complete bundle; editing source does not update those copies automatically.
 
 ## Actual coding clients
 
@@ -28,3 +28,13 @@ Each client received a separate real Git parent with `components/extension` as a
 CLI help, exact prompts/flags, native boundary probes, before/after snapshots, private output and audit results remain under ignored `.cache/meta-real/`. No account switching occurred.
 
 No new Electron UI or manual accessibility/packaged-download verification is claimed; the app change only updates newly created planning guidance. The fresh desktop build includes the updated complete skill payloads.
+
+## Installed-copy repair after the repeated failure
+
+The user retried with the global Codex copy and reported the same `apps/extension` directory-read error and registry-only validation. Inspection confirmed that `~/.agents/skills/voidra-go` still contained the old runtime and `npx --yes voidra@1.2.0 check .` guidance. The source/built fix had not reached that installed copy.
+
+The complete Codex installer preview found all six existing skills managed and unedited (`requiresConfirmation: false`). In response to the user's live failure, all six were backed up under ignored `.cache/installed-skill-repair/`, then updated using the production `SkillInstaller.applyBundle` with the exact preview revision and `confirmed: false`. The post-install preview verified that every installed tree exactly matches the fixed desktop bundle. This was a repair of the user's installation, not a developer-home installation performed as a test. The Claude skill home was not changed. No publication was performed.
+
+A disposable real Git parent with the exact submodule path `apps/extension` then exercised the actual globally installed runtime. With unrelated edits staged in both parent and child, `start` registered a run and `guard` accepted an exact child file without a directory-read failure. The actual installed matching checker reported version 1.2.0 and validated offline with an empty `PATH`. Parent/child HEADs and unrelated staging remained unchanged. The verification-only run was stopped in its temporary fixture, which was deleted afterward. The actual Story Lens project and this repository's `.voidra/` were not modified. Preview, backup, application result and smoke assertions remain under `.cache/installed-skill-repair/`.
+
+A fresh coding chat should load the updated installed skill text; an already attached skill message can retain the old text even after its file has been replaced.
